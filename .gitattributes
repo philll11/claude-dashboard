@@ -1,0 +1,17 @@
+# Store text with LF line endings so formatters and diffs agree on every platform.
+* text=auto eol=lf
+
+# Windows command scripts need CRLF to run.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
