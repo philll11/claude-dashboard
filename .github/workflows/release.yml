@@ -303,3 +303,12 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+
+  custom-install-check:
+    needs:
+      - plan
+      - announce
+    uses: ./.github/workflows/install-check.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit

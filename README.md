@@ -4,7 +4,7 @@ See how you use Claude Code: what it would cost at API prices, where the usage g
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
 > **Status: early development.**
-> Nothing is released yet.
+> The command-line tool is in pre-release; the VS Code extension, the desktop app and the terminal UI follow.
 > Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
 
 ## What it is for
@@ -25,7 +25,23 @@ It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS 
 
 ## In the terminal
 
-Until the first release, install from source with Rust 1.99 or later:
+Install the pre-release with the installer for your system.
+On macOS and Linux:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/philll11/claude-dashboard/releases/download/v0.1.0-alpha.1/claude-dashboard-installer.sh | sh
+```
+
+On Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/download/v0.1.0-alpha.1/claude-dashboard-installer.ps1 | iex"
+```
+
+The binaries are not signed yet.
+Installed this way they carry no browser download mark, so Windows SmartScreen and macOS Gatekeeper do not warn about them; Windows Smart App Control, where it is on, blocks unsigned programs however they arrive.
+[Releases](https://github.com/philll11/claude-dashboard/releases) lists every version with its notes and checksums.
+To build from source instead, with Rust 1.99 or later:
 
 ```sh
 cargo install --locked --git https://github.com/philll11/claude-dashboard claude-dashboard
