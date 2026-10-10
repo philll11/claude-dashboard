@@ -1,0 +1,91 @@
+name: Install check
+
+# Installs a published release the way its notes say, on every operating system and architecture
+# it supports, and runs it against a made-up Claude Code folder. The release workflow calls this
+# once the release is published (dist's post-announce-jobs); it also runs by hand for any tag.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan for the release, as JSON.
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to install, such as v0.1.0-alpha.1.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Install (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x64, os: ubuntu-24.04 }
+          - { name: Linux arm64, os: ubuntu-24.04-arm }
+          - { name: Windows x64, os: windows-latest }
+          - { name: Windows arm64, os: windows-11-arm }
+          - { name: macOS arm64, os: macos-latest }
+          - { name: macOS x64, os: macos-15-intel }
+    runs-on: ${{ matrix.os }}
+    steps:
+      # The tag reaches the shell only through the environment, never inside a script.
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        shell: bash
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        shell: bash
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+
+      - name: Install with the shell installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: >-
+          curl --proto '=https' --tlsv1.2 -LsSf
+          "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/claude-dashboard-installer.sh"
+          | sh
+      - name: Install with the PowerShell installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: irm "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:TAG/claude-dashboard-installer.ps1" | iex
+
+      - name: Run it on a made-up Claude Code folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          home="${CARGO_HOME:-$HOME/.cargo}"
+          if command -v cygpath > /dev/null; then home="$(cygpath -u "$home")"; fi
+          bin="$home/bin/claude-dashboard"
+
+          "$bin" --version | tee version.txt
+          grep -qx "claude-dashboard ${TAG#v}" version.txt
+
+          export CLAUDE_CONFIG_DIR="$RUNNER_TEMP/claude-config"
+          export CLAUDE_DASHBOARD_HISTORY="$RUNNER_TEMP/history.sqlite"
+          export NO_COLOR=1 TZ=UTC
+          project="$CLAUDE_CONFIG_DIR/projects/C--code-app"
+          mkdir -p "$project"
+          now="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          printf '%s\n' "{\"type\":\"assistant\",\"uuid\":\"rec-1\",\"requestId\":\"req_1\",\"timestamp\":\"$now\",\"cwd\":\"/code/app\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-opus-5-5\",\"usage\":{\"input_tokens\":3,\"output_tokens\":640,\"cache_read_input_tokens\":42000,\"cache_creation_input_tokens\":1500}}}" \
+            > "$project/4f1c2a3b-0000-4000-8000-000000000001.jsonl"
+
+          "$bin" doctor
+          "$bin" today | tee today.txt
+          grep -q "Opus 5.5" today.txt
+          "$bin" daily --json | tee daily.json
+          grep -Eq '"output": ?640' daily.json
+          printf '%s' '{"model":{"id":"claude-opus-5-5","display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":1999999999}}}' \
+            | "$bin" statusline | tee line.txt
+          grep -q "5h 42%" line.txt

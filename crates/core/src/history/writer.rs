@@ -93,7 +93,7 @@ pub struct Request<'a> {
     pub record_id: &'a str,
     /// The subagent that made the request; `None` for the session itself.
     pub subagent_id: Option<&'a str>,
-    /// When the request was made, in milliseconds since the Unix epoch.
+    /// When the record was written, in milliseconds since the Unix epoch.
     pub timestamp_ms: i64,
     pub model: &'a str,
     pub tokens: Tokens,
@@ -432,26 +432,31 @@ impl<'conn> Writer<'conn> {
     /// one, and then the one with the most tokens, because it carries the final tally of a
     /// streamed response. Equal usage goes to the later record, then to the larger record id,
     /// then to the larger session id, which separates a resumed session's verbatim copy from its
-    /// original. So the history never depends on the order records arrive in. A request read
-    /// from a transcript also replaces an imported request for the same message.
+    /// original. The winning record gives the request its details, and the earliest record its
+    /// time: when it was made. So the history never depends on the order records arrive in. A
+    /// request read from a transcript also replaces an imported request for the same message.
     ///
     /// # Errors
     ///
     /// SQLite errors.
     pub fn request(&mut self, request: &Request<'_>) -> Result<(), HistoryError> {
-        let (sql, message_id, request_id) = match request.identity {
+        let (sql, earlier, message_id, request_id) = match request.identity {
             Identity::MessageAndRequest {
                 message_id,
                 request_id,
             } => (
                 UPSERT_BY_MESSAGE_AND_REQUEST,
+                EARLIER_BY_MESSAGE_AND_REQUEST,
                 Some(message_id),
                 Some(request_id),
             ),
-            Identity::MessageInSession { message_id } => {
-                (UPSERT_BY_MESSAGE_IN_SESSION, Some(message_id), None)
-            }
-            Identity::Record => (UPSERT_BY_RECORD, None, None),
+            Identity::MessageInSession { message_id } => (
+                UPSERT_BY_MESSAGE_IN_SESSION,
+                EARLIER_BY_MESSAGE_IN_SESSION,
+                Some(message_id),
+                None,
+            ),
+            Identity::Record => (UPSERT_BY_RECORD, EARLIER_BY_RECORD, None, None),
         };
         let Tokens {
             input,
@@ -465,7 +470,7 @@ impl<'conn> Writer<'conn> {
             mcp_server,
             mcp_tool,
         } = request.attribution;
-        self.tx.prepare_cached(sql)?.execute(params![
+        let changed = self.tx.prepare_cached(sql)?.execute(params![
             request.session.0,
             message_id,
             request_id,
@@ -490,6 +495,15 @@ impl<'conn> Writer<'conn> {
             request.claude_code_version,
             request.imported_from,
         ])?;
+        if changed == 0 {
+            self.tx.prepare_cached(earlier)?.execute(params![
+                request.session.0,
+                message_id,
+                request_id,
+                request.record_id,
+                request.timestamp_ms,
+            ])?;
+        }
         if let (Identity::MessageAndRequest { message_id, .. }, None) =
             (request.identity, request.imported_from)
             && self.imports_exist()?
@@ -566,11 +580,11 @@ macro_rules! upsert_request {
                 input_tokens, output_tokens, cache_read_tokens, cache_write_5m_tokens,
                 cache_write_1h_tokens, web_search_requests, web_fetch_requests, speed,
                 service_tier, inference_geo, skill, mcp_server, mcp_tool, entrypoint,
-                claude_code_version, imported_from
+                claude_code_version, imported_from, record_ms
             )
             VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                ?19, ?20, ?21, ?22, ?23
+                ?19, ?20, ?21, ?22, ?23, ?6
             )
             ON CONFLICT ",
             $conflict_target,
@@ -578,7 +592,8 @@ macro_rules! upsert_request {
                 session = excluded.session,
                 record_id = excluded.record_id,
                 subagent_id = excluded.subagent_id,
-                timestamp_ms = excluded.timestamp_ms,
+                timestamp_ms = min(requests.timestamp_ms, excluded.timestamp_ms),
+                record_ms = excluded.record_ms,
                 model = excluded.model,
                 input_tokens = excluded.input_tokens,
                 output_tokens = excluded.output_tokens,
@@ -600,14 +615,14 @@ macro_rules! upsert_request {
                 excluded.imported_from IS NULL,
                 excluded.input_tokens + excluded.output_tokens + excluded.cache_read_tokens
                     + excluded.cache_write_5m_tokens + excluded.cache_write_1h_tokens,
-                excluded.timestamp_ms,
+                excluded.record_ms,
                 excluded.record_id,
                 (SELECT session_id FROM sessions WHERE id = excluded.session)
             ) > (
                 requests.imported_from IS NULL,
                 requests.input_tokens + requests.output_tokens + requests.cache_read_tokens
                     + requests.cache_write_5m_tokens + requests.cache_write_1h_tokens,
-                requests.timestamp_ms,
+                requests.record_ms,
                 requests.record_id,
                 (SELECT session_id FROM sessions WHERE id = requests.session)
             )"
@@ -621,6 +636,15 @@ const UPSERT_BY_MESSAGE_AND_REQUEST: &str = upsert_request!(
 const UPSERT_BY_MESSAGE_IN_SESSION: &str =
     upsert_request!("(session, message_id) WHERE message_id IS NOT NULL AND request_id IS NULL");
 const UPSERT_BY_RECORD: &str = upsert_request!("(record_id) WHERE message_id IS NULL");
+
+/// Dates a request by a record that did not win, when that record is the earliest yet. The
+/// parameters are ?1 session, ?2 message id, ?3 request id, ?4 record id and ?5 the record's time.
+const EARLIER_BY_MESSAGE_AND_REQUEST: &str = "UPDATE requests SET timestamp_ms = ?5
+     WHERE message_id = ?2 AND request_id = ?3 AND timestamp_ms > ?5";
+const EARLIER_BY_MESSAGE_IN_SESSION: &str = "UPDATE requests SET timestamp_ms = ?5
+     WHERE session = ?1 AND message_id = ?2 AND request_id IS NULL AND timestamp_ms > ?5";
+const EARLIER_BY_RECORD: &str = "UPDATE requests SET timestamp_ms = ?5
+     WHERE record_id = ?4 AND message_id IS NULL AND timestamp_ms > ?5";
 
 #[cfg(test)]
 mod tests {

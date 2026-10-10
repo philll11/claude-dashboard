@@ -148,18 +148,19 @@ fn recording_a_request_again_changes_nothing() {
 /// Records three requests in every order, each order into a new history with the sessions
 /// `session-1` and `session-2`, and returns what each history holds as (session id, record id,
 /// output tokens).
+const EVERY_ORDER: [[usize; 3]; 6] = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+];
+
 fn in_every_order(
     requests: impl Fn(SessionKey, SessionKey) -> [Request<'static>; 3],
 ) -> Vec<Vec<(String, String, u64)>> {
-    let orders = [
-        [0, 1, 2],
-        [0, 2, 1],
-        [1, 0, 2],
-        [1, 2, 0],
-        [2, 0, 1],
-        [2, 1, 0],
-    ];
-    orders
+    EVERY_ORDER
         .iter()
         .map(|order| {
             let dir = tempfile::tempdir().unwrap();
@@ -223,6 +224,43 @@ fn equal_usage_goes_to_the_later_record_then_the_larger_record_id() {
 
     for requests in histories {
         assert_eq!(requests, held("session-1", "rec-c", 50));
+    }
+}
+
+#[test]
+fn a_request_is_dated_by_its_earliest_record_in_any_order() {
+    for order in EVERY_ORDER {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut history, session, _) = new_history(dir.path());
+        let first = request(session, MESSAGE, "rec-z", 50);
+        let records = [
+            first,
+            Request {
+                timestamp_ms: first.timestamp_ms + 4_000,
+                ..request(session, MESSAGE, "rec-a", 50)
+            },
+            Request {
+                timestamp_ms: first.timestamp_ms + 7_000,
+                ..request(session, MESSAGE, "rec-b", 50)
+            },
+        ];
+
+        for index in order {
+            record(&mut history, &[records[index]]);
+        }
+
+        let conn =
+            Connection::open_with_flags(history.path(), OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let held: (String, i64) = conn
+            .query_row("SELECT record_id, timestamp_ms FROM requests", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(
+            held,
+            ("rec-b".to_owned(), first.timestamp_ms),
+            "order {order:?}"
+        );
     }
 }
 
