@@ -4,7 +4,7 @@
 import type { Day, ModelRow } from "@claude-dashboard/protocol";
 
 import type { Column, SeriesInfo } from "../charts/columns";
-import { addDays, dayLabel, daysBetween, monthYear, shortDate } from "../format";
+import { dayLabel, daysBetween, monthYear, shortDate, startOfWeek } from "../format";
 import { type Series, seriesFill, seriesRank } from "../models";
 
 export interface CostSeries extends SeriesInfo {
@@ -56,15 +56,6 @@ export function bucketOf(dayCount: number): Bucket {
   if (dayCount <= 62) return "day";
   if (dayCount <= 434) return "week";
   return "month";
-}
-
-const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-
-/** The first day of the week `day` is in, for weeks starting on `weekStart`, such as `monday`. */
-export function startOfWeek(day: string, weekStart: string): string {
-  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
-  const start = Math.max(0, WEEKDAYS.indexOf(weekStart.toLowerCase()));
-  return addDays(day, -((weekday - start + 7) % 7));
 }
 
 /** Columns of cost by series from `first` to `last`, one per day, week or month. */

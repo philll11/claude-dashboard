@@ -16,6 +16,7 @@ import { Problem } from "./ui/panels";
 import { useNow } from "./ui/time";
 import {
   rememberedView,
+  shown,
   type Section,
   SECTION_NAMES,
   SECTIONS,
@@ -46,6 +47,14 @@ export function App({ host }: { host: Host }) {
   useEffect(() => {
     host.memory.write(view);
   }, [host, view]);
+  useEffect(
+    () =>
+      host.onShow?.((show) => {
+        setView((current) => shown(current, show));
+        window.scrollTo(0, 0);
+      }),
+    [host],
+  );
   return (
     <HostContext.Provider value={host}>
       <StoreContext.Provider value={store}>

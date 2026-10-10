@@ -146,6 +146,16 @@ export function addDays(day: string, count: number): string {
     .slice(0, 10);
 }
 
+/** The first day of the week `day` is in, for weeks starting on `weekStart`, such as `monday`. */
+export function startOfWeek(day: string, weekStart: string): string {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+  const start = Math.max(
+    0,
+    WEEKDAYS.findIndex((name) => name.toLowerCase() === weekStart.toLowerCase()),
+  );
+  return addDays(day, -((weekday - start + 7) % 7));
+}
+
 interface Local {
   day: string;
   time: string;

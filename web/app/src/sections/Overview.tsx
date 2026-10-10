@@ -15,7 +15,16 @@ import { StackedColumns } from "../charts/columns";
 import { Meter, ShareBar, Sparkline } from "../charts/small";
 import { useStatus } from "../context";
 import { useReadingProgress, useRequest } from "../data";
-import { addDays, compact, fullDate, grouped, money, percent, resets } from "../format";
+import {
+  addDays,
+  compact,
+  fullDate,
+  grouped,
+  money,
+  percent,
+  resets,
+  startOfWeek,
+} from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
 import { Panel, Tile, TableScroll } from "../ui/panels";
@@ -37,8 +46,9 @@ import {
 } from "./common";
 import { StatusLineDialog } from "./dialogs";
 import { Notices } from "./notices";
-import { costColumns, costSeries, dailyCost, startOfWeek } from "./series";
-import { inOrder, LEVEL_TEXT, LevelIcon, meterName, Provenance, windowName } from "./windows";
+import { costColumns, costSeries, dailyCost } from "./series";
+import { inOrder, LEVEL_TEXT, meterName, windowName } from "../windows";
+import { LevelIcon, Provenance } from "./provenance";
 
 export function Overview() {
   const days = useDays();
