@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+dirs = "7.0.0"
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled", "cache", "fallible_uint"] }
+thiserror = "2.0.21"
 walkdir = "2.5.0"
 
 [dev-dependencies]
