@@ -1,0 +1,13 @@
+{
+  "name": "@claude-dashboard/protocol",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project .",
+    "test": "exit 0",
+    "build": "exit 0"
+  }
+}

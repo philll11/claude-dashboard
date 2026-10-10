@@ -1,0 +1,6 @@
+# ts-rs writes this file; CI compares it with what the Rust types generate.
+web/protocol/src/generated/
+target/
+dist/
+pnpm-lock.yaml
+*.md

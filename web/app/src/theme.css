@@ -1,0 +1,170 @@
+/*
+ * The design's tokens as CSS properties (design/tokens.json; theme.test.ts checks the values).
+ * The desktop app sets data-theme; in VS Code the tokens follow the person's own theme through
+ * VS Code's variables and the class VS Code gives the body.
+ */
+
+:root {
+  --page: #0d0f12;
+  --panel: #14171c;
+  --line: #262b33;
+  --grid: #20252c;
+  --axis: #383e47;
+  --ink: #e9ecef;
+  --ink-2: #b4bac3;
+  --muted: #8d95a1;
+  --meter: #5cc8e8;
+  --selected: #1b1f26;
+  --selected-ink: #e9ecef;
+  --track: #262b33;
+  --bar: #7d8796;
+  --bar-track: #1f242b;
+  --tip-bg: #1f242c;
+  --tip-line: #333a44;
+  --tip-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  --band: rgb(255 255 255 / 5%);
+  --warning-icon: #fab219;
+  --spark: #5b6573;
+  --status-good: #3fbf6b;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --series-fable: #3987e5;
+  --series-opus: #d95926;
+  --series-sonnet: #199e70;
+  --series-haiku: #c98500;
+  --series-other: var(--bar);
+  --selected-outline: none;
+  --track-outline: none;
+  --swatch-outline: none;
+  --focus: var(--meter);
+  --radius: 10px;
+  --ctl-radius: 8px;
+  --ctl-radius-in: 6px;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --size: 13px;
+  --pad: 24px 28px 32px;
+}
+
+:root[data-theme="desktop-light"] {
+  --page: #f3f5f7;
+  --panel: #ffffff;
+  --line: #dde2e8;
+  --grid: #e8ebef;
+  --axis: #c3c9d1;
+  --ink: #0e1116;
+  --ink-2: #454d5a;
+  --muted: #5f6773;
+  --meter: #0b7a99;
+  --selected: #e6f3f7;
+  --selected-ink: #0e1116;
+  --track: #e3e7ec;
+  --bar: #8892a1;
+  --bar-track: #eef1f4;
+  --tip-bg: #ffffff;
+  --tip-line: #dde2e8;
+  --tip-shadow: 0 8px 24px rgb(15 20 30 / 12%);
+  --band: rgb(15 20 30 / 5%);
+  --warning-icon: #b07800;
+  --spark: #a3acb8;
+  --status-warning: #b07800;
+  --series-fable: #2a78d6;
+  --series-opus: #eb6834;
+  --series-sonnet: #1baf7a;
+  --series-haiku: #eda100;
+}
+
+body.vscode-light,
+body.vscode-dark,
+body.vscode-high-contrast,
+body.vscode-high-contrast-light {
+  --page: var(--vscode-editor-background);
+  --panel: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --line: var(--vscode-panel-border, var(--vscode-widget-border));
+  --grid: var(--vscode-editorWidget-border);
+  --axis: var(--vscode-editorRuler-foreground);
+  --ink: var(--vscode-foreground);
+  --ink-2: var(--vscode-foreground);
+  --muted: var(--vscode-descriptionForeground);
+  --meter: var(--vscode-progressBar-background);
+  --selected: var(--vscode-list-activeSelectionBackground);
+  --selected-ink: var(--vscode-list-activeSelectionForeground);
+  --track: var(--vscode-editorWidget-border);
+  --bar: var(--vscode-descriptionForeground);
+  --bar-track: var(--vscode-editorWidget-background);
+  --tip-bg: var(--vscode-editorHoverWidget-background);
+  --tip-line: var(--vscode-editorHoverWidget-border);
+  --tip-shadow: 0 4px 16px var(--vscode-widget-shadow, rgb(0 0 0 / 36%));
+  --band: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+  --warning-icon: var(--vscode-editorWarning-foreground);
+  --spark: var(--vscode-descriptionForeground);
+  --status-good: var(--vscode-testing-iconPassed, #3fbf6b);
+  --status-warning: var(--vscode-editorWarning-foreground);
+  --status-critical: var(--vscode-editorError-foreground);
+  --focus: var(--vscode-focusBorder);
+  --radius: 6px;
+  --ctl-radius: 4px;
+  --ctl-radius-in: 3px;
+  --font: var(--vscode-font-family);
+  --mono: var(--vscode-editor-font-family);
+  --size: var(--vscode-font-size, 13px);
+  --pad: 20px 24px 28px;
+}
+
+body.vscode-light,
+body.vscode-high-contrast-light {
+  --series-fable: #2a78d6;
+  --series-opus: #eb6834;
+  --series-sonnet: #1baf7a;
+  --series-haiku: #eda100;
+}
+
+/* High contrast: no rounding or shadows, outlines on whatever is selected or filled. */
+body.vscode-high-contrast,
+body.vscode-high-contrast-light {
+  --radius: 0;
+  --ctl-radius: 0;
+  --ctl-radius-in: 0;
+  --tip-shadow: none;
+  --band: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+  --selected-outline: 1px solid var(--vscode-contrastActiveBorder);
+  --track-outline: 1px solid var(--vscode-foreground);
+  --swatch-outline: 1px solid var(--vscode-foreground);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--size);
+  line-height: 1.45;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
