@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
 
 pub use lock::IngestLock;
-pub use writer::{Attribution, Identity, ProjectKey, Request, SessionKey, Tokens, Writer};
+pub use writer::{Attribution, Identity, ProjectKey, Request, SessionKey, Writer};
 
 use migrations::{MIGRATIONS, Schema};
 

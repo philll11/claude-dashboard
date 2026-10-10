@@ -3,6 +3,7 @@
 use rusqlite::{Transaction, params};
 
 use super::HistoryError;
+use crate::tokens::Tokens;
 
 /// A project recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,18 +43,6 @@ impl<'a> Identity<'a> {
     }
 }
 
-/// The tokens a request used, by type.
-///
-/// One request's counts fit in `u32`, because a request cannot exceed a model's context window.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Tokens {
-    pub input: u32,
-    pub output: u32,
-    pub cache_read: u32,
-    pub cache_write_5m: u32,
-    pub cache_write_1h: u32,
-}
-
 /// The skill, MCP server or MCP tool that Claude Code credits a request to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Attribution<'a> {
@@ -75,8 +64,8 @@ pub struct Request<'a> {
     pub timestamp_ms: i64,
     pub model: &'a str,
     pub tokens: Tokens,
-    pub web_search_requests: u32,
-    pub web_fetch_requests: u32,
+    pub web_search_requests: u64,
+    pub web_fetch_requests: u64,
     pub speed: Option<&'a str>,
     pub service_tier: Option<&'a str>,
     pub inference_geo: Option<&'a str>,
