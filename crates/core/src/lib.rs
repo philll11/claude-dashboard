@@ -2,6 +2,7 @@
 //!
 //! The words used here are defined in `CONTEXT.md` at the repository root.
 
+pub mod history;
 pub mod pricing;
 pub mod roots;
 pub mod tokens;
