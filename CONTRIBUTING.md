@@ -66,12 +66,13 @@ docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
   -v claude-dashboard-modules:/work/node_modules \
   -v claude-dashboard-app-modules:/work/web/app/node_modules \
   -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules \
+  -v claude-dashboard-pnpm-store:/pnpm-store \
   -e CLAUDE_DASHBOARD_BIN=/work/target/linux/debug/claude-dashboard \
   mcr.microsoft.com/playwright:v1.63.0-noble \
-  bash -c "corepack enable && pnpm install --frozen-lockfile && pnpm browser --update-snapshots=changed"
+  bash -c "corepack enable && pnpm install --frozen-lockfile --store-dir /pnpm-store && pnpm browser --update-snapshots=changed"
 ```
 
-The volumes keep the container's Linux packages apart from your own `node_modules`.
+The volumes keep the container's Linux packages and its package store apart from your own.
 
 ## Price table
 
