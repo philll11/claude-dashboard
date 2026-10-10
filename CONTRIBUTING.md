@@ -38,6 +38,41 @@ To cut a release:
 3. The release workflow builds and publishes the release, then installs it on every operating system and runs it (`.github/workflows/install-check.yml`).
    To check an existing release again, run that workflow by hand with its tag.
 
+## Web dashboard
+
+`web/app` is the dashboard that VS Code and the desktop app show, and `web/protocol` describes the messages it exchanges with `claude-dashboard serve`.
+The Rust types in `crates/cli/src/serve/protocol.rs` generate `web/protocol/src/generated/protocol.ts` whenever the CLI's tests run, and CI fails when that file is out of date.
+The web workspace needs Node 24 and pnpm, which `corepack enable` provides.
+
+To preview the dashboard as you change it:
+
+```sh
+pnpm install
+cargo build -p claude-dashboard
+pnpm --filter @claude-dashboard/app dev
+```
+
+The preview runs the real server over a generated Claude Code folder, at a fixed moment, and never reads or changes your own.
+Add `?theme=vscode-light` to the address for another theme (`vscode-dark`, `vscode-high-contrast`, `vscode-high-contrast-light`, `desktop-dark` or `desktop-light`), and `&scenario=stale-limits` for another state, named in `web/app/tests/bridge/scenarios.ts`.
+
+`pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` and `pnpm check-licences` run the checks CI runs.
+The browser tests (`pnpm --filter @claude-dashboard/app browser`) compare every section and state with a screenshot, in each of VS Code's default themes, and check each for accessibility.
+Their screenshots are made in the Playwright container that CI runs them in, so that fonts and rendering match; after a change to how the dashboard looks, make them again there and look at each one before you commit it:
+
+```sh
+docker run --rm -v "$PWD":/work -w /work -e CARGO_TARGET_DIR=/work/target/linux \
+  rust:1.99.0-bookworm cargo build --locked -p claude-dashboard
+docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
+  -v claude-dashboard-modules:/work/node_modules \
+  -v claude-dashboard-app-modules:/work/web/app/node_modules \
+  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules \
+  -e CLAUDE_DASHBOARD_BIN=/work/target/linux/debug/claude-dashboard \
+  mcr.microsoft.com/playwright:v1.63.0-noble \
+  bash -c "corepack enable && pnpm install --frozen-lockfile && pnpm browser --update-snapshots=changed"
+```
+
+The volumes keep the container's Linux packages apart from your own `node_modules`.
+
 ## Price table
 
 `pricing/prices.json` holds the API prices that API-equivalent cost is calculated from, with the page they come from and the date they were last checked against it.
