@@ -12,7 +12,8 @@ use std::process::{Child, Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use claude_dashboard_core::history::{Attribution, History, Identity, Request, Tokens};
+use claude_dashboard_core::history::{Attribution, History, Identity, Request};
+use claude_dashboard_core::tokens::Tokens;
 use rusqlite::{Connection, OpenFlags};
 
 const ROLE: &str = "CLAUDE_DASHBOARD_TEST_ROLE";
@@ -291,7 +292,7 @@ fn write_the_workload(folder: &Path, index: u64) {
                         model: "claude-opus-5-5",
                         tokens: Tokens {
                             input: 3,
-                            output: version.output,
+                            output: u64::from(version.output),
                             cache_read: 2_000,
                             cache_write_5m: 0,
                             cache_write_1h: 100,
@@ -304,6 +305,7 @@ fn write_the_workload(folder: &Path, index: u64) {
                         attribution: Attribution::default(),
                         entrypoint: None,
                         claude_code_version: None,
+                        imported_from: None,
                     })?;
                 }
                 Ok(())

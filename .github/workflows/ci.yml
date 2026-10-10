@@ -55,6 +55,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      # Runs each benchmark once, so that they keep working; timings come from a quiet machine.
+      - run: cargo test --workspace --benches --locked
       - run: cargo run --locked -p claude-dashboard -- --version
 
   dependencies:

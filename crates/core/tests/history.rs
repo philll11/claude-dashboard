@@ -2,15 +2,16 @@ use std::fs;
 use std::path::Path;
 
 use claude_dashboard_core::history::{
-    Access, Attribution, Counts, History, HistoryError, Identity, Request, SessionKey, Tokens,
+    Access, Attribution, Counts, History, HistoryError, Identity, Request, SessionKey,
 };
+use claude_dashboard_core::tokens::Tokens;
 use rusqlite::{Connection, OpenFlags};
 
 fn request<'a>(
     session: SessionKey,
     identity: Identity<'a>,
     record_id: &'a str,
-    output: u32,
+    output: u64,
 ) -> Request<'a> {
     Request {
         session,
@@ -34,6 +35,7 @@ fn request<'a>(
         attribution: Attribution::default(),
         entrypoint: Some("cli"),
         claude_code_version: Some("2.1.296"),
+        imported_from: None,
     }
 }
 
@@ -64,7 +66,7 @@ fn record(history: &mut History, requests: &[Request<'_>]) {
 }
 
 /// The recorded requests as (record id, output tokens), read through a separate connection.
-fn recorded(path: &Path) -> Vec<(String, u32)> {
+fn recorded(path: &Path) -> Vec<(String, u64)> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
     conn.prepare("SELECT record_id, output_tokens FROM requests ORDER BY record_id")
         .unwrap()
@@ -148,7 +150,7 @@ fn recording_a_request_again_changes_nothing() {
 /// output tokens).
 fn in_every_order(
     requests: impl Fn(SessionKey, SessionKey) -> [Request<'static>; 3],
-) -> Vec<Vec<(String, String, u32)>> {
+) -> Vec<Vec<(String, String, u64)>> {
     let orders = [
         [0, 1, 2],
         [0, 2, 1],
@@ -182,7 +184,7 @@ fn in_every_order(
         .collect()
 }
 
-fn held(session_id: &str, record_id: &str, output: u32) -> Vec<(String, String, u32)> {
+fn held(session_id: &str, record_id: &str, output: u64) -> Vec<(String, String, u64)> {
     vec![(session_id.to_owned(), record_id.to_owned(), output)]
 }
 

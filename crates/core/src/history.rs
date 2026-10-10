@@ -5,18 +5,24 @@
 
 mod lock;
 mod migrations;
+mod reader;
 mod writer;
 
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
+use rusqlite::{Connection, ErrorCode, OpenFlags, OptionalExtension, TransactionBehavior};
 
 pub use lock::IngestLock;
-pub use writer::{Attribution, Identity, ProjectKey, Request, SessionKey, Tokens, Writer};
+pub use reader::{StoredImport, StoredProject, StoredReportedCost, StoredRequest, StoredSession};
+pub use writer::{
+    Attribution, Identity, ProjectKey, ReadPosition, ReportedCost, Request, SessionKey,
+    SessionTitle, Writer,
+};
 
 use migrations::{MIGRATIONS, Schema};
 
@@ -216,6 +222,60 @@ impl History {
         } else {
             problems
         })
+    }
+
+    /// How far each transcript has been read, by its path.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn read_positions(&self) -> Result<HashMap<String, ReadPosition>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT path, read_to, len, modified_ms FROM transcripts")?;
+        let positions = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    ReadPosition {
+                        read_to: row.get(1)?,
+                        len: row.get(2)?,
+                        modified_ms: row.get(3)?,
+                    },
+                ))
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(positions)
+    }
+
+    /// How far each of `paths` has been read, by path, leaving out those never read.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn read_positions_of(
+        &self,
+        paths: &[String],
+    ) -> Result<HashMap<String, ReadPosition>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT read_to, len, modified_ms FROM transcripts WHERE path = ?1")?;
+        let mut positions = HashMap::new();
+        for path in paths {
+            let position = statement
+                .query_row([path], |row| {
+                    Ok(ReadPosition {
+                        read_to: row.get(0)?,
+                        len: row.get(1)?,
+                        modified_ms: row.get(2)?,
+                    })
+                })
+                .optional()?;
+            if let Some(position) = position {
+                positions.insert(path.clone(), position);
+            }
+        }
+        Ok(positions)
     }
 }
 

@@ -1,16 +1,19 @@
 //! Recording projects, sessions and requests.
 
-use rusqlite::{Transaction, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::HistoryError;
+use crate::limits::LimitSnapshot;
+use crate::tokens::Tokens;
+use crate::usage_endpoint::Outcome;
 
 /// A project recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ProjectKey(i64);
+pub struct ProjectKey(pub(super) i64);
 
 /// A session recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SessionKey(i64);
+pub struct SessionKey(pub(super) i64);
 
 /// What tells a request apart from every other request (ADR 0003).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,16 +45,35 @@ impl<'a> Identity<'a> {
     }
 }
 
-/// The tokens a request used, by type.
-///
-/// One request's counts fit in `u32`, because a request cannot exceed a model's context window.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Tokens {
-    pub input: u32,
-    pub output: u32,
-    pub cache_read: u32,
-    pub cache_write_5m: u32,
-    pub cache_write_1h: u32,
+/// A session title, as Claude Code records it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionTitle<'a> {
+    /// The title Claude Code generated.
+    Ai(&'a str),
+    /// The title the person gave the session.
+    Custom(&'a str),
+}
+
+/// The cost that Claude Code reports for one model in a session, at list prices.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ReportedCost<'a> {
+    pub model: &'a str,
+    pub cost_usd: f64,
+    pub input: u64,
+    pub output: u64,
+    pub cache_read: u64,
+    /// Cache writes of both durations.
+    pub cache_write: u64,
+}
+
+/// How far a transcript has been read, and its size and modification time then.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadPosition {
+    /// The byte where the next read starts.
+    pub read_to: u64,
+    pub len: u64,
+    /// Milliseconds since the Unix epoch.
+    pub modified_ms: i64,
 }
 
 /// The skill, MCP server or MCP tool that Claude Code credits a request to.
@@ -75,8 +97,8 @@ pub struct Request<'a> {
     pub timestamp_ms: i64,
     pub model: &'a str,
     pub tokens: Tokens,
-    pub web_search_requests: u32,
-    pub web_fetch_requests: u32,
+    pub web_search_requests: u64,
+    pub web_fetch_requests: u64,
     pub speed: Option<&'a str>,
     pub service_tier: Option<&'a str>,
     pub inference_geo: Option<&'a str>,
@@ -84,6 +106,8 @@ pub struct Request<'a> {
     /// How Claude Code was started, such as `cli` or `sdk-cli`.
     pub entrypoint: Option<&'a str>,
     pub claude_code_version: Option<&'a str>,
+    /// The source the request was imported from; `None` for a request read from a transcript.
+    pub imported_from: Option<&'a str>,
 }
 
 /// Records into the history within one transaction, which [`History::write`] opens.
@@ -92,11 +116,16 @@ pub struct Request<'a> {
 #[derive(Debug)]
 pub struct Writer<'conn> {
     tx: Transaction<'conn>,
+    /// Whether the history holds imported requests, once a write has asked.
+    imports_exist: Option<bool>,
 }
 
 impl<'conn> Writer<'conn> {
     pub(super) fn new(tx: Transaction<'conn>) -> Self {
-        Self { tx }
+        Self {
+            tx,
+            imports_exist: None,
+        }
     }
 
     pub(super) fn commit(self) -> Result<(), HistoryError> {
@@ -128,6 +157,20 @@ impl<'conn> Writer<'conn> {
         Ok(ProjectKey(id))
     }
 
+    /// The project whose working folder is `path`, if the history holds one.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn project_with_path(&mut self, path: &str) -> Result<Option<ProjectKey>, HistoryError> {
+        let id = self
+            .tx
+            .prepare_cached("SELECT id FROM projects WHERE path = ?1 ORDER BY id LIMIT 1")?
+            .query_row([path], |row| row.get(0))
+            .optional()?;
+        Ok(id.map(ProjectKey))
+    }
+
     /// Records a session of a project, identified by Claude Code's session id.
     ///
     /// # Errors
@@ -151,13 +194,246 @@ impl<'conn> Writer<'conn> {
         Ok(SessionKey(id))
     }
 
+    /// Records a session's latest title of one kind.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session_title(
+        &mut self,
+        session: SessionKey,
+        title: SessionTitle<'_>,
+    ) -> Result<(), HistoryError> {
+        let (sql, text) = match title {
+            SessionTitle::Ai(text) => ("UPDATE sessions SET ai_title = ?2 WHERE id = ?1", text),
+            SessionTitle::Custom(text) => {
+                ("UPDATE sessions SET custom_title = ?2 WHERE id = ?1", text)
+            }
+        };
+        self.tx
+            .prepare_cached(sql)?
+            .execute(params![session.0, text])?;
+        Ok(())
+    }
+
+    /// Records the cost that one run of Claude Code reports for a session and model.
+    ///
+    /// A run reports its running total several times, so the largest report of a run wins,
+    /// whatever order the reports arrive in.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn reported_cost(
+        &mut self,
+        session: SessionKey,
+        started_ms: i64,
+        cost: &ReportedCost<'_>,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO reported_costs (
+                     session, started_ms, model, cost_usd, input_tokens, output_tokens,
+                     cache_read_tokens, cache_write_tokens
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT (session, started_ms, model) DO UPDATE SET
+                     cost_usd = excluded.cost_usd,
+                     input_tokens = excluded.input_tokens,
+                     output_tokens = excluded.output_tokens,
+                     cache_read_tokens = excluded.cache_read_tokens,
+                     cache_write_tokens = excluded.cache_write_tokens
+                 WHERE (
+                     excluded.cost_usd, excluded.output_tokens, excluded.input_tokens,
+                     excluded.cache_read_tokens, excluded.cache_write_tokens
+                 ) > (
+                     reported_costs.cost_usd, reported_costs.output_tokens,
+                     reported_costs.input_tokens, reported_costs.cache_read_tokens,
+                     reported_costs.cache_write_tokens
+                 )",
+            )?
+            .execute(params![
+                session.0,
+                started_ms,
+                cost.model,
+                cost.cost_usd,
+                cost.input,
+                cost.output,
+                cost.cache_read,
+                cost.cache_write
+            ])?;
+        Ok(())
+    }
+
+    /// Records a session title unless the session already has a title of either kind.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session_title_if_none(
+        &mut self,
+        session: SessionKey,
+        title: SessionTitle<'_>,
+    ) -> Result<(), HistoryError> {
+        let (sql, text) = match title {
+            SessionTitle::Ai(text) => (
+                "UPDATE sessions SET ai_title = ?2
+                 WHERE id = ?1 AND ai_title IS NULL AND custom_title IS NULL",
+                text,
+            ),
+            SessionTitle::Custom(text) => (
+                "UPDATE sessions SET custom_title = ?2
+                 WHERE id = ?1 AND ai_title IS NULL AND custom_title IS NULL",
+                text,
+            ),
+        };
+        self.tx
+            .prepare_cached(sql)?
+            .execute(params![session.0, text])?;
+        Ok(())
+    }
+
+    /// Records a plan-limit reading. The latest reading in each five minutes of each window and
+    /// source is kept.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn limit_snapshot(&mut self, snapshot: &LimitSnapshot) -> Result<(), HistoryError> {
+        const BUCKET_MS: i64 = 5 * 60 * 1000;
+        self.tx
+            .prepare_cached(
+                "INSERT INTO limit_snapshots (
+                     window, source, bucket_ms, observed_ms, used_percentage, resets_at_ms
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT (window, source, bucket_ms) DO UPDATE SET
+                     observed_ms = excluded.observed_ms,
+                     used_percentage = excluded.used_percentage,
+                     resets_at_ms = excluded.resets_at_ms
+                 WHERE excluded.observed_ms >= limit_snapshots.observed_ms",
+            )?
+            .execute(params![
+                snapshot.window,
+                snapshot.source.as_str(),
+                snapshot.observed_ms.div_euclid(BUCKET_MS) * BUCKET_MS,
+                snapshot.observed_ms,
+                snapshot.used_percentage,
+                snapshot.resets_at_ms
+            ])?;
+        Ok(())
+    }
+
+    /// Turns the usage endpoint on or off, for every process on the machine.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn set_usage_endpoint(&mut self, enabled: bool) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached("UPDATE usage_endpoint SET enabled = ?1 WHERE id = 1")?
+            .execute([enabled])?;
+        Ok(())
+    }
+
+    /// Takes this process's turn to ask the usage endpoint, and puts the next turn
+    /// `interval_ms` later. Returns `false`, taking nothing, while the endpoint is off or another
+    /// process's turn is more recent.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn take_usage_endpoint_turn(
+        &mut self,
+        now_ms: i64,
+        interval_ms: i64,
+    ) -> Result<bool, HistoryError> {
+        let taken = self
+            .tx
+            .prepare_cached(
+                "UPDATE usage_endpoint
+                 SET next_ask_ms = ?1 + ?2, asked_ms = ?1, outcome = NULL, detail = NULL
+                 WHERE id = 1 AND enabled = 1 AND next_ask_ms <= ?1",
+            )?
+            .execute(params![now_ms, interval_ms])?;
+        Ok(taken == 1)
+    }
+
+    /// Records what came of this process's turn, and puts the next turn at `wait_until_ms` when
+    /// that is later than planned.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn usage_endpoint_outcome(
+        &mut self,
+        outcome: Outcome,
+        detail: Option<&str>,
+        wait_until_ms: Option<i64>,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "UPDATE usage_endpoint
+                 SET outcome = ?1, detail = ?2,
+                     rate_limited = CASE ?1
+                         WHEN 'rate-limited' THEN rate_limited + 1
+                         WHEN 'answered' THEN 0
+                         ELSE rate_limited
+                     END,
+                     next_ask_ms = max(next_ask_ms, coalesce(?3, next_ask_ms))
+                 WHERE id = 1",
+            )?
+            .execute(params![outcome.as_str(), detail, wait_until_ms])?;
+        Ok(())
+    }
+
+    /// Records how far a transcript has been read.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn transcript_read(
+        &mut self,
+        path: &str,
+        position: ReadPosition,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO transcripts (path, read_to, len, modified_ms) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (path) DO UPDATE SET
+                     read_to = excluded.read_to,
+                     len = excluded.len,
+                     modified_ms = excluded.modified_ms",
+            )?
+            .execute(params![
+                path,
+                position.read_to,
+                position.len,
+                position.modified_ms
+            ])?;
+        Ok(())
+    }
+
+    /// Forgets how far a transcript has been read, once it is no longer there. Its requests stay.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn forget_transcript(&mut self, path: &str) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached("DELETE FROM transcripts WHERE path = ?1")?
+            .execute([path])?;
+        Ok(())
+    }
+
     /// Records a request, or replaces the recorded request with the same identity.
     ///
-    /// Of the records that share an identity, the one with the most tokens wins, because it
-    /// carries the final tally of a streamed response. Equal usage goes to the later record, then
-    /// to the larger record id, then to the larger session id, which separates a resumed
-    /// session's verbatim copy from its original. So the history never depends on the order
-    /// records arrive in.
+    /// Of the records that share an identity, one read from a transcript wins over an imported
+    /// one, and then the one with the most tokens, because it carries the final tally of a
+    /// streamed response. Equal usage goes to the later record, then to the larger record id,
+    /// then to the larger session id, which separates a resumed session's verbatim copy from its
+    /// original. So the history never depends on the order records arrive in. A request read
+    /// from a transcript also replaces an imported request for the same message.
     ///
     /// # Errors
     ///
@@ -212,8 +488,71 @@ impl<'conn> Writer<'conn> {
             mcp_tool,
             request.entrypoint,
             request.claude_code_version,
+            request.imported_from,
         ])?;
+        if let (Identity::MessageAndRequest { message_id, .. }, None) =
+            (request.identity, request.imported_from)
+            && self.imports_exist()?
+        {
+            self.tx
+                .prepare_cached(
+                    "DELETE FROM requests
+                     WHERE session = ?1 AND message_id = ?2 AND request_id IS NULL
+                         AND imported_from IS NOT NULL",
+                )?
+                .execute(params![request.session.0, message_id])?;
+        }
         Ok(())
+    }
+
+    /// Records an import from `source`, adding `requests` to the requests it has added.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn record_import(
+        &mut self,
+        source: &str,
+        imported_ms: i64,
+        requests: u64,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO imports (source, imported_ms, requests) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (source) DO UPDATE SET
+                     imported_ms = excluded.imported_ms,
+                     requests = imports.requests + excluded.requests",
+            )?
+            .execute(params![source, imported_ms, requests])?;
+        self.imports_exist = Some(true);
+        Ok(())
+    }
+
+    /// Records a model's tokens on one day, from Claude Code's statistics.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn daily_total(&mut self, day: &str, model: &str, tokens: u64) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO daily_totals (day, model, tokens) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (day, model) DO UPDATE SET tokens = excluded.tokens",
+            )?
+            .execute(params![day, model, tokens])?;
+        Ok(())
+    }
+
+    fn imports_exist(&mut self) -> Result<bool, HistoryError> {
+        if let Some(exist) = self.imports_exist {
+            return Ok(exist);
+        }
+        let exist = self
+            .tx
+            .prepare_cached("SELECT EXISTS (SELECT 1 FROM imports)")?
+            .query_row([], |row| row.get(0))?;
+        self.imports_exist = Some(exist);
+        Ok(exist)
     }
 }
 
@@ -227,11 +566,11 @@ macro_rules! upsert_request {
                 input_tokens, output_tokens, cache_read_tokens, cache_write_5m_tokens,
                 cache_write_1h_tokens, web_search_requests, web_fetch_requests, speed,
                 service_tier, inference_geo, skill, mcp_server, mcp_tool, entrypoint,
-                claude_code_version
+                claude_code_version, imported_from
             )
             VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                ?19, ?20, ?21, ?22
+                ?19, ?20, ?21, ?22, ?23
             )
             ON CONFLICT ",
             $conflict_target,
@@ -255,14 +594,17 @@ macro_rules! upsert_request {
                 mcp_server = excluded.mcp_server,
                 mcp_tool = excluded.mcp_tool,
                 entrypoint = excluded.entrypoint,
-                claude_code_version = excluded.claude_code_version
+                claude_code_version = excluded.claude_code_version,
+                imported_from = excluded.imported_from
             WHERE (
+                excluded.imported_from IS NULL,
                 excluded.input_tokens + excluded.output_tokens + excluded.cache_read_tokens
                     + excluded.cache_write_5m_tokens + excluded.cache_write_1h_tokens,
                 excluded.timestamp_ms,
                 excluded.record_id,
                 (SELECT session_id FROM sessions WHERE id = excluded.session)
             ) > (
+                requests.imported_from IS NULL,
                 requests.input_tokens + requests.output_tokens + requests.cache_read_tokens
                     + requests.cache_write_5m_tokens + requests.cache_write_1h_tokens,
                 requests.timestamp_ms,
