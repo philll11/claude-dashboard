@@ -20,3 +20,7 @@ pedantic = { level = "warn", priority = -1 }
 lto = true
 codegen-units = 1
 strip = true
+
+# The profile that dist builds with; it shares the release settings.
+[profile.dist]
+inherits = "release"
