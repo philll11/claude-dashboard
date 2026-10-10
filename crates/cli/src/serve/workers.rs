@@ -60,6 +60,9 @@ impl Workers {
 }
 
 pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -> Workers {
+    // How the history stands before the server reads or answers anything, so that whatever
+    // another process changes from then on is noticed.
+    let baseline = Watched::open(app);
     let (stop, stopped) = bounded::<()>(0);
     let (trigger, triggered) = unbounded::<()>();
     let (endpoint, endpoint_asked) = unbounded::<()>();
@@ -74,7 +77,7 @@ pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -
     };
     let watcher = {
         let (app, client) = (app.clone(), client.clone());
-        thread::spawn(move || watch_history(&app, &client, &stopped, &endpoint_asked))
+        thread::spawn(move || watch_history(&app, &client, baseline, &stopped, &endpoint_asked))
     };
     Workers {
         stop: Some(stop),
@@ -191,21 +194,45 @@ struct Marks {
 
 /// Notices changes other processes make, such as a status line's readings and requests, and
 /// gives the usage endpoint its chance of a turn.
+/// The watch's own connection to the history, and how the history stood when it last looked.
+struct Watched {
+    history: History,
+    /// `data_version` as this connection last saw it; other connections' writes change it.
+    version: Option<i64>,
+    marks: Option<Marks>,
+}
+
+impl Watched {
+    fn open(app: &App) -> Option<Self> {
+        let history = app.open_history().ok()?;
+        let version = history.data_version().ok();
+        let marks = read_marks(&history, app::now().as_millisecond());
+        Some(Self {
+            history,
+            version,
+            marks,
+        })
+    }
+}
+
 fn watch_history(
     app: &App,
     client: &Sender<Message>,
+    mut watched: Option<Watched>,
     stopped: &Receiver<()>,
     endpoint_asked: &Receiver<()>,
 ) {
-    let mut history: Option<History> = None;
-    let mut version: Option<i64> = None;
-    let mut marks: Option<Marks> = None;
     let mut endpoint_turn = Instant::now().checked_sub(ENDPOINT_EVERY);
     loop {
-        if history.is_none() {
-            history = app.open_history().ok();
+        if watched.is_none() {
+            watched = Watched::open(app);
         }
-        if let Some(history) = history.as_mut() {
+        if let Some(Watched {
+            history,
+            version,
+            marks,
+        }) = watched.as_mut()
+        {
             let app = app.with_shared(history).at(app::now());
             if endpoint_turn.is_none_or(|turn| turn.elapsed() >= ENDPOINT_EVERY) {
                 endpoint_turn = Some(Instant::now());
@@ -219,11 +246,11 @@ fn watch_history(
                 }
             }
             if let Ok(current) = history.data_version()
-                && version != Some(current)
+                && *version != Some(current)
             {
-                version = Some(current);
+                *version = Some(current);
                 if let Some(now_marks) = read_marks(history, app.now.as_millisecond()) {
-                    if let Some(before) = &marks {
+                    if let Some(before) = marks.as_ref() {
                         if before.limits != now_marks.limits
                             || before.endpoint != now_marks.endpoint
                         {
@@ -233,7 +260,7 @@ fn watch_history(
                             notify(client, "history/changed", HistoryChanged { days: None });
                         }
                     }
-                    marks = Some(now_marks);
+                    *marks = Some(now_marks);
                 }
             }
         }
