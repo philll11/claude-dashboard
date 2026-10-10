@@ -296,6 +296,26 @@ pub fn by_project(
     Ok(projects)
 }
 
+/// The requests in `range` that `filter` admits, added up.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn totals(
+    history: &History,
+    table: &PriceTable,
+    range: Range,
+    filter: &Filter,
+) -> Result<Totals, HistoryError> {
+    let mut totals = Totals::default();
+    history.for_each_request(range.from_ms, range.to_ms, |request| {
+        if filter.admits(request) {
+            totals.add(request, price(table, request));
+        }
+    })?;
+    Ok(totals)
+}
+
 /// Which requests a report covers, besides its range.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Filter {
