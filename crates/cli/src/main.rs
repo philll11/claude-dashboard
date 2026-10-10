@@ -6,6 +6,7 @@ mod doctor;
 mod fmt;
 mod import;
 mod limits;
+mod program;
 mod prompt;
 mod report;
 mod serve;
@@ -97,6 +98,10 @@ enum Command {
         /// Talk over standard input and output, the only way there is.
         #[arg(long, required = true)]
         stdio: bool,
+        /// Connect Claude Code's status line to a copy of this program kept next to the history,
+        /// and keep that copy up to date, for a client whose updates move this program.
+        #[arg(long)]
+        status_line_copy: bool,
     },
     /// Choose where plan limits come from, besides Claude Code's status line.
     Limits {
@@ -213,7 +218,13 @@ fn main() -> ExitCode {
         Command::Limits {
             action: LimitsAction::Endpoint { switch, yes },
         } => limits::endpoint(&app, switch == Switch::On, yes),
-        Command::Serve { stdio: _ } => serve::run(&app),
+        Command::Serve {
+            stdio: _,
+            status_line_copy,
+        } => serve::run(&App {
+            status_line_copy,
+            ..app
+        }),
     }
 }
 

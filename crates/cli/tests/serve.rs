@@ -40,8 +40,13 @@ impl Server {
     }
 
     fn start_with(dir: tempfile::TempDir, root: PathBuf, history: PathBuf) -> Self {
+        Self::launch(dir, root, history, &[])
+    }
+
+    fn launch(dir: tempfile::TempDir, root: PathBuf, history: PathBuf, options: &[&str]) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_claude-dashboard"))
             .args(["serve", "--stdio"])
+            .args(options)
             .env("CLAUDE_CONFIG_DIR", &root)
             .env("CLAUDE_DASHBOARD_HISTORY", &history)
             .env("TZ", "UTC")
@@ -414,6 +419,74 @@ fn changes_claude_codes_settings_only_as_shown() {
             .root
             .join("settings.claude-dashboard-backup.json")
             .is_file()
+    );
+}
+
+/// Where `serve --status-line-copy` keeps its copy, for a history in `dir`.
+fn copy_in(dir: &Path) -> PathBuf {
+    dir.join("bin").join(if cfg!(windows) {
+        "claude-dashboard.exe"
+    } else {
+        "claude-dashboard"
+    })
+}
+
+/// The version a program reports, or `None` when it does not run.
+fn version_of(program: &Path) -> Option<String> {
+    let output = Command::new(program).arg("--version").output().ok()?;
+    Some(String::from_utf8(output.stdout).ok()?.trim().to_owned())
+}
+
+#[test]
+fn connects_the_status_line_to_a_copy_that_updates_cannot_move() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join(".claude");
+    let history = dir.path().join("history.sqlite");
+    let copy = copy_in(dir.path());
+    fs::create_dir_all(&root).unwrap();
+    let mut server = Server::launch(dir, root, history, &["--status-line-copy"]);
+
+    let plan = server.result("statusLine/plan", &json!({"connect": true}));
+    assert!(!copy.exists(), "nothing is copied until the change is made");
+    server.result(
+        "statusLine/apply",
+        &json!({"connect": true, "before": plan["before"], "after": plan["after"]}),
+    );
+
+    let saved: Value =
+        serde_json::from_str(&fs::read_to_string(server.root.join("settings.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        saved["statusLine"]["command"],
+        format!(
+            "{} statusline",
+            copy.display().to_string().replace('\\', "/")
+        )
+    );
+    assert_eq!(
+        version_of(&copy).as_deref(),
+        Some(concat!("claude-dashboard ", env!("CARGO_PKG_VERSION")))
+    );
+}
+
+#[test]
+fn brings_the_status_line_copy_up_to_date_when_it_starts() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join(".claude");
+    let history = dir.path().join("history.sqlite");
+    let copy = copy_in(dir.path());
+    fs::create_dir_all(copy.parent().unwrap()).unwrap();
+    fs::write(&copy, "not a program").unwrap();
+    let _server = Server::launch(dir, root, history, &["--status-line-copy"]);
+
+    let deadline = Instant::now() + WAIT;
+    while version_of(&copy).is_none() {
+        assert!(Instant::now() < deadline, "the copy is replaced in time");
+        thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!(
+        version_of(&copy).as_deref(),
+        Some(concat!("claude-dashboard ", env!("CARGO_PKG_VERSION")))
     );
 }
 
