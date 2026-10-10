@@ -44,10 +44,30 @@ pub struct Report {
 /// [`HistoryError`] when the history cannot be written. A transcript that cannot be read is
 /// listed in the report instead.
 pub fn ingest(history: &mut History, roots: &[PathBuf]) -> Result<Option<Report>, HistoryError> {
+    ingest_with_progress(history, roots, |_| {})
+}
+
+/// How far an ingest has got.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Progress {
+    /// Transcripts looked at so far, read or found unchanged.
+    pub done: usize,
+    pub total: usize,
+}
+
+/// [`ingest`], calling `progress` after each transcript.
+///
+/// # Errors
+///
+/// As for [`ingest`].
+pub fn ingest_with_progress(
+    history: &mut History,
+    roots: &[PathBuf],
+    progress: impl FnMut(Progress),
+) -> Result<Option<Report>, HistoryError> {
     let Some(_lock) = history.try_lock_ingest()? else {
         return Ok(None);
     };
-    let positions = history.read_positions()?;
     let mut transcripts: Vec<Transcript> = roots
         .iter()
         .flat_map(|root| transcript::find(root))
@@ -57,9 +77,66 @@ pub fn ingest(history: &mut History, roots: &[PathBuf]) -> Result<Option<Report>
             .cmp(&a.modified)
             .then_with(|| a.path.cmp(&b.path))
     });
+    let mut report = read_transcripts(history, &transcripts, progress)?;
 
+    let mut totals: BTreeMap<(String, String), u64> = BTreeMap::new();
+    for root in roots {
+        match stats_cache::daily_totals(root) {
+            Ok(days) => {
+                for day in days {
+                    let total = totals.entry((day.day, day.model)).or_default();
+                    *total = total.saturating_add(day.tokens);
+                }
+            }
+            Err(error) => report
+                .failed
+                .push((root.join("stats-cache.json"), error.to_string())),
+        }
+    }
+    if !totals.is_empty() {
+        history.write(|w| {
+            for ((day, model), tokens) in &totals {
+                w.daily_total(day, model, *tokens)?;
+            }
+            Ok(())
+        })?;
+        report.daily_totals = totals
+            .keys()
+            .map(|(day, _)| day)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64;
+    }
+    Ok(Some(report))
+}
+
+/// Reads what the given transcripts added since the last ingest, such as one session's, without
+/// looking for others or reading Claude Code's statistics.
+///
+/// Returns `None` without reading anything while another process holds the ingest lock.
+///
+/// # Errors
+///
+/// As for [`ingest`].
+pub fn ingest_transcripts(
+    history: &mut History,
+    transcripts: &[Transcript],
+) -> Result<Option<Report>, HistoryError> {
+    let Some(_lock) = history.try_lock_ingest()? else {
+        return Ok(None);
+    };
+    read_transcripts(history, transcripts, |_| {}).map(Some)
+}
+
+fn read_transcripts(
+    history: &mut History,
+    transcripts: &[Transcript],
+    mut progress: impl FnMut(Progress),
+) -> Result<Report, HistoryError> {
+    let positions = history.read_positions()?;
     let mut report = Report::default();
-    for transcript in &transcripts {
+    let total = transcripts.len();
+    for (done, transcript) in transcripts.iter().enumerate() {
+        progress(Progress { done, total });
         let key = path_key(&transcript.path);
         let modified_ms = milliseconds(transcript.modified);
         let known = positions.get(&key);
@@ -99,35 +176,8 @@ pub fn ingest(history: &mut History, roots: &[PathBuf]) -> Result<Option<Report>
             offset = read.end;
         }
     }
-
-    let mut totals: BTreeMap<(String, String), u64> = BTreeMap::new();
-    for root in roots {
-        match stats_cache::daily_totals(root) {
-            Ok(days) => {
-                for day in days {
-                    let total = totals.entry((day.day, day.model)).or_default();
-                    *total = total.saturating_add(day.tokens);
-                }
-            }
-            Err(error) => report
-                .failed
-                .push((root.join("stats-cache.json"), error.to_string())),
-        }
-    }
-    if !totals.is_empty() {
-        history.write(|w| {
-            for ((day, model), tokens) in &totals {
-                w.daily_total(day, model, *tokens)?;
-            }
-            Ok(())
-        })?;
-        report.daily_totals = totals
-            .keys()
-            .map(|(day, _)| day)
-            .collect::<std::collections::BTreeSet<_>>()
-            .len() as u64;
-    }
-    Ok(Some(report))
+    progress(Progress { done: total, total });
+    Ok(report)
 }
 
 /// Records what one read of a transcript found, and where the next read starts.

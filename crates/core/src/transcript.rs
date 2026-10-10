@@ -66,6 +66,47 @@ pub fn find(root: &Path) -> Vec<Transcript> {
     found
 }
 
+/// A session's transcripts: its own, at `session_transcript`, and its subagents'. Claude Code
+/// passes the session's own transcript to a status line.
+#[must_use]
+pub fn for_session(session_transcript: &Path) -> Vec<Transcript> {
+    let (Some(project_dir), Some(stem)) = (
+        session_transcript.parent(),
+        session_transcript
+            .file_stem()
+            .and_then(|stem| stem.to_str()),
+    ) else {
+        return Vec::new();
+    };
+    let Some(project_folder) = project_dir.file_name().and_then(|name| name.to_str()) else {
+        return Vec::new();
+    };
+    let mut paths = vec![session_transcript.to_owned()];
+    paths.extend(
+        WalkDir::new(project_dir.join(stem).join("subagents"))
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_file())
+            .map(walkdir::DirEntry::into_path),
+    );
+    paths
+        .into_iter()
+        .filter_map(|path| {
+            let relative = Path::new(project_folder).join(path.strip_prefix(project_dir).ok()?);
+            let (project_folder, session_id, subagent_id) = classify(&relative)?;
+            let metadata = std::fs::metadata(&path).ok()?;
+            Some(Transcript {
+                path,
+                project_folder,
+                session_id,
+                subagent_id,
+                len: metadata.len(),
+                modified: metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+            })
+        })
+        .collect()
+}
+
 /// The project folder, session id and subagent id of a path relative to the projects folder, or
 /// `None` when the file is not a transcript.
 fn classify(relative: &Path) -> Option<(String, String, Option<String>)> {

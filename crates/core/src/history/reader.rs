@@ -261,6 +261,17 @@ impl History {
         Ok(snapshots)
     }
 
+    /// The history's schema version.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn schema_version(&self) -> Result<u32, HistoryError> {
+        Ok(self
+            .conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))?)
+    }
+
     /// The import from `source`, if the history holds one.
     ///
     /// # Errors

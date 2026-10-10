@@ -67,16 +67,24 @@ pub struct LimitSnapshot {
     pub resets_at_ms: Option<i64>,
 }
 
+impl Level {
+    /// The level of a window with `used_percentage` used.
+    #[must_use]
+    pub fn of(used_percentage: f64) -> Self {
+        if used_percentage >= 90.0 {
+            Self::Critical
+        } else if used_percentage >= 70.0 {
+            Self::Warning
+        } else {
+            Self::Normal
+        }
+    }
+}
+
 impl LimitSnapshot {
     #[must_use]
     pub fn level(&self) -> Level {
-        if self.used_percentage >= 90.0 {
-            Level::Critical
-        } else if self.used_percentage >= 70.0 {
-            Level::Warning
-        } else {
-            Level::Normal
-        }
+        Level::of(self.used_percentage)
     }
 
     /// Whether the window has reset since the reading, which no longer tells how much of the
