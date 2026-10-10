@@ -3,3 +3,4 @@
 //! The words used here are defined in `CONTEXT.md` at the repository root.
 
 pub mod roots;
+pub mod transcript;

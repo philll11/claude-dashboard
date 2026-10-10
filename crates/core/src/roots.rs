@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
+use crate::transcript;
+
 /// The environment variable Claude Code reads to move its configuration folder.
 pub const CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 
@@ -30,7 +32,8 @@ pub struct DataRoot {
 /// What a data root holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RootStatus {
-    /// The folder exists; `transcripts` and `bytes` cover every transcript under `projects`.
+    /// The folder exists; `transcripts` and `bytes` cover every transcript that
+    /// [`transcript::find`] finds.
     Found { transcripts: u64, bytes: u64 },
     /// The folder does not exist.
     Missing,
@@ -131,7 +134,11 @@ pub fn inspect(root: &Path) -> RootStatus {
             }
             Err(_) => continue,
         };
-        if entry.file_type().is_file() && entry.path().extension() == Some(OsStr::new("jsonl")) {
+        let is_transcript = entry
+            .path()
+            .strip_prefix(&projects)
+            .is_ok_and(transcript::is_transcript);
+        if entry.file_type().is_file() && is_transcript {
             transcripts += 1;
             bytes += entry.metadata().map_or(0, |meta| meta.len());
         }

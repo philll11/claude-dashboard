@@ -46,8 +46,15 @@ fn counts_session_and_subagent_transcripts_only() {
             .join("agent-a1.jsonl"),
         "{}\n{}\n",
     );
+    let workflow = project
+        .join("4f1c")
+        .join("subagents")
+        .join("workflows")
+        .join("wf_9");
+    write(&workflow.join("agent-b2.jsonl"), "{}\n");
+    write(&workflow.join("journal.jsonl"), "{\"type\":\"started\"}\n");
     write(
-        &project.join("4f1c").join("tool-results").join("out.txt"),
+        &project.join("4f1c").join("tool-results").join("out.jsonl"),
         "not a transcript",
     );
     write(&dir.path().join("history.jsonl"), "outside projects");
@@ -55,8 +62,8 @@ fn counts_session_and_subagent_transcripts_only() {
     assert_eq!(
         inspect(dir.path()),
         RootStatus::Found {
-            transcripts: 2,
-            bytes: 16 + 6
+            transcripts: 3,
+            bytes: 16 + 6 + 3
         }
     );
 }
