@@ -1534,6 +1534,8 @@ a.project-link:hover .project-title {
 .switch[aria-checked="true"] {
   border-color: var(--primary);
   background: var(--primary);
+  outline: var(--selected-outline);
+  outline-offset: 1px;
 }
 
 .switch[aria-checked="true"] .switch-thumb {

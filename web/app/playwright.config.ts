@@ -13,7 +13,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   expect: {
     timeout: 15_000,
-    toHaveScreenshot: { animations: "disabled", caret: "hide", maxDiffPixelRatio: 0.001 },
+    toHaveScreenshot: { animations: "disabled", caret: "hide" },
   },
   use: {
     baseURL: "http://127.0.0.1:4173",
