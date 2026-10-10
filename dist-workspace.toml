@@ -1,5 +1,6 @@
 # Configuration for dist: https://axodotdev.github.io/cargo-dist/book/
-# .github/workflows/release.yml is generated from this file. Run `dist generate` after changing it.
+# .github/workflows/release.yml is generated from this file. Run `dist generate --mode ci` after changing it;
+# the release workflow's plan job fails on any pull request where the two differ.
 # Use the dist version named by cargo-dist-version; its releases are at https://github.com/axodotdev/cargo-dist/releases.
 
 [workspace]
@@ -26,6 +27,9 @@ install-updater = false
 # Pull requests build every artefact without publishing, so each one proves the release still builds.
 pr-run-mode = "upload"
 github-attestations = true
+# Attest only when publishing: pull request builds are never published, and Dependabot pull requests cannot write attestations.
+github-attestations-phase = "host"
+github-release = "host"
 # Release builds start from a clean target directory.
 cache-builds = false
 
@@ -41,9 +45,10 @@ x86_64-unknown-linux-musl = "ubuntu-24.04"
 aarch64-unknown-linux-musl = "ubuntu-24.04-arm"
 
 # Every action in the workflow is pinned to a commit; the comment names the release it points at.
-# dist writes only the commit into the workflow.
+# dist writes only the commit into the workflow. Dependabot skips these four actions (see .github/dependabot.yml),
+# so update them here when upgrading dist; .github/workflows/ci.yml uses the same actions/checkout commit.
 [dist.github-action-commits]
-"actions/checkout" = "d23441a48e516b6c34aea4fa41551a30e30af803" # v6.1.0
+"actions/checkout" = "3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
 "actions/upload-artifact" = "cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
 "actions/download-artifact" = "9000827ccba6bdab643e8b6fd33ac0654aef8333" # v8.0.2
 "actions/attest" = "1e69f48acb82d1966a394da916b4c1698aa569d6" # v4.2.2
