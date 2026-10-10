@@ -155,7 +155,9 @@ impl<'conn> Writer<'conn> {
     ///
     /// Of the records that share an identity, the one with the most tokens wins, because it
     /// carries the final tally of a streamed response. Equal usage goes to the later record, then
-    /// to the larger record id, so the history never depends on the order records arrive in.
+    /// to the larger record id, then to the larger session id, which separates a resumed
+    /// session's verbatim copy from its original. So the history never depends on the order
+    /// records arrive in.
     ///
     /// # Errors
     ///
@@ -258,12 +260,14 @@ macro_rules! upsert_request {
                 excluded.input_tokens + excluded.output_tokens + excluded.cache_read_tokens
                     + excluded.cache_write_5m_tokens + excluded.cache_write_1h_tokens,
                 excluded.timestamp_ms,
-                excluded.record_id
+                excluded.record_id,
+                (SELECT session_id FROM sessions WHERE id = excluded.session)
             ) > (
                 requests.input_tokens + requests.output_tokens + requests.cache_read_tokens
                     + requests.cache_write_5m_tokens + requests.cache_write_1h_tokens,
                 requests.timestamp_ms,
-                requests.record_id
+                requests.record_id,
+                (SELECT session_id FROM sessions WHERE id = requests.session)
             )"
         )
     };

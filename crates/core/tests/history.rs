@@ -143,11 +143,12 @@ fn recording_a_request_again_changes_nothing() {
     assert_eq!(recorded(history.path()), [("rec-1".to_owned(), 50)]);
 }
 
-/// Records three requests in every order, each order into a new history, and returns what each
-/// history holds.
+/// Records three requests in every order, each order into a new history with the sessions
+/// `session-1` and `session-2`, and returns what each history holds as (session id, record id,
+/// output tokens).
 fn in_every_order(
-    requests: impl Fn(SessionKey) -> [Request<'static>; 3],
-) -> Vec<Vec<(String, u32)>> {
+    requests: impl Fn(SessionKey, SessionKey) -> [Request<'static>; 3],
+) -> Vec<Vec<(String, String, u32)>> {
     let orders = [
         [0, 1, 2],
         [0, 2, 1],
@@ -160,19 +161,34 @@ fn in_every_order(
         .iter()
         .map(|order| {
             let dir = tempfile::tempdir().unwrap();
-            let (mut history, session, _) = new_history(dir.path());
-            let requests = requests(session);
+            let (mut history, first, second) = new_history(dir.path());
+            let requests = requests(first, second);
             for &index in order {
                 record(&mut history, &[requests[index]]);
             }
-            recorded(history.path())
+            let conn =
+                Connection::open_with_flags(history.path(), OpenFlags::SQLITE_OPEN_READ_ONLY)
+                    .unwrap();
+            conn.prepare(
+                "SELECT sessions.session_id, record_id, output_tokens
+                 FROM requests JOIN sessions ON sessions.id = requests.session",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
         })
         .collect()
 }
 
+fn held(session_id: &str, record_id: &str, output: u32) -> Vec<(String, String, u32)> {
+    vec![(session_id.to_owned(), record_id.to_owned(), output)]
+}
+
 #[test]
 fn the_record_with_the_most_tokens_wins_in_any_order() {
-    let held = in_every_order(|session| {
+    let histories = in_every_order(|session, _| {
         [
             request(session, MESSAGE, "rec-a", 1),
             request(session, MESSAGE, "rec-b", 90),
@@ -180,14 +196,14 @@ fn the_record_with_the_most_tokens_wins_in_any_order() {
         ]
     });
 
-    for requests in held {
-        assert_eq!(requests, [("rec-b".to_owned(), 90)]);
+    for requests in histories {
+        assert_eq!(requests, held("session-1", "rec-b", 90));
     }
 }
 
 #[test]
 fn equal_usage_goes_to_the_later_record_then_the_larger_record_id() {
-    let held = in_every_order(|session| {
+    let histories = in_every_order(|session, _| {
         let earlier = request(session, MESSAGE, "rec-z", 50);
         let later = Request {
             timestamp_ms: earlier.timestamp_ms + 1,
@@ -203,8 +219,24 @@ fn equal_usage_goes_to_the_later_record_then_the_larger_record_id() {
         ]
     });
 
-    for requests in held {
-        assert_eq!(requests, [("rec-c".to_owned(), 50)]);
+    for requests in histories {
+        assert_eq!(requests, held("session-1", "rec-c", 50));
+    }
+}
+
+#[test]
+fn a_verbatim_copy_in_another_session_goes_to_the_larger_session_id() {
+    let histories = in_every_order(|first, second| {
+        let original = request(first, MESSAGE, "rec-1", 50);
+        let copy = Request {
+            session: second,
+            ..original
+        };
+        [original, copy, original]
+    });
+
+    for requests in histories {
+        assert_eq!(requests, held("session-2", "rec-1", 50));
     }
 }
 
