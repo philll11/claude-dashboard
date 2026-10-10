@@ -26,10 +26,16 @@ pub(super) struct Migration {
 /// A migration that a release has shipped never changes: add a new one instead. An upgrade runs
 /// in one transaction with foreign keys enforced, which SQLite cannot switch off inside a
 /// transaction, so a step that rebuilds a table keeps every reference valid throughout.
-pub(super) const MIGRATIONS: &[Migration] = &[Migration {
-    sql: include_str!("migrations/0001-projects-sessions-requests.sql"),
-    breaks_older_readers: false,
-}];
+pub(super) const MIGRATIONS: &[Migration] = &[
+    Migration {
+        sql: include_str!("migrations/0001-projects-sessions-requests.sql"),
+        breaks_older_readers: false,
+    },
+    Migration {
+        sql: include_str!("migrations/0002-ingest.sql"),
+        breaks_older_readers: false,
+    },
+];
 
 /// The schema version that a list of migrations leads to.
 pub(super) fn latest(migrations: &[Migration]) -> u32 {

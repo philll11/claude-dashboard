@@ -7,6 +7,7 @@ mod lock;
 mod migrations;
 mod writer;
 
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -16,7 +17,9 @@ use std::time::{Duration, Instant};
 use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
 
 pub use lock::IngestLock;
-pub use writer::{Attribution, Identity, ProjectKey, Request, SessionKey, Writer};
+pub use writer::{
+    Attribution, Identity, ProjectKey, ReadPosition, Request, SessionKey, SessionTitle, Writer,
+};
 
 use migrations::{MIGRATIONS, Schema};
 
@@ -216,6 +219,30 @@ impl History {
         } else {
             problems
         })
+    }
+
+    /// How far each transcript has been read, by its path.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn read_positions(&self) -> Result<HashMap<String, ReadPosition>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT path, read_to, len, modified_ms FROM transcripts")?;
+        let positions = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    ReadPosition {
+                        read_to: row.get(1)?,
+                        len: row.get(2)?,
+                        modified_ms: row.get(3)?,
+                    },
+                ))
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(positions)
     }
 }
 

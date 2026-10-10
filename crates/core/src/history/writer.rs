@@ -43,6 +43,25 @@ impl<'a> Identity<'a> {
     }
 }
 
+/// A session title, as Claude Code records it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionTitle<'a> {
+    /// The title Claude Code generated.
+    Ai(&'a str),
+    /// The title the person gave the session.
+    Custom(&'a str),
+}
+
+/// How far a transcript has been read, and its size and modification time then.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReadPosition {
+    /// The byte where the next read starts.
+    pub read_to: u64,
+    pub len: u64,
+    /// Milliseconds since the Unix epoch.
+    pub modified_ms: i64,
+}
+
 /// The skill, MCP server or MCP tool that Claude Code credits a request to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Attribution<'a> {
@@ -138,6 +157,55 @@ impl<'conn> Writer<'conn> {
             .prepare_cached("SELECT id FROM sessions WHERE session_id = ?1")?
             .query_row([session_id], |row| row.get(0))?;
         Ok(SessionKey(id))
+    }
+
+    /// Records a session's latest title of one kind.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session_title(
+        &mut self,
+        session: SessionKey,
+        title: SessionTitle<'_>,
+    ) -> Result<(), HistoryError> {
+        let (sql, text) = match title {
+            SessionTitle::Ai(text) => ("UPDATE sessions SET ai_title = ?2 WHERE id = ?1", text),
+            SessionTitle::Custom(text) => {
+                ("UPDATE sessions SET custom_title = ?2 WHERE id = ?1", text)
+            }
+        };
+        self.tx
+            .prepare_cached(sql)?
+            .execute(params![session.0, text])?;
+        Ok(())
+    }
+
+    /// Records how far a transcript has been read.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn transcript_read(
+        &mut self,
+        path: &str,
+        position: ReadPosition,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO transcripts (path, read_to, len, modified_ms) VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT (path) DO UPDATE SET
+                     read_to = excluded.read_to,
+                     len = excluded.len,
+                     modified_ms = excluded.modified_ms",
+            )?
+            .execute(params![
+                path,
+                position.read_to,
+                position.len,
+                position.modified_ms
+            ])?;
+        Ok(())
     }
 
     /// Records a request, or replaces the recorded request with the same identity.
