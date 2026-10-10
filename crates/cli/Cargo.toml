@@ -1,0 +1,15 @@
+[package]
+name = "claude-dashboard"
+description = "See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+
+[lints]
+workspace = true
