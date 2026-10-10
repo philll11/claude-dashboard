@@ -26,6 +26,7 @@ pub struct StoredRequest<'a> {
     pub mcp_server: Option<&'a str>,
     pub mcp_tool: Option<&'a str>,
     pub entrypoint: Option<&'a str>,
+    pub claude_code_version: Option<&'a str>,
 }
 
 /// A session as the history holds it.
@@ -79,6 +80,54 @@ pub struct StoredReportedCost {
     pub cache_write: u64,
 }
 
+/// The columns [`each_request`] reads, in its order.
+macro_rules! request_columns {
+    () => {
+        "requests.session, sessions.project, subagent_id, timestamp_ms, model, input_tokens,
+         output_tokens, cache_read_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
+         web_search_requests, speed, inference_geo, skill, mcp_server, mcp_tool, entrypoint,
+         claude_code_version"
+    };
+}
+
+/// Calls `each` for every row of a query that selects [`request_columns`].
+fn each_request(
+    rows: &mut rusqlite::Rows<'_>,
+    mut each: impl FnMut(&StoredRequest<'_>),
+) -> Result<(), HistoryError> {
+    while let Some(row) = rows.next()? {
+        let text = |index: usize| -> Result<Option<&str>, HistoryError> {
+            Ok(match row.get_ref(index)? {
+                ValueRef::Text(text) => std::str::from_utf8(text).ok(),
+                _ => None,
+            })
+        };
+        each(&StoredRequest {
+            session: SessionKey(row.get(0)?),
+            project: ProjectKey(row.get(1)?),
+            subagent_id: text(2)?,
+            timestamp_ms: row.get(3)?,
+            model: text(4)?.unwrap_or_default(),
+            tokens: Tokens {
+                input: row.get(5)?,
+                output: row.get(6)?,
+                cache_read: row.get(7)?,
+                cache_write_5m: row.get(8)?,
+                cache_write_1h: row.get(9)?,
+            },
+            web_search_requests: row.get(10)?,
+            speed: text(11)?,
+            inference_geo: text(12)?,
+            skill: text(13)?,
+            mcp_server: text(14)?,
+            mcp_tool: text(15)?,
+            entrypoint: text(16)?,
+            claude_code_version: text(17)?,
+        });
+    }
+    Ok(())
+}
+
 impl History {
     /// Calls `each` for every request made from `from_ms` up to, but not including, `to_ms`,
     /// oldest first.
@@ -90,48 +139,69 @@ impl History {
         &self,
         from_ms: i64,
         to_ms: i64,
-        mut each: impl FnMut(&StoredRequest<'_>),
+        each: impl FnMut(&StoredRequest<'_>),
     ) -> Result<(), HistoryError> {
-        let mut statement = self.conn.prepare_cached(
-            "SELECT requests.session, sessions.project, subagent_id, timestamp_ms, model,
-                 input_tokens, output_tokens, cache_read_tokens, cache_write_5m_tokens,
-                 cache_write_1h_tokens, web_search_requests, speed, inference_geo, skill,
-                 mcp_server, mcp_tool, entrypoint
-             FROM requests JOIN sessions ON sessions.id = requests.session
+        let mut statement = self.conn.prepare_cached(concat!(
+            "SELECT ",
+            request_columns!(),
+            " FROM requests JOIN sessions ON sessions.id = requests.session
              WHERE timestamp_ms >= ?1 AND timestamp_ms < ?2
-             ORDER BY timestamp_ms",
+             ORDER BY timestamp_ms"
+        ))?;
+        each_request(&mut statement.query([from_ms, to_ms])?, each)
+    }
+
+    /// Calls `each` for every request of one session, its subagents' included, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn for_each_request_in_session(
+        &self,
+        session: SessionKey,
+        each: impl FnMut(&StoredRequest<'_>),
+    ) -> Result<(), HistoryError> {
+        let mut statement = self.conn.prepare_cached(concat!(
+            "SELECT ",
+            request_columns!(),
+            " FROM requests JOIN sessions ON sessions.id = requests.session
+             WHERE requests.session = ?1
+             ORDER BY timestamp_ms"
+        ))?;
+        each_request(&mut statement.query([session.0])?, each)
+    }
+
+    /// Every reading of one plan window from `from_ms` up to, but not including, `to_ms`, from
+    /// any source, oldest first.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn limit_snapshots(
+        &self,
+        window: &str,
+        from_ms: i64,
+        to_ms: i64,
+    ) -> Result<Vec<LimitSnapshot>, HistoryError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT source, observed_ms, used_percentage, resets_at_ms FROM limit_snapshots
+             WHERE window = ?1 AND observed_ms >= ?2 AND observed_ms < ?3
+             ORDER BY observed_ms",
         )?;
-        let mut rows = statement.query([from_ms, to_ms])?;
+        let mut rows = statement.query(rusqlite::params![window, from_ms, to_ms])?;
+        let mut snapshots = Vec::new();
         while let Some(row) = rows.next()? {
-            let text = |index: usize| -> Result<Option<&str>, HistoryError> {
-                Ok(match row.get_ref(index)? {
-                    ValueRef::Text(text) => std::str::from_utf8(text).ok(),
-                    _ => None,
-                })
-            };
-            each(&StoredRequest {
-                session: SessionKey(row.get(0)?),
-                project: ProjectKey(row.get(1)?),
-                subagent_id: text(2)?,
-                timestamp_ms: row.get(3)?,
-                model: text(4)?.unwrap_or_default(),
-                tokens: Tokens {
-                    input: row.get(5)?,
-                    output: row.get(6)?,
-                    cache_read: row.get(7)?,
-                    cache_write_5m: row.get(8)?,
-                    cache_write_1h: row.get(9)?,
-                },
-                web_search_requests: row.get(10)?,
-                speed: text(11)?,
-                inference_geo: text(12)?,
-                skill: text(13)?,
-                mcp_server: text(14)?,
-                mcp_tool: text(15)?,
-                entrypoint: text(16)?,
-            });
+            if let Some(source) = Source::from_name(&row.get::<_, String>(0)?) {
+                snapshots.push(LimitSnapshot {
+                    window: window.to_owned(),
+                    source,
+                    observed_ms: row.get(1)?,
+                    used_percentage: row.get(2)?,
+                    resets_at_ms: row.get(3)?,
+                });
+            }
         }
-        Ok(())
+        Ok(snapshots)
     }
 
     /// Every session the history holds.

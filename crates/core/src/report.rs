@@ -3,7 +3,7 @@
 //! API-equivalent cost covers priced requests only; requests to unpriced models are counted
 //! apart, so that a missing price never shows as free.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use jiff::Timestamp;
 use jiff::civil::Date;
@@ -23,6 +23,8 @@ pub struct Totals {
     /// Requests to models the price table does not list, whose cost is unknown.
     pub unpriced_requests: u64,
     pub web_search_requests: u64,
+    /// Requests made in fast mode.
+    pub fast_requests: u64,
 }
 
 impl Totals {
@@ -30,6 +32,9 @@ impl Totals {
         self.requests += 1;
         self.tokens.add(request.tokens);
         self.web_search_requests += request.web_search_requests;
+        if request.speed == Some("fast") {
+            self.fast_requests += 1;
+        }
         match cost {
             Some(cost) => self.cost.add(cost),
             None => self.unpriced_requests += 1,
@@ -42,6 +47,7 @@ impl Totals {
         self.cost.add(other.cost);
         self.unpriced_requests += other.unpriced_requests;
         self.web_search_requests += other.web_search_requests;
+        self.fast_requests += other.fast_requests;
     }
 }
 
@@ -195,8 +201,25 @@ pub fn by_session(
     table: &PriceTable,
     range: Range,
 ) -> Result<Vec<SessionTotals>, HistoryError> {
+    sessions_matching(history, table, range, &Filter::default())
+}
+
+/// The totals of the requests in `range` that `filter` admits, by session, most recent first.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn sessions_matching(
+    history: &History,
+    table: &PriceTable,
+    range: Range,
+    filter: &Filter,
+) -> Result<Vec<SessionTotals>, HistoryError> {
     let mut sessions: HashMap<SessionKey, SessionTotals> = HashMap::new();
     history.for_each_request(range.from_ms, range.to_ms, |request| {
+        if !filter.admits(request) {
+            return;
+        }
         let cost = price(table, request);
         let entry = sessions
             .entry(request.session)
@@ -239,8 +262,7 @@ pub fn by_project(
     table: &PriceTable,
     range: Range,
 ) -> Result<Vec<ProjectTotals>, HistoryError> {
-    let mut projects: HashMap<ProjectKey, (ProjectTotals, std::collections::HashSet<SessionKey>)> =
-        HashMap::new();
+    let mut projects: HashMap<ProjectKey, (ProjectTotals, HashSet<SessionKey>)> = HashMap::new();
     history.for_each_request(range.from_ms, range.to_ms, |request| {
         let (entry, sessions) = projects.entry(request.project).or_insert_with(|| {
             (
@@ -250,7 +272,7 @@ pub fn by_project(
                     last_ms: request.timestamp_ms,
                     totals: Totals::default(),
                 },
-                std::collections::HashSet::new(),
+                HashSet::new(),
             )
         });
         entry.last_ms = entry.last_ms.max(request.timestamp_ms);
@@ -272,4 +294,302 @@ pub fn by_project(
             .then_with(|| b.last_ms.cmp(&a.last_ms))
     });
     Ok(projects)
+}
+
+/// Which requests a report covers, besides its range.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Filter {
+    /// Only this project's requests.
+    pub project: Option<ProjectKey>,
+    /// Only this model's requests, by model id.
+    pub model: Option<String>,
+}
+
+impl Filter {
+    fn admits(&self, request: &StoredRequest<'_>) -> bool {
+        self.project
+            .is_none_or(|project| project == request.project)
+            && self
+                .model
+                .as_deref()
+                .is_none_or(|model| model == request.model)
+    }
+}
+
+/// One project's totals, with its API-equivalent cost on each day it has requests.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectSummary {
+    pub totals: ProjectTotals,
+    pub daily_cost: BTreeMap<Date, f64>,
+}
+
+/// What a dashboard shows for a range, read in one pass over its requests.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Summary {
+    pub totals: Totals,
+    /// The days with requests, oldest first, each with its models by cost.
+    pub days: Vec<DayTotals>,
+    /// Models, highest API-equivalent cost first.
+    pub models: Vec<ModelTotals>,
+    /// Projects, highest API-equivalent cost first.
+    pub projects: Vec<ProjectSummary>,
+}
+
+/// The requests in `range` that `filter` admits, added up in every way a dashboard shows them,
+/// with days in `zone`.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn summary(
+    history: &History,
+    table: &PriceTable,
+    range: Range,
+    filter: &Filter,
+    zone: &TimeZone,
+) -> Result<Summary, HistoryError> {
+    let mut totals = Totals::default();
+    let mut days: BTreeMap<Date, HashMap<String, Totals>> = BTreeMap::new();
+    let mut models: HashMap<String, Totals> = HashMap::new();
+    let mut projects: HashMap<ProjectKey, (ProjectSummary, HashSet<SessionKey>)> = HashMap::new();
+    history.for_each_request(range.from_ms, range.to_ms, |request| {
+        if !filter.admits(request) {
+            return;
+        }
+        let Ok(at) = Timestamp::from_millisecond(request.timestamp_ms) else {
+            return;
+        };
+        let day = at.to_zoned(zone.clone()).date();
+        let cost = price(table, request);
+        totals.add(request, cost);
+        days.entry(day)
+            .or_default()
+            .entry(request.model.to_owned())
+            .or_default()
+            .add(request, cost);
+        models
+            .entry(request.model.to_owned())
+            .or_default()
+            .add(request, cost);
+        let (project, sessions) = projects.entry(request.project).or_insert_with(|| {
+            (
+                ProjectSummary {
+                    totals: ProjectTotals {
+                        project: request.project,
+                        sessions: 0,
+                        last_ms: request.timestamp_ms,
+                        totals: Totals::default(),
+                    },
+                    daily_cost: BTreeMap::new(),
+                },
+                HashSet::new(),
+            )
+        });
+        project.totals.last_ms = project.totals.last_ms.max(request.timestamp_ms);
+        project.totals.totals.add(request, cost);
+        if let Some(cost) = cost {
+            *project.daily_cost.entry(day).or_default() += cost.total();
+        }
+        sessions.insert(request.session);
+    })?;
+    let days = days
+        .into_iter()
+        .map(|(day, models)| {
+            let mut totals = Totals::default();
+            for model in models.values() {
+                totals.merge(model);
+            }
+            DayTotals {
+                day,
+                totals,
+                models: by_cost(models),
+            }
+        })
+        .collect();
+    let mut projects: Vec<ProjectSummary> = projects
+        .into_values()
+        .map(|(mut project, sessions)| {
+            project.totals.sessions = sessions.len() as u64;
+            project
+        })
+        .collect();
+    projects.sort_by(|a, b| {
+        b.totals
+            .totals
+            .cost
+            .total()
+            .total_cmp(&a.totals.totals.cost.total())
+            .then_with(|| b.totals.last_ms.cmp(&a.totals.last_ms))
+    });
+    Ok(Summary {
+        totals,
+        days,
+        models: by_cost(models),
+        projects,
+    })
+}
+
+/// A subagent's part of a session.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubagentTotals {
+    pub subagent_id: String,
+    /// When its first request was made.
+    pub first_ms: i64,
+    pub totals: Totals,
+    /// Its models, highest API-equivalent cost first.
+    pub models: Vec<ModelTotals>,
+}
+
+/// Requests credited to one skill, or to one MCP server and tool.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Credit {
+    /// The skill, or the MCP server.
+    pub name: String,
+    /// The MCP tool, for an MCP server.
+    pub tool: Option<String>,
+    pub totals: Totals,
+}
+
+/// Everything about one session.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionDetail {
+    pub first_ms: i64,
+    pub last_ms: i64,
+    pub totals: Totals,
+    /// The session's own requests, without its subagents'.
+    pub own: Totals,
+    /// The session's own models, highest API-equivalent cost first.
+    pub own_models: Vec<ModelTotals>,
+    /// Subagents in the order they started.
+    pub subagents: Vec<SubagentTotals>,
+    /// The API-equivalent cost so far after each priced request, as (time, cost).
+    pub cumulative_cost: Vec<(i64, f64)>,
+    pub skills: Vec<Credit>,
+    pub mcp_tools: Vec<Credit>,
+    /// Requests credited to neither a skill nor an MCP server.
+    pub uncredited: Totals,
+    /// The Claude Code version and entry point of its latest request.
+    pub claude_code_version: Option<String>,
+    pub entrypoint: Option<String>,
+}
+
+/// One session's requests, its subagents' included, added up; `None` when it has none.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn session_detail(
+    history: &History,
+    table: &PriceTable,
+    session: SessionKey,
+) -> Result<Option<SessionDetail>, HistoryError> {
+    let mut detail: Option<SessionDetail> = None;
+    let mut own_models: HashMap<String, Totals> = HashMap::new();
+    let mut subagents: HashMap<String, (i64, Totals, HashMap<String, Totals>)> = HashMap::new();
+    let mut skills: HashMap<String, Totals> = HashMap::new();
+    let mut mcp_tools: HashMap<(String, Option<String>), Totals> = HashMap::new();
+    let mut running = 0.0;
+    history.for_each_request_in_session(session, |request| {
+        let cost = price(table, request);
+        let detail = detail.get_or_insert_with(|| SessionDetail {
+            first_ms: request.timestamp_ms,
+            last_ms: request.timestamp_ms,
+            totals: Totals::default(),
+            own: Totals::default(),
+            own_models: Vec::new(),
+            subagents: Vec::new(),
+            cumulative_cost: Vec::new(),
+            skills: Vec::new(),
+            mcp_tools: Vec::new(),
+            uncredited: Totals::default(),
+            claude_code_version: None,
+            entrypoint: None,
+        });
+        detail.first_ms = detail.first_ms.min(request.timestamp_ms);
+        detail.last_ms = detail.last_ms.max(request.timestamp_ms);
+        detail.totals.add(request, cost);
+        if let Some(cost) = cost {
+            running += cost.total();
+            detail.cumulative_cost.push((request.timestamp_ms, running));
+        }
+        if let Some(id) = request.subagent_id {
+            let (first_ms, totals, models) = subagents
+                .entry(id.to_owned())
+                .or_insert_with(|| (request.timestamp_ms, Totals::default(), HashMap::new()));
+            *first_ms = (*first_ms).min(request.timestamp_ms);
+            totals.add(request, cost);
+            models
+                .entry(request.model.to_owned())
+                .or_default()
+                .add(request, cost);
+        } else {
+            detail.own.add(request, cost);
+            own_models
+                .entry(request.model.to_owned())
+                .or_default()
+                .add(request, cost);
+        }
+        match (request.skill, request.mcp_server) {
+            (Some(skill), _) => skills
+                .entry(skill.to_owned())
+                .or_default()
+                .add(request, cost),
+            (None, Some(server)) => mcp_tools
+                .entry((server.to_owned(), request.mcp_tool.map(str::to_owned)))
+                .or_default()
+                .add(request, cost),
+            (None, None) => detail.uncredited.add(request, cost),
+        }
+        if let Some(version) = request.claude_code_version {
+            detail.claude_code_version = Some(version.to_owned());
+        }
+        if let Some(entrypoint) = request.entrypoint {
+            detail.entrypoint = Some(entrypoint.to_owned());
+        }
+    })?;
+    Ok(detail.map(|mut detail| {
+        detail.own_models = by_cost(own_models);
+        let mut subagents: Vec<SubagentTotals> = subagents
+            .into_iter()
+            .map(|(subagent_id, (first_ms, totals, models))| SubagentTotals {
+                subagent_id,
+                first_ms,
+                totals,
+                models: by_cost(models),
+            })
+            .collect();
+        subagents.sort_by(|a, b| {
+            a.first_ms
+                .cmp(&b.first_ms)
+                .then_with(|| a.subagent_id.cmp(&b.subagent_id))
+        });
+        detail.subagents = subagents;
+        detail.skills = credits(
+            skills
+                .into_iter()
+                .map(|(name, totals)| (name, None, totals)),
+        );
+        detail.mcp_tools = credits(
+            mcp_tools
+                .into_iter()
+                .map(|((name, tool), totals)| (name, tool, totals)),
+        );
+        detail
+    }))
+}
+
+/// Credits, highest API-equivalent cost first.
+fn credits(credits: impl Iterator<Item = (String, Option<String>, Totals)>) -> Vec<Credit> {
+    let mut credits: Vec<Credit> = credits
+        .map(|(name, tool, totals)| Credit { name, tool, totals })
+        .collect();
+    credits.sort_by(|a, b| {
+        b.totals
+            .cost
+            .total()
+            .total_cmp(&a.totals.cost.total())
+            .then_with(|| a.name.cmp(&b.name))
+            .then_with(|| a.tool.cmp(&b.tool))
+    });
+    credits
 }
