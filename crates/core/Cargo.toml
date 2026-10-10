@@ -1,0 +1,18 @@
+[package]
+name = "claude-dashboard-core"
+description = "Reads Claude Code's local data and keeps the usage history behind claude-dashboard."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+walkdir = "2.5.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[lints]
+workspace = true
