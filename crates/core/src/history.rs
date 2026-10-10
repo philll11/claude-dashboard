@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
+use rusqlite::{Connection, ErrorCode, OpenFlags, OptionalExtension, TransactionBehavior};
 
 pub use lock::IngestLock;
 pub use reader::{StoredImport, StoredProject, StoredReportedCost, StoredRequest, StoredSession};
@@ -245,6 +245,36 @@ impl History {
                 ))
             })?
             .collect::<Result<_, _>>()?;
+        Ok(positions)
+    }
+
+    /// How far each of `paths` has been read, by path, leaving out those never read.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn read_positions_of(
+        &self,
+        paths: &[String],
+    ) -> Result<HashMap<String, ReadPosition>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT read_to, len, modified_ms FROM transcripts WHERE path = ?1")?;
+        let mut positions = HashMap::new();
+        for path in paths {
+            let position = statement
+                .query_row([path], |row| {
+                    Ok(ReadPosition {
+                        read_to: row.get(0)?,
+                        len: row.get(1)?,
+                        modified_ms: row.get(2)?,
+                    })
+                })
+                .optional()?;
+            if let Some(position) = position {
+                positions.insert(path.clone(), position);
+            }
+        }
         Ok(positions)
     }
 }

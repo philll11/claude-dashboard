@@ -350,6 +350,18 @@ impl<'conn> Writer<'conn> {
         Ok(())
     }
 
+    /// Forgets how far a transcript has been read, once it is no longer there. Its requests stay.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn forget_transcript(&mut self, path: &str) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached("DELETE FROM transcripts WHERE path = ?1")?
+            .execute([path])?;
+        Ok(())
+    }
+
     /// Records a request, or replaces the recorded request with the same identity.
     ///
     /// Of the records that share an identity, one read from a transcript wins over an imported

@@ -2,8 +2,9 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use claude_dashboard_core::history::History;
-use claude_dashboard_core::ingest::{self, Report};
+use claude_dashboard_core::history::{History, HistoryError};
+use claude_dashboard_core::ingest::{self, Progress, Report};
+use claude_dashboard_core::transcript;
 use proptest::prelude::*;
 use rusqlite::{Connection, OpenFlags};
 use serde_json::{Value, json};
@@ -316,6 +317,214 @@ fn missing_data_roots_hold_nothing_to_ingest() {
     let mut fixture = Fixture::new();
     let report = fixture.ingest();
     assert_eq!(report, Report::default());
+}
+
+#[test]
+fn only_the_sessions_own_transcript_names_the_projects_working_folder() {
+    let mut fixture = Fixture::new();
+    write(
+        &fixture.project().join(format!("{SESSION}.jsonl")),
+        &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]),
+    );
+    let mut in_a_worktree = assistant("rec-2", "msg_2", "req_2", 20);
+    in_a_worktree["cwd"] = json!(r"C:\code\app\.worktrees\fix");
+    write(
+        &fixture
+            .project()
+            .join(SESSION)
+            .join("subagents")
+            .join("agent-a1.jsonl"),
+        &lines(&[in_a_worktree]),
+    );
+    let (subagents, sessions): (Vec<_>, Vec<_>) = transcript::find(&fixture.root)
+        .into_iter()
+        .partition(|transcript| transcript.subagent_id.is_some());
+
+    // The subagent's transcript can be read first, such as when it changed last.
+    for transcripts in [subagents, sessions] {
+        ingest::ingest_transcripts(&mut fixture.history, &transcripts).unwrap();
+    }
+
+    assert_eq!(
+        fixture.query::<String>("SELECT path FROM projects"),
+        [r"C:\code\app"]
+    );
+}
+
+#[test]
+fn many_transcripts_are_read_at_once_and_progress_counts_each() {
+    let mut fixture = Fixture::new();
+    for n in 0..40 {
+        write(
+            &fixture
+                .project()
+                .join(format!("{n:08x}-0000-4000-8000-000000000000.jsonl")),
+            &lines(&[assistant(
+                &format!("rec-{n}"),
+                &format!("msg_{n}"),
+                &format!("req_{n}"),
+                10,
+            )]),
+        );
+    }
+    let mut seen = Vec::new();
+
+    let report = ingest::ingest_with_progress(
+        &mut fixture.history,
+        std::slice::from_ref(&fixture.root),
+        |progress| seen.push(progress),
+    )
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(report.transcripts_read, 40);
+    assert_eq!(report.request_records, 40);
+    assert_eq!(
+        fixture.query::<i64>("SELECT count(DISTINCT session) FROM requests"),
+        [40]
+    );
+    assert!(seen.windows(2).all(|pair| pair[0].done < pair[1].done));
+    assert_eq!(
+        seen.last(),
+        Some(&Progress {
+            done: 40,
+            total: 40
+        })
+    );
+}
+
+#[test]
+fn an_ingest_that_cannot_write_stops_reading_and_says_why() {
+    let mut fixture = Fixture::new();
+    for n in 0..40 {
+        write(
+            &fixture
+                .project()
+                .join(format!("{n:08x}-0000-4000-8000-000000000000.jsonl")),
+            &lines(&[assistant(
+                &format!("rec-{n}"),
+                &format!("msg_{n}"),
+                &format!("req_{n}"),
+                10,
+            )]),
+        );
+    }
+    // A newer claude-dashboard upgrades the history while this one has it open.
+    let conn = Connection::open(fixture.history.path()).unwrap();
+    conn.pragma_update(None, "user_version", 999).unwrap();
+    conn.execute("UPDATE compatibility SET readable_from = 1", [])
+        .unwrap();
+    drop(conn);
+
+    let error =
+        ingest::ingest(&mut fixture.history, std::slice::from_ref(&fixture.root)).unwrap_err();
+
+    assert!(
+        matches!(error, HistoryError::ReadOnly { schema: 999 }),
+        "{error:?}"
+    );
+    assert_eq!(fixture.requests().len(), 0);
+}
+
+#[test]
+fn a_transcript_deleted_before_it_is_read_is_reported_and_the_rest_are_ingested() {
+    let mut fixture = Fixture::new();
+    let deleted = fixture.project().join(format!("{RESUMED}.jsonl"));
+    write(
+        &fixture.project().join(format!("{SESSION}.jsonl")),
+        &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]),
+    );
+    write(
+        &deleted,
+        &lines(&[assistant("rec-9", "msg_9", "req_9", 90)]),
+    );
+    let transcripts = transcript::find(&fixture.root);
+    fs::remove_file(&deleted).unwrap();
+
+    let report = ingest::ingest_transcripts(&mut fixture.history, &transcripts)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        report
+            .failed
+            .iter()
+            .map(|(path, _)| path)
+            .collect::<Vec<_>>(),
+        [&deleted]
+    );
+    assert_eq!(
+        fixture.requests(),
+        [format!(
+            "{SESSION} msg_1 req_1 rec-1 - claude-opus-5-5 10 42000 1"
+        )]
+    );
+}
+
+#[test]
+fn a_transcript_claude_code_deleted_is_forgotten_and_its_requests_stay() {
+    let mut fixture = Fixture::new();
+    let deleted = fixture.project().join(format!("{RESUMED}.jsonl"));
+    write(
+        &fixture.project().join(format!("{SESSION}.jsonl")),
+        &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]),
+    );
+    write(
+        &deleted,
+        &lines(&[assistant("rec-9", "msg_9", "req_9", 90)]),
+    );
+    fixture.ingest();
+
+    fs::remove_file(&deleted).unwrap();
+    let report = fixture.ingest();
+
+    assert_eq!(report.transcripts_unchanged, 1);
+    assert_eq!(
+        fixture.query::<i64>("SELECT count(*) FROM transcripts"),
+        [1]
+    );
+    assert_eq!(fixture.requests().len(), 2);
+}
+
+#[test]
+fn a_data_root_out_of_reach_keeps_its_read_positions() {
+    let mut fixture = Fixture::new();
+    write(
+        &fixture.project().join(format!("{SESSION}.jsonl")),
+        &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]),
+    );
+    fixture.ingest();
+    let away = fixture.root.with_extension("away");
+
+    fs::rename(&fixture.root, &away).unwrap();
+    fixture.ingest();
+    fs::rename(&away, &fixture.root).unwrap();
+    let report = fixture.ingest();
+
+    assert_eq!(
+        (report.transcripts_read, report.transcripts_unchanged),
+        (0, 1)
+    );
+}
+
+#[test]
+fn a_sessions_own_ingest_reads_only_what_its_transcripts_added() {
+    let mut fixture = Fixture::new();
+    let main = fixture.project().join(format!("{SESSION}.jsonl"));
+    write(&main, &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]));
+    write(
+        &fixture.project().join(format!("{RESUMED}.jsonl")),
+        &lines(&[assistant("rec-9", "msg_9", "req_9", 90)]),
+    );
+    fixture.ingest();
+
+    append(&main, &lines(&[assistant("rec-2", "msg_2", "req_2", 20)]));
+    let report = ingest::ingest_transcripts(&mut fixture.history, &transcript::for_session(&main))
+        .unwrap()
+        .unwrap();
+
+    assert_eq!((report.transcripts_read, report.request_records), (1, 1));
+    assert_eq!(fixture.requests().len(), 3);
 }
 
 /// A transcript of five requests, three streamed in several records, with lines the history
