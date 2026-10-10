@@ -7,5 +7,8 @@ One process ingests at a time under a lock file while the others read, and every
 ## Consequences
 
 - The database records its schema version, and a binary older than that version opens it read-only and asks to be updated, because the extension, the desktop app and the CLI update independently.
+- The database also records the oldest schema version that can still read it.
+  A migration that removes, renames or redefines something older binaries read raises that version, and those binaries then refuse the database instead of misreading it.
+- Before a migration changes an existing database, a copy of it is kept beside it, because the history holds requests whose transcripts no longer exist anywhere else.
 - The database must stay on a local disk: SQLite's WAL mode does not work on network file systems.
 - The database holds numbers, names and titles, never prompt or code content.

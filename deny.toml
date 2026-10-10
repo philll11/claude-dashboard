@@ -8,6 +8,8 @@ yanked = "deny"
 [licenses]
 version = 2
 confidence-threshold = 0.9
+# The licences a dependency may have, whether or not one has it yet.
+unused-allowed-license = "allow"
 allow = [
   "Apache-2.0",
   "Apache-2.0 WITH LLVM-exception",
