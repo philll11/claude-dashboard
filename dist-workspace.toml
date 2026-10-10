@@ -1,5 +1,6 @@
 # Configuration for dist: https://axodotdev.github.io/cargo-dist/book/
 # .github/workflows/release.yml is generated from this file. Run `dist generate` after changing it.
+# Use the dist version named by cargo-dist-version; its releases are at https://github.com/axodotdev/cargo-dist/releases.
 
 [workspace]
 members = ["cargo:."]
