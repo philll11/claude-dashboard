@@ -222,7 +222,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --project .",
     "test": "vitest run",
-    "test:integration": "node scripts/build.mjs && vscode-test",
+    "test:integration": "node scripts/build.mjs --tests && vscode-test",
     "test:e2e": "node scripts/e2e.mjs",
     "package": "node scripts/package.mjs"
   },

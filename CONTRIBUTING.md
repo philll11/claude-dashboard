@@ -32,11 +32,15 @@ The release workflow's plan job fails when `release.yml` differs from what dist 
 
 To cut a release:
 
-1. In a pull request, set the version in the workspace `Cargo.toml`, and add a section to `CHANGELOG.md` with a heading such as `## Version 0.1.0-alpha.2 (2026-10-20)`, which becomes the release's title and notes.
-   A version with a pre-release part, such as `-alpha.2`, makes a GitHub pre-release.
+1. In a pull request, set the version in the workspace `Cargo.toml` and in `apps/vscode/package.json`, and add a section to `CHANGELOG.md` with a heading such as `## Version 0.1.2 (2026-10-20)`, which becomes the release's title and notes.
+   Every surface has the same version, as plain `major.minor.patch`, because the Visual Studio Marketplace takes no other: an odd minor version, such as `0.1.2`, is a pre-release, and an even one, such as `0.2.0`, is a release.
 2. Once it is merged, tag the merge commit on `main` with `v` and the version, and push the tag.
-3. The release workflow builds and publishes the release, then installs it on every operating system and runs it (`.github/workflows/install-check.yml`).
-   To check an existing release again, run that workflow by hand with its tag.
+3. The release workflow builds and publishes the release, then:
+   - installs it on every operating system and runs it (`.github/workflows/install-check.yml`);
+   - marks it a pre-release on GitHub when its minor version is odd (`.github/workflows/release-channel.yml`);
+   - packages the VS Code extension for every platform with the release's programs, attaches the packages to the release, and publishes them to the Visual Studio Marketplace and Open VSX (`.github/workflows/vscode-release.yml`), which [the runbook](docs/runbook.md) sets up.
+
+   To check an existing release again, run the install check by hand with its tag; to package or publish its extension again, run the VS Code release workflow by hand from the tag.
 
 ## Web dashboard
 
@@ -65,7 +69,7 @@ docker run --rm -v "$PWD":/work -w /work -e CARGO_TARGET_DIR=/work/target/linux 
 docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
   -v claude-dashboard-modules:/work/node_modules \
   -v claude-dashboard-app-modules:/work/web/app/node_modules \
-  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules \
+  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules   -v claude-dashboard-vscode-modules:/work/apps/vscode/node_modules \
   -v claude-dashboard-pnpm-store:/pnpm-store \
   -e CLAUDE_DASHBOARD_BIN=/work/target/linux/debug/claude-dashboard \
   mcr.microsoft.com/playwright:v1.63.0-noble \
@@ -73,6 +77,38 @@ docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
 ```
 
 The volumes keep the container's Linux packages and its package store apart from your own.
+
+## VS Code extension
+
+`apps/vscode` is the extension: it runs `claude-dashboard serve`, shows a summary in the status bar and the sidebar, and the dashboard from `web/app` in an editor tab.
+Its package carries the program for one platform, in `server/`, and runs it with `--status-line-copy`, so that a status line connected from it runs a copy of the program that the next update cannot move.
+
+To try your changes, build everything, point the extension at your build in your user settings (`"claudeDashboard.server.path": "<repository>/target/debug/claude-dashboard"`), and start VS Code with the extension:
+
+```sh
+cargo build -p claude-dashboard
+pnpm install
+pnpm build
+code --extensionDevelopmentPath="$PWD/apps/vscode"
+```
+
+It reads your own Claude Code folder and history, as an installed copy would.
+
+The tests:
+
+- `pnpm --filter claude-dashboard test` checks what the status bar and the sidebar show, with Vitest.
+- `pnpm --filter claude-dashboard test:integration` runs the extension in VS Code over the browser tests' generated Claude Code folder.
+  It downloads the latest VS Code; set `VSCODE_VERSION=1.126.0` for the oldest the extension supports, or `VSCODE_PATH` to the program of a VS Code you have installed.
+- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, and look at the status bar, the sidebar and inside the dashboard, leaving a screenshot of each default theme in `apps/vscode/test-resources/screenshots`:
+
+  ```sh
+  node apps/vscode/scripts/package.mjs --target win32-x64 --program target/debug/claude-dashboard.exe --out apps/vscode/claude-dashboard.vsix
+  node apps/vscode/scripts/e2e.mjs --vsix apps/vscode/claude-dashboard.vsix
+  ```
+
+  Name your platform's target, such as `linux-x64` or `darwin-arm64`, and its program.
+
+On Linux, run the integration and end-to-end tests under `xvfb-run -a`, which gives VS Code a display.
 
 ## Price table
 
