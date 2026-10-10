@@ -153,7 +153,7 @@ pub fn models(app: &App, since: Option<Date>, until: Option<Date>, output: Outpu
 
 /// What reports call a project: the last part of its working folder, or the last two parts when
 /// another project ends in the same folder name, or else its transcript folder.
-fn project_names(history: &History) -> HashMap<ProjectKey, (String, Option<String>, String)> {
+pub fn project_names(history: &History) -> HashMap<ProjectKey, (String, Option<String>, String)> {
     let projects = history.projects().unwrap_or_default();
     let tail = |path: &str, parts: usize| {
         let parts: Vec<&str> = path

@@ -22,6 +22,7 @@ pub const HISTORY_ENV: &str = "CLAUDE_DASHBOARD_HISTORY";
 /// How long a first ingest runs before it shows its progress.
 const QUIET_FOR: Duration = Duration::from_millis(300);
 
+#[derive(Clone)]
 pub struct App {
     pub history_path: Option<PathBuf>,
     pub roots: Vec<DataRoot>,
@@ -52,6 +53,14 @@ impl App {
 
     pub fn now_zoned(&self) -> Zoned {
         self.now.to_zoned(self.zone.clone())
+    }
+
+    /// The same app as it is at `now`, for work that outlives a moment, such as a server.
+    pub fn at(&self, now: Timestamp) -> Self {
+        Self {
+            now,
+            ..self.clone()
+        }
     }
 
     /// Opens the history, creating it on first use.

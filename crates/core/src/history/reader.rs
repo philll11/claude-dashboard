@@ -171,6 +171,60 @@ impl History {
         each_request(&mut statement.query([session.0])?, each)
     }
 
+    /// A number that changes whenever another connection, in this process or another, commits a
+    /// change to the history (SQLite's `data_version`).
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn data_version(&self) -> Result<i64, HistoryError> {
+        Ok(self
+            .conn
+            .pragma_query_value(None, "data_version", |row| row.get(0))?)
+    }
+
+    /// How many requests were made from `since_ms` on, their output tokens, and the time of the
+    /// latest: together they change when requests arrive or a streamed one is completed.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn recent_requests(&self, since_ms: i64) -> Result<(u64, u64, Option<i64>), HistoryError> {
+        Ok(self
+            .conn
+            .prepare_cached(
+                "SELECT count(*), coalesce(sum(output_tokens), 0), max(timestamp_ms)
+                 FROM requests WHERE timestamp_ms >= ?1",
+            )?
+            .query_row([since_ms], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })?)
+    }
+
+    /// When the history's first request was made.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn first_request_ms(&self) -> Result<Option<i64>, HistoryError> {
+        Ok(self
+            .conn
+            .prepare_cached("SELECT min(timestamp_ms) FROM requests")?
+            .query_row([], |row| row.get(0))?)
+    }
+
+    /// When the newest plan-limit reading was taken, from any source.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn latest_limit_ms(&self) -> Result<Option<i64>, HistoryError> {
+        Ok(self
+            .conn
+            .prepare_cached("SELECT max(observed_ms) FROM limit_snapshots")?
+            .query_row([], |row| row.get(0))?)
+    }
+
     /// Every reading of one plan window from `from_ms` up to, but not including, `to_ms`, from
     /// any source, oldest first.
     ///

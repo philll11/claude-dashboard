@@ -189,6 +189,10 @@ pub struct SessionTotals {
     pub totals: Totals,
     /// Requests that subagents made, a part of `totals`.
     pub subagents: Totals,
+    /// How many subagents made requests.
+    pub subagent_count: u64,
+    /// The models it used, highest API-equivalent cost first.
+    pub models: Vec<ModelTotals>,
 }
 
 /// The totals of the requests in `range`, by session, most recent first.
@@ -204,6 +208,9 @@ pub fn by_session(
     sessions_matching(history, table, range, &Filter::default())
 }
 
+/// A session's totals while they are added up, with its models and subagents so far.
+type SessionSoFar = (SessionTotals, HashMap<String, Totals>, HashSet<String>);
+
 /// The totals of the requests in `range` that `filter` admits, by session, most recent first.
 ///
 /// # Errors
@@ -215,30 +222,48 @@ pub fn sessions_matching(
     range: Range,
     filter: &Filter,
 ) -> Result<Vec<SessionTotals>, HistoryError> {
-    let mut sessions: HashMap<SessionKey, SessionTotals> = HashMap::new();
+    let mut sessions: HashMap<SessionKey, SessionSoFar> = HashMap::new();
     history.for_each_request(range.from_ms, range.to_ms, |request| {
         if !filter.admits(request) {
             return;
         }
         let cost = price(table, request);
-        let entry = sessions
-            .entry(request.session)
-            .or_insert_with(|| SessionTotals {
-                session: request.session,
-                project: request.project,
-                first_ms: request.timestamp_ms,
-                last_ms: request.timestamp_ms,
-                totals: Totals::default(),
-                subagents: Totals::default(),
-            });
+        let (entry, models, subagents) = sessions.entry(request.session).or_insert_with(|| {
+            (
+                SessionTotals {
+                    session: request.session,
+                    project: request.project,
+                    first_ms: request.timestamp_ms,
+                    last_ms: request.timestamp_ms,
+                    totals: Totals::default(),
+                    subagents: Totals::default(),
+                    subagent_count: 0,
+                    models: Vec::new(),
+                },
+                HashMap::new(),
+                HashSet::new(),
+            )
+        });
         entry.first_ms = entry.first_ms.min(request.timestamp_ms);
         entry.last_ms = entry.last_ms.max(request.timestamp_ms);
         entry.totals.add(request, cost);
-        if request.subagent_id.is_some() {
+        models
+            .entry(request.model.to_owned())
+            .or_default()
+            .add(request, cost);
+        if let Some(subagent) = request.subagent_id {
             entry.subagents.add(request, cost);
+            subagents.insert(subagent.to_owned());
         }
     })?;
-    let mut sessions: Vec<SessionTotals> = sessions.into_values().collect();
+    let mut sessions: Vec<SessionTotals> = sessions
+        .into_values()
+        .map(|(mut session, models, subagents)| {
+            session.models = by_cost(models);
+            session.subagent_count = subagents.len() as u64;
+            session
+        })
+        .collect();
     sessions.sort_by_key(|session| std::cmp::Reverse(session.last_ms));
     Ok(sessions)
 }

@@ -42,6 +42,8 @@ pub struct Report {
     /// Files that could not be read, such as a transcript Claude Code deleted meanwhile, with the
     /// reason.
     pub failed: Vec<(PathBuf, String)>,
+    /// When the earliest and the latest request records read were written.
+    pub requests_between: Option<(i64, i64)>,
 }
 
 /// Reads what the transcripts in `roots` added since the last ingest into the history, starting
@@ -268,11 +270,16 @@ fn read_transcripts(
             match found {
                 Found::Part { read, last, .. } => {
                     report.unreadable_lines += read.unreadable;
-                    report.request_records += read
-                        .records
-                        .iter()
-                        .filter(|record| matches!(record, Record::Request(_)))
-                        .count() as u64;
+                    for record in &read.records {
+                        if let Record::Request(request) = record {
+                            report.request_records += 1;
+                            let at = request.timestamp_ms;
+                            report.requests_between =
+                                Some(report.requests_between.map_or((at, at), |(first, last)| {
+                                    (first.min(at), last.max(at))
+                                }));
+                        }
+                    }
                     if !last {
                         return;
                     }

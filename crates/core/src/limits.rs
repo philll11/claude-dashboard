@@ -232,14 +232,18 @@ pub fn pace(since: (i64, f64), now: (i64, f64), resets_at_ms: i64) -> Option<Pac
     })
 }
 
-/// Milliseconds as a float; they stay far below 2^53, so the conversion is exact.
-#[allow(clippy::cast_precision_loss)]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "times in milliseconds stay far below 2^53, where f64 starts to skip whole numbers"
+)]
 fn milliseconds(ms: i64) -> f64 {
     ms as f64
 }
 
-/// A duration in milliseconds, rounded down; a pace never runs past a week.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the duration is clamped to fit, and a pace never looks past a week"
+)]
 fn whole_ms(ms: f64) -> i64 {
     ms.clamp(0.0, 1e15) as i64
 }
