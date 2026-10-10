@@ -187,6 +187,29 @@ fn writers_and_readers_share_the_history_without_double_counting() {
 }
 
 #[test]
+fn processes_that_create_the_history_at_once_all_open_it() {
+    for _ in 0..10 {
+        let dir = tempfile::tempdir().unwrap();
+        let openers: Vec<Child> = (0..6)
+            .map(|index| spawn(&format!("opener:{index}"), dir.path()))
+            .collect();
+
+        let deadline = Instant::now() + HELPER_DEADLINE;
+        while (0..6).any(|index| !dir.path().join(format!("ready-{index}")).exists()) {
+            assert!(Instant::now() < deadline, "the openers did not start");
+            thread::sleep(Duration::from_millis(1));
+        }
+        fs::write(dir.path().join("go"), "").unwrap();
+
+        let outputs: Vec<Output> = openers
+            .into_iter()
+            .map(|opener| opener.wait_with_output().unwrap())
+            .collect();
+        assert_succeeded(&outputs);
+    }
+}
+
+#[test]
 fn the_ingest_lock_admits_one_process_at_a_time() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("holder"), "nobody").unwrap();
@@ -215,8 +238,29 @@ fn helper() {
         "writer" => write_the_workload(&folder, index),
         "reader" => read_until_stopped(&folder),
         "locker" => take_turns_with_the_ingest_lock(&folder, index),
+        "opener" => open_on_signal(&folder, index),
         _ => panic!("unknown role {role}"),
     }
+}
+
+/// Waits until every opener is ready and the test says go, then opens the history and records a
+/// session in it, so that the openers create the history at the same moment.
+fn open_on_signal(folder: &Path, index: u64) {
+    fs::write(folder.join(format!("ready-{index}")), "").unwrap();
+    let deadline = Instant::now() + HELPER_DEADLINE;
+    while !folder.join("go").exists() {
+        assert!(Instant::now() < deadline, "never told to go");
+        thread::yield_now();
+    }
+
+    let mut history = History::open(&folder.join("history.sqlite")).unwrap();
+    history
+        .write(|w| {
+            let project = w.project("project", None)?;
+            w.session(&format!("session-{index}"), project)?;
+            Ok(())
+        })
+        .unwrap();
 }
 
 /// Records every version of the workload in an order and in batches of its own, without taking
@@ -287,6 +331,7 @@ fn read_until_stopped(folder: &Path) {
         let counts = history.counts().unwrap();
         assert!(counts.requests <= most_requests, "{counts:?}");
         let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        conn.busy_timeout(HELPER_DEADLINE).unwrap();
         let output: u64 = conn
             .query_row(
                 "SELECT coalesce(sum(output_tokens), 0) FROM requests",

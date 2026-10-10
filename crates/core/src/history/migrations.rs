@@ -44,6 +44,8 @@ pub(super) struct Schema {
 }
 
 impl Schema {
+    /// Reads the version and the oldest readable version in two statements, so call it inside a
+    /// transaction to get both from the same moment.
     pub(super) fn read(conn: &Connection) -> Result<Self, HistoryError> {
         let version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         let readable_from = if version == 0 {
@@ -77,13 +79,14 @@ impl Schema {
 
 /// Refuses an SQLite file that claude-dashboard did not create.
 pub(super) fn check_owner(conn: &Connection, path: &Path) -> Result<(), HistoryError> {
-    let application_id: i32 = conn.pragma_query_value(None, "application_id", |row| row.get(0))?;
-    if application_id == APPLICATION_ID {
-        return Ok(());
-    }
-    let objects: i64 =
-        conn.query_row("SELECT count(*) FROM sqlite_schema", [], |row| row.get(0))?;
-    if application_id == 0 && objects == 0 {
+    // One statement, so both values come from the same moment while another process creates the
+    // history.
+    let (application_id, objects): (i32, i64) = conn.query_row(
+        "SELECT application_id, (SELECT count(*) FROM sqlite_schema) FROM pragma_application_id",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    if application_id == APPLICATION_ID || (application_id == 0 && objects == 0) {
         Ok(())
     } else {
         Err(HistoryError::NotAHistory {
@@ -100,7 +103,11 @@ pub(super) fn migrate(
     migrations: &[Migration],
 ) -> Result<Access, HistoryError> {
     let latest = latest(migrations);
-    if let Some(access) = Schema::read(conn)?.access(latest)? {
+    let schema = {
+        let snapshot = conn.transaction()?;
+        Schema::read(&snapshot)?
+    };
+    if let Some(access) = schema.access(latest)? {
         return Ok(access);
     }
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;

@@ -10,9 +10,10 @@ mod writer;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::thread;
+use std::time::{Duration, Instant};
 
-use rusqlite::{Connection, OpenFlags, TransactionBehavior};
+use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
 
 pub use lock::IngestLock;
 pub use writer::{Attribution, Identity, ProjectKey, Request, SessionKey, Tokens, Writer};
@@ -220,15 +221,27 @@ impl History {
 
 /// Switches the database to write-ahead logging, which lets readers and a writer work at once.
 fn enable_wal(conn: &Connection, path: &Path) -> Result<(), HistoryError> {
-    let mode: String =
-        conn.pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get(0))?;
-    if mode.eq_ignore_ascii_case("wal") {
-        Ok(())
-    } else {
-        Err(HistoryError::WalUnavailable {
-            path: path.to_owned(),
-            mode,
-        })
+    let deadline = Instant::now() + BUSY_TIMEOUT;
+    loop {
+        match conn
+            .pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get::<_, String>(0))
+        {
+            Ok(mode) if mode.eq_ignore_ascii_case("wal") => return Ok(()),
+            Ok(mode) => {
+                return Err(HistoryError::WalUnavailable {
+                    path: path.to_owned(),
+                    mode,
+                });
+            }
+            // When processes switch a new history at the same moment, waiting could deadlock, so
+            // SQLite fails all but one of them at once instead of waiting; those try again.
+            Err(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == ErrorCode::DatabaseBusy && Instant::now() < deadline =>
+            {
+                thread::sleep(Duration::from_millis(5));
+            }
+            Err(error) => return Err(error.into()),
+        }
     }
 }
 
