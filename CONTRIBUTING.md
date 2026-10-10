@@ -29,3 +29,14 @@ After changing it:
 2. Run `dist generate`, and commit both files.
 
 The release workflow's plan job fails when `release.yml` differs from what dist generates.
+
+## Price table
+
+`pricing/prices.json` holds the API prices that API-equivalent cost is calculated from, with the page they come from and the date they were last checked against it.
+When Anthropic's [pricing page](https://platform.claude.com/docs/en/about-claude/pricing) changes:
+
+1. For a new model, add an entry with the ids the Claude API gives it, without any snapshot date.
+2. For a new price, add a period with `from` set to the first day, in UTC, that the price applies, after the model's current period.
+   Never edit a period that is already in a release, because earlier requests keep the prices they were billed at.
+3. Set `checked` to the date you compared the table with the page.
+4. Update the copy of the page's table in `crates/core/tests/pricing.rs` from the page itself, not from `prices.json`, so the test catches a slip in either.
