@@ -294,7 +294,8 @@ outOfLine: Array<PriceDrift>, };
 export type PricesParams = { models: Array<string>, };
 
 /**
- * How far an ingest has got.
+ * How far a read of new transcript content has got. The `ingest/progress` notification carries
+ * it while a read goes on, and once more with every transcript done when the read ends.
  */
 export type Progress = { done: number, total: number, };
 
