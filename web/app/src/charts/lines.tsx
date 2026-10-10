@@ -203,7 +203,7 @@ export function LineChart({
         {dots.map((dot, index) => (
           <div key={`${String(dot.x)}-${String(index)}`} aria-hidden="true">
             <span
-              className="dot"
+              className="point"
               style={{
                 left: `${String(share(dot.x, x0, x1) * 100)}%`,
                 top: toY(dot.y),
@@ -212,7 +212,7 @@ export function LineChart({
             />
             {dot.label && (
               <span
-                className="dot-label"
+                className="point-label"
                 style={{ left: `${String(share(dot.x, x0, x1) * 100)}%`, top: toY(dot.y) - 26 }}
               >
                 {dot.label}
