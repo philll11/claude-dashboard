@@ -1275,7 +1275,7 @@ a:hover {
   fill-opacity: 0.1;
 }
 
-.dot {
+.point {
   position: absolute;
   width: 10px;
   height: 10px;
@@ -1284,7 +1284,7 @@ a:hover {
   transform: translate(-50%, -50%);
 }
 
-.dot-label {
+.point-label {
   position: absolute;
   font-size: 11px;
   color: var(--ink-2);
