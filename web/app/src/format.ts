@@ -192,3 +192,40 @@ export function when(atMs: number, nowMs: number, timeZone: string): string {
   if (days >= 1 && days < 7) return `${weekday(parsed).slice(0, 3)} ${at.time}`;
   return `${String(parsed.day)} ${monthName(parsed).slice(0, 3)} ${at.time}`;
 }
+
+/** A date in full: `31 July 2026`. */
+export function fullDate(day: string): string {
+  const parsed = parseDay(day);
+  return `${String(parsed.day)} ${monthName(parsed)} ${String(parsed.year)}`;
+}
+
+/** A month and year: `October 2026`. */
+export function monthYear(day: string): string {
+  const parsed = parseDay(day);
+  return `${monthName(parsed)} ${String(parsed.year)}`;
+}
+
+/** A moment as a day and time: `Today 11:30`, or `Fri 9 Oct 16:05` on another day. */
+export function dayAndTime(atMs: number, nowMs: number, timeZone: string): string {
+  const at = local(atMs, timeZone);
+  if (at.day === local(nowMs, timeZone).day) return `Today ${at.time}`;
+  return `${dayLabel(at.day)} ${at.time}`;
+}
+
+/** When a plan window resets: `Resets 14:20, in 2 h 05 min` within a day, and
+ * `Resets Thu 15 Oct, 09:00` after that. */
+export function resets(atMs: number, nowMs: number, timeZone: string): string {
+  const at = local(atMs, timeZone);
+  const sameDay = at.day === local(nowMs, timeZone).day;
+  const when = sameDay ? at.time : `${dayLabel(at.day)}, ${at.time}`;
+  return atMs - nowMs < DAY && atMs > nowMs
+    ? `Resets ${when}, in ${duration(atMs - nowMs)}`
+    : `Resets ${when}`;
+}
+
+/** A price in US dollars per million tokens, to the cent or to a tenth of a cent: `$12.50`,
+ * `$0.125`. */
+export function price(usd: number): string {
+  const tenths = Math.round(usd * 1000);
+  return tenths % 10 === 0 ? money(usd) : `$${(tenths / 1000).toFixed(3)}`;
+}

@@ -25,6 +25,7 @@
   --band: rgb(255 255 255 / 5%);
   --warning-icon: #fab219;
   --spark: #5b6573;
+  --indicator: var(--meter);
   --status-good: #3fbf6b;
   --status-warning: #fab219;
   --status-critical: #d03b3b;
@@ -32,7 +33,6 @@
   --series-opus: #d95926;
   --series-sonnet: #199e70;
   --series-haiku: #c98500;
-  --series-other: var(--bar);
   --selected-outline: none;
   --track-outline: none;
   --swatch-outline: none;
@@ -74,6 +74,37 @@
   --series-haiku: #eda100;
 }
 
+/* Tokens worked out from the ones above. They are set on the body, where VS Code's variables
+   and classes apply, so that they follow VS Code's theme as well as the desktop's. */
+body {
+  --series-other: var(--bar);
+  --fill-fable: var(--series-fable);
+  --fill-opus: var(--series-opus);
+  --fill-sonnet: var(--series-sonnet);
+  --fill-haiku: var(--series-haiku);
+  --fill-other: var(--series-other);
+  --raised: color-mix(in srgb, var(--ink) 5%, var(--panel));
+  --accent-line: color-mix(in srgb, var(--meter) 45%, var(--panel));
+  --accent-ink: color-mix(in srgb, var(--meter) 50%, var(--ink));
+  --caution-line: color-mix(in srgb, var(--status-warning) 40%, var(--panel));
+  --caution-ink: color-mix(in srgb, var(--status-warning) 50%, var(--ink));
+  --critical-line: color-mix(in srgb, var(--status-critical) 40%, var(--panel));
+  --critical-icon: color-mix(in srgb, var(--status-critical) 70%, var(--ink));
+  --stale-fill: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--meter) 50%, var(--panel)) 0 3px,
+    var(--track) 3px 6px
+  );
+  --primary: var(--meter);
+  --primary-ink: var(--page);
+  --primary-hover: color-mix(in srgb, var(--meter) 85%, var(--ink));
+  --primary-line: transparent;
+  --link: var(--meter);
+  --link-hover: color-mix(in srgb, var(--meter) 65%, var(--ink));
+  --dialog-bg: var(--tip-bg);
+  --dialog-line: var(--tip-line);
+}
+
 body.vscode-light,
 body.vscode-dark,
 body.vscode-high-contrast,
@@ -81,23 +112,24 @@ body.vscode-high-contrast-light {
   --page: var(--vscode-editor-background);
   --panel: var(--vscode-sideBar-background, var(--vscode-editor-background));
   --line: var(--vscode-panel-border, var(--vscode-widget-border));
-  --grid: var(--vscode-editorWidget-border);
-  --axis: var(--vscode-editorRuler-foreground);
+  --grid: color-mix(in srgb, var(--vscode-foreground) 8%, var(--panel));
+  --axis: color-mix(in srgb, var(--vscode-foreground) 20%, var(--panel));
   --ink: var(--vscode-foreground);
   --ink-2: var(--vscode-foreground);
   --muted: var(--vscode-descriptionForeground);
   --meter: var(--vscode-progressBar-background);
-  --selected: var(--vscode-list-activeSelectionBackground);
-  --selected-ink: var(--vscode-list-activeSelectionForeground);
-  --track: var(--vscode-editorWidget-border);
-  --bar: var(--vscode-descriptionForeground);
-  --bar-track: var(--vscode-editorWidget-background);
+  --selected: var(--vscode-button-background);
+  --selected-ink: var(--vscode-button-foreground);
+  --track: color-mix(in srgb, var(--vscode-foreground) 10%, var(--panel));
+  --bar: color-mix(in srgb, var(--vscode-foreground) 55%, var(--panel));
+  --bar-track: color-mix(in srgb, var(--vscode-foreground) 6%, var(--panel));
   --tip-bg: var(--vscode-editorHoverWidget-background);
   --tip-line: var(--vscode-editorHoverWidget-border);
   --tip-shadow: 0 4px 16px var(--vscode-widget-shadow, rgb(0 0 0 / 36%));
   --band: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
   --warning-icon: var(--vscode-editorWarning-foreground);
-  --spark: var(--vscode-descriptionForeground);
+  --spark: var(--bar);
+  --indicator: var(--vscode-panelTitle-activeBorder);
   --status-good: var(--vscode-testing-iconPassed, #3fbf6b);
   --status-warning: var(--vscode-editorWarning-foreground);
   --status-critical: var(--vscode-editorError-foreground);
@@ -109,6 +141,15 @@ body.vscode-high-contrast-light {
   --mono: var(--vscode-editor-font-family);
   --size: var(--vscode-font-size, 13px);
   --pad: 20px 24px 28px;
+  --primary: var(--vscode-button-background);
+  --primary-ink: var(--vscode-button-foreground);
+  --primary-hover: var(--vscode-button-hoverBackground);
+  --primary-line: var(--vscode-button-border, transparent);
+  --link: var(--vscode-textLink-foreground);
+  --link-hover: var(--vscode-textLink-activeForeground);
+  --critical-icon: var(--vscode-editorError-foreground);
+  --dialog-bg: var(--vscode-editorWidget-background);
+  --dialog-line: var(--vscode-widget-border);
 }
 
 body.vscode-light,
@@ -119,9 +160,16 @@ body.vscode-high-contrast-light {
   --series-haiku: #eda100;
 }
 
-/* High contrast: no rounding or shadows, outlines on whatever is selected or filled. */
+/* High contrast: no rounding or shadows, full-strength lines, and outlines on whatever is
+   selected or filled. */
 body.vscode-high-contrast,
 body.vscode-high-contrast-light {
+  --grid: color-mix(in srgb, var(--vscode-foreground) 23%, var(--panel));
+  --axis: var(--vscode-foreground);
+  --track: var(--page);
+  --bar: var(--vscode-foreground);
+  --bar-track: var(--page);
+  --indicator: var(--vscode-contrastActiveBorder);
   --radius: 0;
   --ctl-radius: 0;
   --ctl-radius-in: 0;
@@ -130,6 +178,13 @@ body.vscode-high-contrast-light {
   --selected-outline: 1px solid var(--vscode-contrastActiveBorder);
   --track-outline: 1px solid var(--vscode-foreground);
   --swatch-outline: 1px solid var(--vscode-foreground);
+  --accent-line: var(--vscode-contrastBorder);
+  --accent-ink: var(--vscode-foreground);
+  --caution-line: var(--vscode-editorWarning-foreground);
+  --caution-ink: var(--vscode-foreground);
+  --critical-line: var(--vscode-editorError-foreground);
+  --fill-opus: repeating-linear-gradient(45deg, var(--series-opus) 0 3px, var(--page) 3px 5px);
+  --fill-sonnet: repeating-linear-gradient(135deg, var(--series-sonnet) 0 3px, var(--page) 3px 5px);
 }
 
 *,

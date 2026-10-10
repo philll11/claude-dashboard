@@ -4,15 +4,23 @@ import { describe, expect, it } from "vitest";
 
 import tokens from "../../../design/tokens.json";
 
-const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8").replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
 
-/** The custom properties a rule whose selector starts with `selector` sets. */
-function properties(selector: string): Map<string, string> {
-  const start = css.indexOf(selector);
-  expect(start, selector).toBeGreaterThanOrEqual(0);
-  const body = css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
+/** The custom properties set by the rule whose selectors are exactly `selectors`. */
+function properties(...selectors: string[]): Map<string, string> {
+  const rule = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(
+    (match) =>
+      (match[1] ?? "")
+        .split(",")
+        .map((selector) => selector.trim())
+        .join(",") === selectors.join(","),
+  );
+  expect(rule, selectors.join(", ")).toBeDefined();
   return new Map(
-    [...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((match) => [
+    [...(rule?.[2] ?? "").matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((match) => [
       match[1] ?? "",
       (match[2] ?? "").trim(),
     ]),
@@ -42,7 +50,7 @@ const COLOURS = [
 
 describe("the stylesheet holds the design tokens", () => {
   it("for the dark desktop theme", () => {
-    const dark = properties(":root {");
+    const dark = properties(":root");
     for (const name of COLOURS) {
       expect(dark.get(`--${name}`), name).toBe(tokens.themes["desktop-dark"][name]);
     }
@@ -66,10 +74,21 @@ describe("the stylesheet holds the design tokens", () => {
   });
 
   it("for VS Code, through its theme variables", () => {
-    const vscode = properties("body.vscode-light,");
-    for (const [name, variable] of Object.entries(tokens.vscode)) {
-      if (name === "series" || name === "selected-outline") continue;
-      expect(vscode.get(`--${name}`), name).toMatch(new RegExp(`^var\\(${variable}[,)]`));
+    const vscode = properties(
+      "body.vscode-light",
+      "body.vscode-dark",
+      "body.vscode-high-contrast",
+      "body.vscode-high-contrast-light",
+    );
+    for (const [name, value] of Object.entries(tokens.vscode)) {
+      expect(vscode.get(`--${name}`), name).toBe(value);
+    }
+  });
+
+  it("for VS Code's high contrast themes", () => {
+    const highContrast = properties("body.vscode-high-contrast", "body.vscode-high-contrast-light");
+    for (const [name, value] of Object.entries(tokens["vscode-high-contrast"])) {
+      expect(highContrast.get(`--${name}`), name).toBe(value);
     }
   });
 });
