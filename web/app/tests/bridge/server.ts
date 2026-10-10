@@ -18,7 +18,7 @@ import {
   StreamMessageWriter,
 } from "vscode-jsonrpc/node";
 
-import { NOW_MS, type Options, type Synthetic, TIME_ZONE, writeClaudeFolder } from "./synthetic";
+import { NOW_MS, type Options, type Synthetic, TIME_ZONE, writeClaudeFolder } from "./synthetic.ts";
 
 /** Where the dashboard is shown the folders and the history, whatever the machine. */
 export const SHOWN_ROOT = "/home/you/.claude";

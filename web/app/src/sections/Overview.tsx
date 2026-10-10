@@ -16,7 +16,7 @@ import { Meter, ShareBar, Sparkline } from "../charts/small";
 import { useStatus } from "../context";
 import { useRequest } from "../data";
 import { addDays, compact, fullDate, grouped, money, percent, resets } from "../format";
-import { seriesFill, seriesOf } from "../models";
+import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
 import { Panel, Tile } from "../ui/panels";
 import { useNow } from "../ui/time";
@@ -33,7 +33,9 @@ import {
   useDays,
   useFilters,
   useRangeText,
+  useSeries,
 } from "./common";
+import { StatusLineDialog } from "./dialogs";
 import { Notices } from "./notices";
 import { costColumns, costSeries, dailyCost, startOfWeek } from "./series";
 import { inOrder, LEVEL_TEXT, LevelIcon, meterName, Provenance, windowName } from "./windows";
@@ -143,6 +145,7 @@ function StaleNote({ limits, status }: { limits: Limits | undefined; status: Sta
 
 function NoLimits({ limits }: { limits: Limits | undefined }) {
   const { change } = useView();
+  const [connecting, setConnecting] = useState(false);
   if (!limits) return null;
   if (limits.statusLine.state === "connected") {
     return (
@@ -165,7 +168,7 @@ function NoLimits({ limits }: { limits: Limits | undefined }) {
           type="button"
           className="button primary"
           onClick={() => {
-            change({ section: "limits" });
+            setConnecting(true);
           }}
         >
           Connect the status line…
@@ -180,6 +183,14 @@ function NoLimits({ limits }: { limits: Limits | undefined }) {
           Other options
         </button>
       </div>
+      {connecting && (
+        <StatusLineDialog
+          connect
+          onClose={() => {
+            setConnecting(false);
+          }}
+        />
+      )}
     </Panel>
   );
 }
@@ -243,10 +254,11 @@ function Tiles() {
 
 function DailyCost({ overview }: { overview: OverviewAnswer | undefined }) {
   const status = useStatus();
+  const series = useSeries();
   const rangeText = useRangeText();
   const [asTable, setAsTable] = useState(false);
   if (!overview) return <section className="panel grow" aria-label="API-equivalent cost per day" />;
-  const chart = costSeries(overview.models);
+  const chart = costSeries(overview.models, series);
   const { bucket, columns } = costColumns(
     overview.byDay,
     chart,
@@ -387,7 +399,7 @@ function ModelsPanel({
 }) {
   const rangeText = useRangeText();
   const prices = useRequest("prices", { models: [] }).data;
-  const series = seriesOf((models ?? []).map((row) => row.model.id));
+  const series = useSeries();
   return (
     <Panel
       title="Models"

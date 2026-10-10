@@ -9,7 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { Plugin } from "vite";
 
-import type { Bridge } from "./server";
+import type { Bridge } from "./server.ts";
 
 async function body(request: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -30,8 +30,8 @@ export function bridge(): Plugin {
     let started = running.get(name);
     if (!started) {
       const [{ Bridge }, { SCENARIOS }] = await Promise.all([
-        import("./server"),
-        import("./scenarios"),
+        import("./server.ts"),
+        import("./scenarios.ts"),
       ]);
       const scenario = SCENARIOS[name];
       if (!scenario) throw new Error(`There is no scenario called ${name}.`);

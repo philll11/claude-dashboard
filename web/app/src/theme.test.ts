@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import tokens from "../../../design/tokens.json";
+import { VSCODE_THEMES } from "../tests/bridge/themes";
 
 const css = readFileSync(new URL("./theme.css", import.meta.url), "utf8").replace(
   /\/\*[\s\S]*?\*\//g,
@@ -92,3 +93,30 @@ describe("the stylesheet holds the design tokens", () => {
     }
   });
 });
+
+describe("the VS Code themes the browser tests use", () => {
+  const stylesheets = ["./theme.css", "./app.css"].map((file) =>
+    readFileSync(new URL(file, import.meta.url), "utf8"),
+  );
+  const used = new Set(stylesheets.flatMap((text) => text.match(/--vscode-[\w-]+/g) ?? []));
+
+  it.each(Object.entries(VSCODE_THEMES))(
+    "define every variable the stylesheets use: %s",
+    (_, theme) => {
+      const defined: Record<string, string> = theme.variables;
+      const missing = [...used].filter(
+        (name) => defined[name] === undefined && !OPTIONAL_IN_SOME_THEMES.has(name),
+      );
+      expect(missing).toEqual([]);
+    },
+  );
+});
+
+/** Variables that VS Code leaves out of some themes, which the stylesheets give a fallback. */
+const OPTIONAL_IN_SOME_THEMES = new Set([
+  "--vscode-contrastActiveBorder",
+  "--vscode-contrastBorder",
+  "--vscode-widget-shadow",
+  "--vscode-button-border",
+  "--vscode-testing-iconPassed",
+]);

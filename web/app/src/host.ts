@@ -16,6 +16,8 @@ export interface Host {
   memory: Memory;
   /** Shows a file or folder in the system's file manager, where the surface can. */
   reveal?: (path: string) => void;
+  /** Asks the person for a folder, where the surface can; `undefined` when they choose none. */
+  pickFolder?: () => Promise<string | undefined>;
 }
 
 declare global {

@@ -9,12 +9,14 @@ import type { Host } from "./host";
 export type ToExtension =
   | { type: "ready" }
   | { type: "request"; id: number; method: Method; params: unknown }
-  | { type: "reveal"; path: string };
+  | { type: "reveal"; path: string }
+  | { type: "pickFolder"; id: number };
 
 /** What the extension sends the webview. */
 export type FromExtension =
   | { type: "response"; id: number; result?: unknown; error?: { code: number; message: string } }
-  | { type: "notification"; method: keyof Notifications; params: unknown };
+  | { type: "notification"; method: keyof Notifications; params: unknown }
+  | { type: "picked"; id: number; path?: string };
 
 interface VsCodeApi {
   postMessage(message: ToExtension): void;
@@ -48,6 +50,7 @@ export function vscodeHost(): Host | undefined {
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >();
   const listeners = new Map<string, Set<(params: unknown) => void>>();
+  const picking = new Map<number, (path: string | undefined) => void>();
   window.addEventListener("message", (event: MessageEvent<FromExtension>) => {
     const message = event.data;
     if (message.type === "response") {
@@ -58,6 +61,9 @@ export function vscodeHost(): Host | undefined {
       } else {
         waiting?.resolve(message.result ?? null);
       }
+    } else if (message.type === "picked") {
+      picking.get(message.id)?.(message.path);
+      picking.delete(message.id);
     } else {
       for (const listener of listeners.get(message.method) ?? []) listener(message.params);
     }
@@ -96,6 +102,14 @@ export function vscodeHost(): Host | undefined {
     },
     reveal: (path) => {
       api.postMessage({ type: "reveal", path });
+    },
+    pickFolder: () => {
+      nextId += 1;
+      const id = nextId;
+      return new Promise((resolve) => {
+        picking.set(id, resolve);
+        api.postMessage({ type: "pickFolder", id });
+      });
     },
   };
 }

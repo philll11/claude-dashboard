@@ -5,6 +5,7 @@
  */
 
 :root {
+  color-scheme: dark;
   --page: #0d0f12;
   --panel: #14171c;
   --line: #262b33;
@@ -47,6 +48,7 @@
 }
 
 :root[data-theme="desktop-light"] {
+  color-scheme: light;
   --page: #f3f5f7;
   --panel: #ffffff;
   --line: #dde2e8;
@@ -103,6 +105,9 @@ body {
   --link-hover: color-mix(in srgb, var(--meter) 65%, var(--ink));
   --dialog-bg: var(--tip-bg);
   --dialog-line: var(--tip-line);
+  --dialog-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  --added: color-mix(in srgb, var(--status-good) 55%, var(--ink));
+  --removed: color-mix(in srgb, var(--status-critical) 55%, var(--ink));
 }
 
 body.vscode-light,
@@ -150,6 +155,19 @@ body.vscode-high-contrast-light {
   --critical-icon: var(--vscode-editorError-foreground);
   --dialog-bg: var(--vscode-editorWidget-background);
   --dialog-line: var(--vscode-widget-border);
+  --dialog-shadow: 0 8px 24px var(--vscode-widget-shadow, rgb(0 0 0 / 36%));
+  --added: var(--vscode-gitDecoration-addedResourceForeground);
+  --removed: var(--vscode-gitDecoration-deletedResourceForeground);
+}
+
+body.vscode-dark,
+body.vscode-high-contrast {
+  color-scheme: dark;
+}
+
+body.vscode-light,
+body.vscode-high-contrast-light {
+  color-scheme: light;
 }
 
 body.vscode-light,

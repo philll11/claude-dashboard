@@ -1,12 +1,14 @@
 // What the person should know before the numbers: a first read under way, no history, a history
 // this version can only read, a folder that cannot be read, and prices that may be out of date.
 
+import { useState } from "react";
+
 import type { Health, Prices, Status } from "@claude-dashboard/protocol";
 
 import { useStatus } from "../context";
 import { useReadingProgress, useRequest, useStore } from "../data";
-import { grouped } from "../format";
-import { EmptyFolder, ErrorCircle, Lock, Warning } from "../ui/icons";
+import { fullDate, grouped } from "../format";
+import { Download, EmptyFolder, ErrorCircle, Lock, Warning } from "../ui/icons";
 import { Notice } from "../ui/panels";
 import { useView } from "../view";
 
@@ -19,6 +21,7 @@ export function Notices() {
       <FirstRun status={status} />
       {health && <NoHistory status={status} health={health} />}
       {status.access === "readOnly" && <ReadOnly />}
+      {status.access === "readWrite" && <ImportOffer />}
       {health && <Unreadable health={health} />}
       {prices && <PriceDrift prices={prices} />}
     </>
@@ -91,6 +94,76 @@ function NoHistory({ status, health }: { status: Status; health: Health }) {
       </div>
     </section>
   );
+}
+
+/** The claude-usage dashboard's history, which Claude Code may have deleted from its own. */
+function ImportOffer() {
+  const store = useStore();
+  const offer = useRequest("import/offer", null).data;
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  if (!offer || offer.requests === 0 || offer.dismissed) return null;
+  const span =
+    offer.firstDay && offer.lastDay
+      ? offer.firstDay === offer.lastDay
+        ? ` from ${dayMonth(offer.firstDay)}`
+        : ` from ${dayMonth(offer.firstDay)} to ${dayMonth(offer.lastDay)}`
+      : "";
+  const run = (method: "import/run" | "import/dismiss") => {
+    setBusy(true);
+    setProblem(null);
+    store.send(method, null).then(
+      () => {
+        setBusy(false);
+        store.refresh(() => true);
+      },
+      (error: unknown) => {
+        setBusy(false);
+        setProblem(error instanceof Error ? error.message : String(error));
+      },
+    );
+  };
+  return (
+    <Notice
+      tone="accent"
+      icon={<Download size={18} />}
+      title="History from the claude-usage dashboard"
+      actions={
+        <>
+          <button
+            type="button"
+            className="button primary"
+            disabled={busy}
+            onClick={() => {
+              run("import/run");
+            }}
+          >
+            Import
+          </button>
+          <button
+            type="button"
+            className="button quiet"
+            disabled={busy}
+            onClick={() => {
+              run("import/dismiss");
+            }}
+          >
+            Not now
+          </button>
+        </>
+      }
+    >
+      {grouped(offer.requests)} {offer.requests === 1 ? "request" : "requests"}
+      {span} that this history doesn't hold, most likely because Claude Code has deleted them from
+      its own. Importing adds them here; nothing is changed or removed in the other database.
+      {problem && <span className="problem-line">{problem}</span>}
+    </Notice>
+  );
+}
+
+/** A day as `31 July`. */
+function dayMonth(day: string): string {
+  return fullDate(day).replace(/ \d{4}$/, "");
 }
 
 function ReadOnly() {

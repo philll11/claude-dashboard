@@ -43,7 +43,7 @@ export function Panel({
 export type Tone = "accent" | "caution" | "critical";
 
 /** A small rounded label, such as `Running` or `Experimental`. */
-export function Pill({ tone, children }: { tone?: Tone; children: ReactNode }) {
+export function Pill({ tone, children }: { tone?: Tone | undefined; children: ReactNode }) {
   return <span className={tone ? `pill ${tone}` : "pill"}>{children}</span>;
 }
 
@@ -119,9 +119,12 @@ export function Tile({
   note?: ReactNode;
   children?: ReactNode;
 }) {
+  const id = useId();
   return (
-    <section className="panel tile" aria-label={label}>
-      <h2 className="tile-label">{label}</h2>
+    <section className="panel tile" aria-labelledby={id}>
+      <h2 id={id} className="tile-label">
+        {label}
+      </h2>
       <div className="tile-body">
         <div className="tile-figures">
           <span className="tile-value">{value}</span>

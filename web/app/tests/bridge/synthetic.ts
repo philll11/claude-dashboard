@@ -6,7 +6,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { NOW_MS, TIME_ZONE } from "./moment";
+import { NOW_MS, TIME_ZONE } from "./moment.ts";
 
 export { NOW_MS, TIME_ZONE };
 
@@ -729,7 +729,7 @@ function limitReadings(options: Options): Synthetic["readings"] {
       [37, 58],
       [40, 61],
       [48, 61],
-      [51.22, 71],
+      [51 + 13 / 60, 71],
     ]),
     ...rising("seven_day:Fable", "usage-endpoint", weekStart, weekEnd, [
       [6, 4],

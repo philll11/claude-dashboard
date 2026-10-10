@@ -8,11 +8,14 @@ export function Sparkline({
   label,
   width = 96,
   height = 32,
+  stroke = "var(--spark)",
 }: {
   values: readonly number[];
   label: string;
   width?: number;
   height?: number;
+  /** The line's colour. */
+  stroke?: string;
 }) {
   const max = Math.max(...values, 0);
   const span = Math.max(1, values.length - 1);
@@ -33,7 +36,7 @@ export function Sparkline({
       <polyline
         points={points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ")}
         fill="none"
-        stroke="var(--spark)"
+        stroke={stroke}
         strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"

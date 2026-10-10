@@ -2,7 +2,7 @@
 // read by the real server. A few states only last a moment in real use, such as a first read
 // under way; those scenarios hold them still by changing the server's answers.
 
-import type { Scenario } from "./server";
+import type { Scenario } from "./server.ts";
 
 function withStatus(
   change: (status: Record<string, unknown>) => void,
@@ -30,6 +30,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   "first-run": {
     patch: withStatus((status) => {
       status.reading = { done: 41, total: 254 };
+      status.readMs = null;
     }),
   },
   /** New activity is being read. */

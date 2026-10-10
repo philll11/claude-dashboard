@@ -41,5 +41,6 @@
     reveal: (path) => {
       settings.revealed = path;
     },
+    pickFolder: () => Promise.resolve(settings.pickedFolder),
   };
 })();

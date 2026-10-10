@@ -5,7 +5,7 @@ import type { Day, ModelRow } from "@claude-dashboard/protocol";
 
 import type { Column, SeriesInfo } from "../charts/columns";
 import { addDays, dayLabel, daysBetween, monthYear, shortDate } from "../format";
-import { type Series, seriesFill, seriesOf, seriesRank } from "../models";
+import { type Series, seriesFill, seriesRank } from "../models";
 
 export interface CostSeries extends SeriesInfo {
   series: Series;
@@ -18,13 +18,17 @@ export interface CostChart {
   seriesOfModel: Map<string, Series>;
 }
 
-/** The series of the models that have a cost, bottom to top. */
-export function costSeries(models: readonly ModelRow[]): CostChart {
+/** The series of the models that have a cost, bottom to top, coloured as `seriesOfModel` says. */
+export function costSeries(
+  models: readonly ModelRow[],
+  seriesOfModel: ReadonlyMap<string, Series>,
+): CostChart {
   const priced = models.filter((row) => row.totals.cost.total > 0);
-  const seriesOfModel = seriesOf(priced.map((row) => row.model.id));
+  const chosen = new Map<string, Series>();
   const bySeries = new Map<Series, CostSeries>();
   for (const row of priced) {
     const series = seriesOfModel.get(row.model.id) ?? "other";
+    chosen.set(row.model.id, series);
     const existing = bySeries.get(series);
     if (existing) {
       existing.total += row.totals.cost.total;
@@ -41,7 +45,7 @@ export function costSeries(models: readonly ModelRow[]): CostChart {
   }
   return {
     series: [...bySeries.values()].sort((a, b) => seriesRank(a.series) - seriesRank(b.series)),
-    seriesOfModel,
+    seriesOfModel: chosen,
   };
 }
 
@@ -114,6 +118,19 @@ export function costColumns(
 
 /** Each day's total cost from `first` to `last`, with nothing on days without requests. */
 export function dailyCost(byDay: readonly Day[], first: string, last: string): number[] {
-  const costs = new Map(byDay.map((day) => [day.date, day.totals.cost.total]));
-  return daysBetween(first, last).map((day) => costs.get(day) ?? 0);
+  return costPerDay(
+    byDay.map((day) => [day.date, day.totals.cost.total] as const),
+    first,
+    last,
+  );
+}
+
+/** Each day's cost from `first` to `last`, from days and their costs, with nothing on other days. */
+export function costPerDay(
+  costs: Iterable<readonly [string, number]>,
+  first: string,
+  last: string,
+): number[] {
+  const byDay = new Map(costs);
+  return daysBetween(first, last).map((day) => byDay.get(day) ?? 0);
 }

@@ -1,12 +1,13 @@
 // What every section shares: its heading and filters, the days it covers, and how totals read.
 
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import type { Days, Totals } from "@claude-dashboard/protocol";
 
 import { useHost, useStatus } from "../context";
 import { useRequest } from "../data";
 import { money } from "../format";
+import { type Series, seriesOf } from "../models";
 import { type Choice, Picker, Segmented } from "../ui/controls";
 import { type Range, RANGE_NAMES, RANGES, rangeDays, useView } from "../view";
 
@@ -35,6 +36,9 @@ export function SectionHead({
   children?: ReactNode;
 }) {
   const host = useHost();
+  if (host.surface === "vscode" && !summary && !children) {
+    return <h1 className="visually-hidden">{title}</h1>;
+  }
   return (
     <div className="section-head">
       <div className="section-titles">
@@ -163,4 +167,11 @@ export function signedPercent(now: number, before: number): string | undefined {
   if (before <= 0) return undefined;
   const change = Math.round(((now - before) / before) * 100);
   return `${change >= 0 ? "+" : "−"}${String(Math.abs(change))}%`;
+}
+
+/** The colour series of every model, the same whatever the filters: each family's newest model in
+ * the history gets the family's colour. */
+export function useSeries(): Map<string, Series> {
+  const choices = useRequest("choices", null).data;
+  return useMemo(() => seriesOf(choices?.models.map((model) => model.id) ?? []), [choices]);
 }
