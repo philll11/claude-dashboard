@@ -4,7 +4,7 @@
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
-use std::io::{IsTerminal, Read, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
@@ -16,6 +16,7 @@ use serde_json::{Map, Value};
 
 use crate::app::App;
 use crate::fmt::money;
+use crate::prompt;
 use crate::report::model_name;
 use crate::style::{Paint, palette};
 
@@ -446,7 +447,7 @@ pub fn connect(app: &App, yes: bool) -> ExitCode {
         let _ = writeln!(out, "Undo it with {undo}.");
     }
     print!("{out}");
-    if !confirmed(paint, yes) {
+    if !prompt::confirmed(paint, yes, "Make this change?") {
         return ExitCode::FAILURE;
     }
     settings.insert("statusLine".to_owned(), Value::Object(status_line));
@@ -495,7 +496,7 @@ pub fn disconnect(app: &App, yes: bool) -> ExitCode {
     });
     out.push_str("A backup is saved next to settings.json.\n");
     print!("{out}");
-    if !confirmed(paint, yes) {
+    if !prompt::confirmed(paint, yes, "Make this change?") {
         return ExitCode::FAILURE;
     }
     if let Some(status_line) = restored {
@@ -517,28 +518,6 @@ fn finish(path: &Path, settings: &Map<String, Value>, done: &str) -> ExitCode {
             ExitCode::FAILURE
         }
     }
-}
-
-/// Asks before a change, unless `yes` already confirmed it.
-fn confirmed(paint: Paint, yes: bool) -> bool {
-    if yes {
-        return true;
-    }
-    if !std::io::stdin().is_terminal() {
-        eprintln!(
-            "\nNothing was changed. Run the command again with --yes to make the change without a question."
-        );
-        return false;
-    }
-    print!("\nMake this change? {} ", paint.strong("[y/N]"));
-    let _ = std::io::stdout().flush();
-    let mut answer = String::new();
-    let _ = std::io::stdin().read_line(&mut answer);
-    let yes = matches!(answer.trim().to_ascii_lowercase().as_str(), "y" | "yes");
-    if !yes {
-        println!("Nothing was changed.");
-    }
-    yes
 }
 
 /// Saves settings, keeping a backup of the file they replace, through a file beside it so that

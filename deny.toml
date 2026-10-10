@@ -1,5 +1,17 @@
 [graph]
 all-features = true
+# The targets claude-dashboard ships for: the release's, and the glibc builds the VS Code
+# extension bundles. Dependencies that only other targets use, such as Android's, never ship.
+targets = [
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+]
 
 [advisories]
 version = 2
@@ -27,6 +39,9 @@ allow = [
 multiple-versions = "warn"
 wildcards = "deny"
 allow-wildcard-paths = true
+skip = [
+  { crate = "windows-sys@0.52.0", reason = "ring 0.17, the TLS cryptography of the usage endpoint, depends on this older version" },
+]
 
 [sources]
 unknown-registry = "deny"

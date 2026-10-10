@@ -5,6 +5,8 @@ mod breakdown;
 mod doctor;
 mod fmt;
 mod import;
+mod limits;
+mod prompt;
 mod report;
 mod statusline;
 mod style;
@@ -13,7 +15,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use jiff::civil::Date;
 
 use crate::app::App;
@@ -89,6 +91,30 @@ enum Command {
         #[command(subcommand)]
         source: ImportSource,
     },
+    /// Choose where plan limits come from, besides Claude Code's status line.
+    Limits {
+        #[command(subcommand)]
+        action: LimitsAction,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum LimitsAction {
+    /// Turn Anthropic's undocumented usage endpoint on or off (experimental). It fills the gaps
+    /// in plan limits while no Claude Code session runs in a terminal.
+    Endpoint {
+        #[arg(value_enum)]
+        switch: Switch,
+        /// Turn it on without asking.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Switch {
+    On,
+    Off,
 }
 
 #[derive(Debug, Subcommand)]
@@ -177,6 +203,9 @@ fn main() -> ExitCode {
         Command::Import {
             source: ImportSource::ClaudeUsage { database },
         } => import::claude_usage(&app, database),
+        Command::Limits {
+            action: LimitsAction::Endpoint { switch, yes },
+        } => limits::endpoint(&app, switch == Switch::On, yes),
     }
 }
 

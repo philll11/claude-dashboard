@@ -13,3 +13,4 @@ pub mod roots;
 pub mod stats_cache;
 pub mod tokens;
 pub mod transcript;
+pub mod usage_endpoint;

@@ -35,6 +35,10 @@ pub(super) const MIGRATIONS: &[Migration] = &[
         sql: include_str!("migrations/0002-ingest.sql"),
         breaks_older_readers: false,
     },
+    Migration {
+        sql: include_str!("migrations/0003-usage-endpoint.sql"),
+        breaks_older_readers: false,
+    },
 ];
 
 /// The schema version that a list of migrations leads to.

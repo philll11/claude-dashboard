@@ -496,3 +496,102 @@ fn models_sessions_and_projects_break_the_days_down() {
         .success()
         .stdout(contains("Fix the importer · app"));
 }
+
+/// A claude.ai login in the fixture's Claude Code folder, expiring at `expires_ms`.
+fn sign_in(fixture: &Fixture, expires_ms: i64) {
+    fs::create_dir_all(fixture.root()).unwrap();
+    fs::write(
+        fixture.root().join(".credentials.json"),
+        format!(
+            r#"{{"claudeAiOauth": {{"accessToken": "made-up-token", "expiresAt": {expires_ms}}}}}"#
+        ),
+    )
+    .unwrap();
+}
+
+const LOGIN_EXPIRED: &str = "Claude Code's login on this computer has expired, so the usage endpoint can't be asked. Open Claude Code once to sign in again; claude-dashboard never refreshes the login itself.";
+
+#[test]
+fn turning_the_usage_endpoint_on_asks_first() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+
+    fixture
+        .cli(&["limits", "endpoint", "on"])
+        .assert()
+        .failure()
+        .stdout(contains("Use Anthropic's usage endpoint?"))
+        .stdout(contains(
+            "It reads the login Claude Code keeps on this computer and sends it only to api.anthropic.com.",
+        ))
+        .stdout(contains(
+            "Anthropic's terms say Claude Code's login is for Claude Code and Anthropic's own apps, and Anthropic may act on other uses without notice.",
+        ))
+        .stderr(contains("Nothing was changed."));
+    fixture.cli(&["doctor"]).assert().success().stdout(contains(
+        "- Limits         usage endpoint off (experimental, opt-in)",
+    ));
+}
+
+#[test]
+fn an_expired_login_is_never_sent_and_the_reports_say_to_sign_in_again() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+    sign_in(&fixture, 1_000);
+
+    fixture
+        .cli(&["limits", "endpoint", "on", "--yes"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "The usage endpoint is on. Turn it off with claude-dashboard limits endpoint off.",
+        ))
+        .stdout(contains(LOGIN_EXPIRED));
+    fixture
+        .cli(&["limits", "endpoint", "on", "--yes"])
+        .assert()
+        .success()
+        .stdout(contains("The usage endpoint is already on."));
+    fixture.cli(&["doctor"]).assert().success().stdout(contains(
+        "! Limits         usage endpoint on (experimental): Claude Code's login on this computer has expired; open Claude Code once to sign in again",
+    ));
+    fixture
+        .cli(&["today"])
+        .assert()
+        .success()
+        .stdout(contains(LOGIN_EXPIRED));
+
+    fixture
+        .cli(&["limits", "endpoint", "off"])
+        .assert()
+        .success()
+        .stdout(contains("The usage endpoint is off."));
+    fixture
+        .cli(&["today"])
+        .assert()
+        .success()
+        .stdout(contains(LOGIN_EXPIRED).not());
+}
+
+#[test]
+fn without_a_claude_ai_login_the_usage_endpoint_says_so() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+
+    fixture
+        .cli(&["limits", "endpoint", "on", "--yes"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "Claude Code has no claude.ai login on this computer.",
+        ));
+}

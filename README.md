@@ -51,6 +51,12 @@ Claude Code passes your plan limits to its status line command while it runs in 
 If you already have a status line, claude-dashboard records the plan limits and then shows yours.
 `claude-dashboard statusline disconnect` puts back the status line you had before.
 
+When no Claude Code session runs in a terminal, Anthropic's undocumented usage endpoint can fill the gaps.
+`claude-dashboard limits endpoint on` turns it on once you agree, and `claude-dashboard limits endpoint off` turns it off.
+It reads the login Claude Code keeps on your computer, never changes or refreshes it, and sends it only to `api.anthropic.com`, at most once every 5 minutes.
+Requests go through the proxy that `HTTPS_PROXY` or `ALL_PROXY` names, or on Windows the system proxy, and trust the operating system's certificates.
+Anthropic's terms say Claude Code's login is for Claude Code and Anthropic's own apps, and that Anthropic may act on other uses without notice, so decide for yourself whether to turn it on.
+
 ### History from claude-usage
 
 If you used the [claude-usage](https://github.com/phuryn/claude-usage) dashboard, `claude-dashboard import claude-usage` brings in the requests from its database that the history does not have, such as those from transcripts Claude Code has since deleted.

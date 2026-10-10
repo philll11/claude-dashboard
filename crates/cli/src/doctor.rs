@@ -13,6 +13,7 @@ use jiff::Timestamp;
 
 use crate::app::App;
 use crate::fmt::{ago, grouped, short_date};
+use crate::limits;
 use crate::report::model_name;
 use crate::statusline::{self, Connection};
 use crate::style::{Paint, palette};
@@ -279,11 +280,23 @@ fn limits_lines(app: &App, history: &History) -> Vec<Line> {
             detail: format!("cannot tell whether the status line is connected: {reason}"),
         },
     };
+    let state = history.usage_endpoint().unwrap_or_default();
+    let (mark, detail) = if state.enabled {
+        match limits::doctor_detail(app, &state) {
+            (true, detail) => (Mark::Good, detail),
+            (false, detail) => (Mark::Warning, detail),
+        }
+    } else {
+        (
+            Mark::Off,
+            "usage endpoint off (experimental, opt-in)".to_owned(),
+        )
+    };
     let endpoint = Line {
-        mark: Mark::Off,
+        mark,
         label: "Limits",
         path: None,
-        detail: "usage endpoint off (experimental, opt-in)".to_owned(),
+        detail,
     };
     vec![status_line, endpoint]
 }

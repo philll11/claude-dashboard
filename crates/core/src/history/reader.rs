@@ -6,6 +6,7 @@ use rusqlite::types::ValueRef;
 use super::{History, HistoryError, ProjectKey, SessionKey};
 use crate::limits::{LimitSnapshot, Source};
 use crate::tokens::Tokens;
+use crate::usage_endpoint::{Outcome, State};
 
 /// A request as the history holds it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -259,6 +260,34 @@ impl History {
             }
         }
         Ok(snapshots)
+    }
+
+    /// Whether the usage endpoint is on, and how asking it last went.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn usage_endpoint(&self) -> Result<State, HistoryError> {
+        let state = self
+            .conn
+            .prepare_cached(
+                "SELECT enabled, next_ask_ms, rate_limited, asked_ms, outcome, detail
+                 FROM usage_endpoint WHERE id = 1",
+            )?
+            .query_row([], |row| {
+                Ok(State {
+                    enabled: row.get(0)?,
+                    next_ask_ms: row.get(1)?,
+                    rate_limited: row.get(2)?,
+                    asked_ms: row.get(3)?,
+                    outcome: row
+                        .get::<_, Option<String>>(4)?
+                        .and_then(|name| Outcome::from_name(&name)),
+                    detail: row.get(5)?,
+                })
+            })
+            .optional()?;
+        Ok(state.unwrap_or_default())
     }
 
     /// The history's schema version.

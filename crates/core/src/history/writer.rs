@@ -5,6 +5,7 @@ use rusqlite::{OptionalExtension, Transaction, params};
 use super::HistoryError;
 use crate::limits::LimitSnapshot;
 use crate::tokens::Tokens;
+use crate::usage_endpoint::Outcome;
 
 /// A project recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -320,6 +321,69 @@ impl<'conn> Writer<'conn> {
                 snapshot.used_percentage,
                 snapshot.resets_at_ms
             ])?;
+        Ok(())
+    }
+
+    /// Turns the usage endpoint on or off, for every process on the machine.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn set_usage_endpoint(&mut self, enabled: bool) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached("UPDATE usage_endpoint SET enabled = ?1 WHERE id = 1")?
+            .execute([enabled])?;
+        Ok(())
+    }
+
+    /// Takes this process's turn to ask the usage endpoint, and puts the next turn
+    /// `interval_ms` later. Returns `false`, taking nothing, while the endpoint is off or another
+    /// process's turn is more recent.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn take_usage_endpoint_turn(
+        &mut self,
+        now_ms: i64,
+        interval_ms: i64,
+    ) -> Result<bool, HistoryError> {
+        let taken = self
+            .tx
+            .prepare_cached(
+                "UPDATE usage_endpoint
+                 SET next_ask_ms = ?1 + ?2, asked_ms = ?1, outcome = NULL, detail = NULL
+                 WHERE id = 1 AND enabled = 1 AND next_ask_ms <= ?1",
+            )?
+            .execute(params![now_ms, interval_ms])?;
+        Ok(taken == 1)
+    }
+
+    /// Records what came of this process's turn, and puts the next turn at `wait_until_ms` when
+    /// that is later than planned.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn usage_endpoint_outcome(
+        &mut self,
+        outcome: Outcome,
+        detail: Option<&str>,
+        wait_until_ms: Option<i64>,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "UPDATE usage_endpoint
+                 SET outcome = ?1, detail = ?2,
+                     rate_limited = CASE ?1
+                         WHEN 'rate-limited' THEN rate_limited + 1
+                         WHEN 'answered' THEN 0
+                         ELSE rate_limited
+                     END,
+                     next_ask_ms = max(next_ask_ms, coalesce(?3, next_ask_ms))
+                 WHERE id = 1",
+            )?
+            .execute(params![outcome.as_str(), detail, wait_until_ms])?;
         Ok(())
     }
 

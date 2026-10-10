@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::app::App;
 use crate::fmt::{ago, compact, grouped, long_day, money, short_date, when};
+use crate::limits;
 use crate::style::{Paint, Rgb, palette};
 
 /// How a report is written.
@@ -58,10 +59,11 @@ pub fn ready_history(app: &App) -> Result<History, ExitCode> {
 }
 
 pub fn today(app: &App, output: Output) -> ExitCode {
-    let history = match ready_history(app) {
+    let mut history = match ready_history(app) {
         Ok(history) => history,
         Err(code) => return code,
     };
+    limits::refresh(app, &mut history);
     let day = app.now_zoned().date();
     let range = Range::days(day, day, &app.zone);
     let models = match report::by_model(&history, app.prices, range) {
@@ -93,6 +95,10 @@ pub fn today(app: &App, output: Output) -> ExitCode {
             }
             out.push('\n');
             let _ = writeln!(out, "{}", limits_line(app, paint, &limits));
+            let endpoint = history.usage_endpoint().unwrap_or_default();
+            if let Some(note) = limits::login_note(&endpoint) {
+                let _ = writeln!(out, "{}", paint.paint(note, palette::WARNING, false));
+            }
             print!("{out}");
         }
         Output::Json => {

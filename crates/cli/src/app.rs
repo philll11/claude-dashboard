@@ -1,5 +1,6 @@
 //! What every command works with: the history, the data roots, the time zone and the prices.
 
+use std::ffi::OsString;
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -8,6 +9,7 @@ use claude_dashboard_core::history::{self, History, HistoryError};
 use claude_dashboard_core::ingest::{self, Progress, Report};
 use claude_dashboard_core::pricing::PriceTable;
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, DataRoot};
+use claude_dashboard_core::usage_endpoint::LoginSource;
 use jiff::tz::TimeZone;
 use jiff::{Timestamp, Zoned};
 
@@ -23,6 +25,8 @@ const QUIET_FOR: Duration = Duration::from_millis(300);
 pub struct App {
     pub history_path: Option<PathBuf>,
     pub roots: Vec<DataRoot>,
+    /// The value of `CLAUDE_CONFIG_DIR`.
+    pub config_dir: Option<OsString>,
     pub zone: TimeZone,
     pub now: Timestamp,
     pub prices: &'static PriceTable,
@@ -39,6 +43,7 @@ impl App {
         Self {
             history_path,
             roots: roots::data_roots(config_dir.as_deref(), home.as_deref(), &[]),
+            config_dir,
             zone: TimeZone::system(),
             now: Timestamp::now(),
             prices: PriceTable::bundled(),
@@ -57,6 +62,11 @@ impl App {
             )
         })?;
         History::open(path).map_err(|error| error.to_string())
+    }
+
+    /// Where Claude Code keeps the login that the usage endpoint needs.
+    pub fn login_source(&self) -> Option<LoginSource> {
+        LoginSource::of(&self.roots, self.config_dir.as_deref())
     }
 
     /// The data roots, as paths.
