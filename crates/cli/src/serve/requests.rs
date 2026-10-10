@@ -199,7 +199,9 @@ impl Server {
             today: today.to_string(),
             first_day,
             read_ms: shared.read_ms,
-            reading: shared.reading,
+            reading: shared
+                .reading
+                .filter(|progress| progress.done < progress.total),
             access,
             limits,
             today_totals,

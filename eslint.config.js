@@ -26,12 +26,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ["web/**/*.{ts,tsx}"],
+    files: ["web/*/src/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ["**/*.js", "**/*.config.ts"],
+    files: ["**/*.js", "**/*.mjs", "**/*.config.ts"],
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,

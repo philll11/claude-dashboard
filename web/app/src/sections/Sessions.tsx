@@ -11,7 +11,7 @@ import { compact, dayAndTime, duration, grouped, money } from "../format";
 import { seriesFill } from "../models";
 import { SearchField } from "../ui/controls";
 import { Check, ChevronDown, Warning } from "../ui/icons";
-import { Pill } from "../ui/panels";
+import { Pill, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import {
@@ -80,7 +80,7 @@ function SessionList() {
         <ModelMenu />
       </SectionHead>
       <section aria-label="Sessions" className="panel list">
-        <div className="table-scroll">
+        <TableScroll label="Sessions">
           <table className="data sessions">
             <thead>
               <tr>
@@ -110,7 +110,7 @@ function SessionList() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         {page?.total === 0 && (
           <p className="note empty-list">
             {view.search === "" ? "No sessions in these days." : "No session matches the search."}

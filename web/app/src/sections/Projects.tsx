@@ -9,6 +9,7 @@ import { Sparkline } from "../charts/small";
 import { useRequest } from "../data";
 import { compact, grouped, money, percent } from "../format";
 import { ChevronDown } from "../ui/icons";
+import { TableScroll } from "../ui/panels";
 import { useView } from "../view";
 import {
   costText,
@@ -47,7 +48,7 @@ export function Projects() {
         <ModelMenu />
       </SectionHead>
       <section aria-label="Projects" className="panel list">
-        <div className="table-scroll">
+        <TableScroll label="Projects">
           <table className="data projects">
             <thead>
               <tr>
@@ -94,7 +95,7 @@ export function Projects() {
               )}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
         {overview && rows.length === 0 && (
           <p className="note empty-list">No projects in these days.</p>
         )}

@@ -10,16 +10,24 @@
     for (const listener of listeners.get(method) ?? []) listener(params);
   };
   let state = settings.state;
+  // How many requests are on their way, for a test to wait until the dashboard has settled.
+  settings.pending = 0;
   window.claudeDashboardHost = {
     surface: settings.surface ?? "vscode",
     backend: {
       async request(method, params) {
-        const response = await fetch(`/__bridge/request?scenario=${scenario}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ method, params }),
-        });
-        const answer = await response.json();
+        settings.pending += 1;
+        let answer;
+        try {
+          const response = await fetch(`/__bridge/request?scenario=${scenario}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ method, params }),
+          });
+          answer = await response.json();
+        } finally {
+          settings.pending -= 1;
+        }
         if (answer.error) {
           throw Object.assign(new Error(answer.error.message), { code: answer.error.code });
         }

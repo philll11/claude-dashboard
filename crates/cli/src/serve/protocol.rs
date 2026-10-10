@@ -141,7 +141,8 @@ pub struct WindowReading {
     pub expired: bool,
 }
 
-/// How far an ingest has got.
+/// How far a read of new transcript content has got. The `ingest/progress` notification carries
+/// it while a read goes on, and once more with every transcript done when the read ends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "protocol.ts")]

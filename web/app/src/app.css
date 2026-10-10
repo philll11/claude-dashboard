@@ -1686,13 +1686,13 @@ a.project-link:hover .project-title {
 .change {
   margin: 0;
   padding: 10px 12px;
-  overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: var(--ctl-radius);
   background: var(--page);
   font-family: var(--mono);
   font-size: 12px;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .change .removed {

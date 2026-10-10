@@ -254,6 +254,24 @@ fn says_when_it_reads_new_activity() {
 }
 
 #[test]
+fn says_when_a_read_ends_even_with_nothing_new() {
+    let mut server = Server::start();
+    server.changed();
+
+    server.result("refresh", &Value::Null);
+    let ended = server.wait_for(|message| {
+        message["method"] == "ingest/progress"
+            && message["params"]["done"] == message["params"]["total"]
+    });
+
+    assert_eq!(ended["params"]["total"], 1);
+    assert_eq!(
+        server.result("status", &Value::Null)["reading"],
+        Value::Null
+    );
+}
+
+#[test]
 fn shows_the_plan_limits_a_status_line_records() {
     let mut server = Server::start();
     server.changed();

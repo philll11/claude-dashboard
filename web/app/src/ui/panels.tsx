@@ -1,7 +1,7 @@
 // The design's containers: panels with a heading, notices that need the person's attention, and
 // the small pills that label a state.
 
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import { ErrorCircle } from "./icons";
 
@@ -133,5 +133,44 @@ export function Tile({
         {children}
       </div>
     </section>
+  );
+}
+
+/** A table that scrolls sideways where its panel is too narrow; while it scrolls, it is a region
+ * the keyboard can reach and scroll. */
+export function TableScroll({
+  label,
+  tall = false,
+  children,
+}: {
+  label: string;
+  /** Scrolls down too, past a fixed height. */
+  tall?: boolean;
+  children: ReactNode;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => {
+      setScrolls(
+        element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+      );
+    });
+    observer.observe(element);
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  return (
+    <div
+      ref={box}
+      className={tall ? "table-scroll tall" : "table-scroll"}
+      {...(scrolls ? { role: "region", "aria-label": label, tabIndex: 0 } : {})}
+    >
+      {children}
+    </div>
   );
 }

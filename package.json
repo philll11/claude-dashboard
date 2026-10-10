@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
-    "build": "pnpm --recursive build"
+    "build": "pnpm --recursive build",
+    "check-licences": "node scripts/npm-licences.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

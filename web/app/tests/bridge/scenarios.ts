@@ -24,7 +24,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   "no-limits": { options: { noLimits: true } },
   /** The last plan limit reading is more than three hours old. */
   "stale-limits": { options: { staleLimits: true } },
-  /** Claude Code's own figure for every Opus session this week is 6% above the estimate. */
+  /** Claude Code's own figure for every Opus session is 6% above the estimate. */
   "prices-drift": { options: { opusDrift: true } },
   /** A first read of the history is under way. */
   "first-run": {
@@ -33,6 +33,19 @@ export const SCENARIOS: Record<string, Scenario> = {
       status.readMs = null;
     }),
   },
+  /** The usage endpoint needs Claude Code's login renewed, and the readings are old. */
+  "login-expired": { options: { staleLimits: true, loginExpired: true } },
+  /** A data folder the person added cannot be read. */
+  "unreadable-folder": { options: { unreadableFolder: true } },
+  /** A newer version of claude-dashboard has upgraded the history. */
+  "newer-schema": { options: { newerSchema: true } },
+  /** The claude-usage dashboard's database holds July, which no transcript does. */
+  "claude-usage": { options: { claudeUsage: true } },
+  /** Servers of their own for the browser tests that change something. */
+  "change-status-line": { options: { noLimits: true } },
+  "change-endpoint": { options: { noLimits: true } },
+  "change-folders": {},
+  "change-settings": {},
   /** New activity is being read. */
   reading: {
     patch: withStatus((status) => {

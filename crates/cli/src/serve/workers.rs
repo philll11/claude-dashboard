@@ -130,19 +130,24 @@ fn read_once(app: &App, history: &mut History, client: &Sender<Message>, shared:
     let mut reported = Instant::now()
         .checked_sub(PROGRESS_EVERY)
         .unwrap_or_else(Instant::now);
+    let mut total = 0;
     let result = ingest::ingest_with_progress(history, &app.root_paths(), |progress| {
         let progress = Progress {
             done: progress.done as u64,
             total: progress.total as u64,
         };
+        total = progress.total;
         lock(shared).reading = Some(progress);
-        if progress.done == progress.total || reported.elapsed() >= PROGRESS_EVERY {
+        if reported.elapsed() >= PROGRESS_EVERY {
             reported = Instant::now();
             notify(client, "ingest/progress", progress);
         }
     });
     let mut state = lock(shared);
     state.reading = None;
+    // Every read ends with its progress complete, so that the client knows when it last read,
+    // even when nothing new was there.
+    notify(client, "ingest/progress", Progress { done: total, total });
     match result {
         Ok(Some(report)) => {
             state.read_ms = Some(app::now().as_millisecond());

@@ -114,12 +114,14 @@ function Shell() {
 function HistoryLine({ status }: { status: Status }) {
   const now = useNow(15_000);
   const progress = useReadingProgress() ?? status.reading;
-  if (progress) {
+  if (progress && progress.done < progress.total) {
     const files = progress.total - progress.done;
     return (
       <span className="history-line reading">
         <span className="dot" aria-hidden="true" />
-        Reading {files === 1 ? "1 changed file" : `${String(files)} changed files`}…
+        {status.readMs
+          ? `Reading ${files === 1 ? "1 changed file" : `${String(files)} changed files`}…`
+          : "Reading your history…"}
       </span>
     );
   }

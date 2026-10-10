@@ -5,6 +5,7 @@
 
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 import { NOW_MS, TIME_ZONE } from "./moment.ts";
 
@@ -34,12 +35,20 @@ const VERSION = "2.1.295";
 
 /** What a variant of the folder changes. */
 export interface Options {
-  /** Claude Code's figure for every Opus session this week is 6% above the estimate. */
+  /** Claude Code's figure for every Opus session is 6% above the estimate. */
   opusDrift?: boolean;
   /** Leaves out the status line's connection and every plan limit reading. */
   noLimits?: boolean;
   /** Ends the plan limit readings at 09:05, so that they are more than three hours old. */
   staleLimits?: boolean;
+  /** The usage endpoint's last turn found Claude Code's login expired. */
+  loginExpired?: boolean;
+  /** Adds a data folder that is a file, so that it cannot be read. */
+  unreadableFolder?: boolean;
+  /** Leaves the history at a newer schema than this version knows, as a newer version would. */
+  newerSchema?: boolean;
+  /** Puts a claude-usage dashboard database, with July's requests, in the data folder. */
+  claudeUsage?: boolean;
 }
 
 /** One plan limit reading, as the history keeps it. */
@@ -55,6 +64,10 @@ export interface Synthetic {
   readings: LimitReading[];
   /** The usage endpoint's state; `null` leaves it off and never asked. */
   endpoint: { askedMs: number; outcome: string; nextAskMs: number } | null;
+  /** Data folders the person added. */
+  folders: string[];
+  /** The schema version to leave the history at, when newer than this version's. */
+  schema: number | null;
 }
 
 interface Project {
@@ -546,7 +559,7 @@ function writeSession(root: string, session: Session, options: Options, next: ()
   if (!session.running) {
     const drift =
       session.drift ??
-      (options.opusDrift && session.day >= "2026-10-05" && session.models.some(([m]) => m === OPUS)
+      (options.opusDrift && session.models.some(([model]) => model === OPUS)
         ? 0.064
         : next() * 0.006);
     const modelUsage = Object.fromEntries(
@@ -754,10 +767,61 @@ export function writeClaudeFolder(root: string, options: Options = {}): Syntheti
   for (const session of [...NAMED, ...generatedSessions()]) {
     writeSession(root, session, options, next);
   }
+  if (options.claudeUsage) writeClaudeUsage(join(root, "usage.db"));
+  const folders: string[] = [];
+  if (options.unreadableFolder) {
+    const file = join(dirname(root), "wsl.localhost-Ubuntu-.claude");
+    writeFileSync(file, "");
+    folders.push(file);
+  }
   return {
     readings: limitReadings(options),
     endpoint: options.noLimits
       ? null
-      : { askedMs: at(TODAY, "12:10"), outcome: "answered", nextAskMs: NOW_MS + 5 * MINUTE },
+      : {
+          askedMs: at(TODAY, "12:10"),
+          outcome: options.loginExpired ? "login-expired" : "answered",
+          nextAskMs: NOW_MS + 5 * MINUTE,
+        },
+    folders,
+    schema: options.newerSchema ? 99 : null,
   };
+}
+
+/** A claude-usage dashboard database holding requests from July, before any transcript. */
+function writeClaudeUsage(path: string): void {
+  const database = new DatabaseSync(path);
+  try {
+    database.exec(`
+      CREATE TABLE sessions (session_id TEXT PRIMARY KEY, project_name TEXT, topic TEXT);
+      CREATE TABLE turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, timestamp TEXT, model TEXT,
+        input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER,
+        cache_creation_tokens INTEGER, tool_name TEXT, cwd TEXT, message_id TEXT,
+        is_subagent INTEGER DEFAULT 0, agent_id TEXT
+      );`);
+    const insert = database.prepare(
+      `INSERT INTO turns (session_id, timestamp, model, input_tokens, output_tokens,
+         cache_read_tokens, cache_creation_tokens, cwd, message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const next = random(17);
+    for (let day = "2026-07-01"; day <= "2026-07-30"; day = addDays(day, 1)) {
+      for (let index = 0; index < 129; index += 1) {
+        insert.run(
+          `july-${day}-${String(index % 4)}`,
+          new Date(at(day, "10:00") + index * 3 * MINUTE).toISOString(),
+          next() < 0.7 ? OPUS : SONNET,
+          Math.round(5 + next() * 30),
+          Math.round(200 + next() * 1500),
+          Math.round(20_000 + next() * 60_000),
+          Math.round(500 + next() * 4_000),
+          "/home/you/code/claude-dashboard",
+          `msg_july_${day}_${String(index)}`,
+        );
+      }
+    }
+  } finally {
+    database.close();
+  }
 }

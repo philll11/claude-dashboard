@@ -14,11 +14,11 @@ import type {
 import { StackedColumns } from "../charts/columns";
 import { Meter, ShareBar, Sparkline } from "../charts/small";
 import { useStatus } from "../context";
-import { useRequest } from "../data";
+import { useReadingProgress, useRequest } from "../data";
 import { addDays, compact, fullDate, grouped, money, percent, resets } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
-import { Panel, Tile } from "../ui/panels";
+import { Panel, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import {
@@ -44,6 +44,10 @@ export function Overview() {
   const days = useDays();
   const filters = useFilters();
   const overview = useRequest("overview", { days, filters });
+  const status = useStatus();
+  const progress = useReadingProgress() ?? status.reading;
+  // With no history and nothing being read, there is nothing to show but how to find some.
+  const nothingYet = !status.firstDay && !progress && status.limits.length === 0;
   return (
     <div className="section">
       <SectionHead title="Overview">
@@ -52,13 +56,17 @@ export function Overview() {
         <ModelMenu />
       </SectionHead>
       <Notices />
-      <PlanLimits />
-      <Tiles />
-      <div className="row">
-        <DailyCost overview={overview.data} />
-        <TopProjects projects={overview.data?.projects} />
-      </div>
-      <ModelsPanel models={overview.data?.models} totals={overview.data?.totals} />
+      {nothingYet ? null : (
+        <>
+          <PlanLimits />
+          <Tiles />
+          <div className="row">
+            <DailyCost overview={overview.data} />
+            <TopProjects projects={overview.data?.projects} />
+          </div>
+          <ModelsPanel models={overview.data?.models} totals={overview.data?.totals} />
+        </>
+      )}
     </div>
   );
 }
@@ -309,7 +317,7 @@ function DailyCost({ overview }: { overview: OverviewAnswer | undefined }) {
         </ul>
       )}
       {asTable ? (
-        <div className="table-scroll">
+        <TableScroll label="Cost per day by model">
           <table className="data">
             <thead>
               <tr>
@@ -334,7 +342,7 @@ function DailyCost({ overview }: { overview: OverviewAnswer | undefined }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       ) : (
         <StackedColumns columns={columns} series={chart.series} label={label} format={money} />
       )}
@@ -369,7 +377,7 @@ function TopProjects({ projects }: { projects: readonly ProjectRow[] | undefined
   const largest = Math.max(...items.map((item) => item.cost), 0);
   return (
     <Panel className="side" title="Top projects" subtitle={`API-equivalent cost · ${rangeText}`}>
-      {items.length === 0 ? (
+      {projects?.length === 0 ? (
         <p className="note">
           No projects {rangeText === "today" ? "today" : `in the ${rangeText}`}.
         </p>
@@ -412,7 +420,7 @@ function ModelsPanel({
         ) : undefined
       }
     >
-      <div className="table-scroll">
+      <TableScroll label="Models">
         <table className="data wide">
           <thead>
             <tr>
@@ -462,7 +470,7 @@ function ModelsPanel({
             })}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
       {prices && (
         <div className="estimate">
           <span className="badge">Estimate</span>

@@ -7,7 +7,7 @@
     "build": "vite build",
     "typecheck": "tsc --project .",
     "test": "vitest run",
-    "screenshots": "playwright test"
+    "browser": "vite build && playwright test"
   },
   "dependencies": {
     "@claude-dashboard/protocol": "workspace:*",

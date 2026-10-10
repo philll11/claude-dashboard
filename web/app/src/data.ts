@@ -47,8 +47,11 @@ export class Store {
       this.refresh((entry) => LIMITS.includes(entry.method));
     });
     backend.onNotification("ingest/progress", (progress) => {
-      this.progress = progress.done < progress.total ? progress : null;
+      const reading = progress.done < progress.total;
+      this.progress = reading ? progress : null;
       this.notifyProgress();
+      // A read that ended changes when the history was last read.
+      if (!reading) this.refresh((entry) => entry.method === "status");
     });
   }
 

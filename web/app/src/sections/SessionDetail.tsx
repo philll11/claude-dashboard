@@ -12,7 +12,7 @@ import { useRequest } from "../data";
 import { compact, dayLabel, duration, grouped, local, money, percent } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, Copy, Folder, TableIcon } from "../ui/icons";
-import { Panel, Problem, Tile } from "../ui/panels";
+import { Panel, Problem, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import { cacheShare, costText, tokensOf, useSeries } from "./common";
@@ -236,7 +236,7 @@ function CostOverSession({ detail, timeZone }: { detail: Detail; timeZone: strin
       }
     >
       {asTable ? (
-        <div className="table-scroll tall">
+        <TableScroll label="Requests" tall>
           <table className="data">
             <thead>
               <tr>
@@ -255,7 +255,7 @@ function CostOverSession({ detail, timeZone }: { detail: Detail; timeZone: strin
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       ) : (
         <LineChart
           lines={[

@@ -250,7 +250,13 @@ export const VSCODE_THEMES = {
 export type ThemeName = "desktop-dark" | "desktop-light" | keyof typeof VSCODE_THEMES;
 
 /** Shows the page in `theme`. Self-contained, so that a browser test can run it in the page. */
-export function applyTheme(theme: string, vscode: VsCodeTheme | undefined): void {
+export function applyTheme({
+  theme,
+  vscode,
+}: {
+  theme: string;
+  vscode?: VsCodeTheme | undefined;
+}): void {
   const apply = () => {
     const root = document.documentElement;
     if (vscode) {

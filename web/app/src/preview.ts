@@ -12,7 +12,7 @@ export async function previewHost(): Promise<Host | undefined> {
   Date.now = () => Math.round(NOW_MS + performance.now() - started);
   const { applyTheme, VSCODE_THEMES } = await import("../tests/bridge/themes");
   const themes: Record<string, VsCodeTheme | undefined> = VSCODE_THEMES;
-  applyTheme(theme, themes[theme]);
+  applyTheme({ theme, vscode: themes[theme] });
   window.claudeDashboardBridge = {
     scenario: query.get("scenario") ?? "default",
     surface: query.get("surface") ?? (theme.startsWith("desktop") ? "desktop" : "vscode"),
@@ -23,6 +23,13 @@ export async function previewHost(): Promise<Host | undefined> {
 
 declare global {
   interface Window {
-    claudeDashboardBridge?: { scenario?: string; surface?: string; revealed?: string };
+    claudeDashboardBridge?: {
+      scenario?: string;
+      surface?: string;
+      revealed?: string;
+      pickedFolder?: string;
+      /** Requests on their way. */
+      pending?: number;
+    };
   }
 }

@@ -12,7 +12,7 @@ import { useRequest } from "../data";
 import { compact, fullDate, grouped, money, percent, price } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
-import { Panel } from "../ui/panels";
+import { Panel, TableScroll } from "../ui/panels";
 import {
   costText,
   ProjectMenu,
@@ -115,7 +115,7 @@ function DailyLines() {
         </ul>
       )}
       {asTable ? (
-        <div className="table-scroll">
+        <TableScroll label="Cost per day by model">
           <table className="data">
             <thead>
               <tr>
@@ -138,7 +138,7 @@ function DailyLines() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
       ) : (
         <LineChart
           lines={chart.series.map((item) => ({
@@ -193,7 +193,7 @@ function TokensAndCost({ models }: { models: readonly ModelRow[] }) {
   const series = useSeries();
   return (
     <Panel title="Tokens and cost" aside={`· ${rangeText}`}>
-      <div className="table-scroll">
+      <TableScroll label="Tokens and cost">
         <table className="data wider">
           <thead>
             <tr>
@@ -252,7 +252,7 @@ function TokensAndCost({ models }: { models: readonly ModelRow[] }) {
             })}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
     </Panel>
   );
 }
@@ -273,7 +273,7 @@ function PricesUsed({ models }: { models: readonly ModelRow[] }) {
         ) : undefined
       }
     >
-      <div className="table-scroll">
+      <TableScroll label="Prices used">
         <table className="data wide">
           <thead>
             <tr>
@@ -298,7 +298,7 @@ function PricesUsed({ models }: { models: readonly ModelRow[] }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableScroll>
       <p className="footnote">
         Fast mode, US-only inference (1.1 times) and web search are priced from the same table. A
         model missing from it shows as unpriced, never as free.
