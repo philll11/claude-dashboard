@@ -122,13 +122,20 @@ describe(`${NAME}, installed from its package`, function () {
     assert.ok(today);
     await today.select();
     assert.equal(await shownSection(), "Overview");
+    // A dashboard behind another editor has lost its page, and shows the section once back.
+    await new Workbench().executeCommand("File: New Untitled Text File");
+    const limits = await section.findItem("Plan limits");
+    assert.ok(limits);
+    await limits.select();
+    assert.equal(await shownSection(), "Limits");
   });
 
   for (const theme of THEMES) {
     it(`shows the dashboard in ${theme}`, async () => {
       await setSetting("workbench.colorTheme", theme);
-      await summary();
-      await new Workbench().executeCommand("Dashboard for Claude Code: Open Dashboard");
+      const week = await (await summary()).findItem("This week");
+      assert.ok(week);
+      await week.select();
       assert.equal(await shownSection(), "Overview");
       await driver.sleep(1_000);
       await screenshot(theme.replace(/^Default /, "").replaceAll(" ", "-"));

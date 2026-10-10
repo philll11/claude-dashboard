@@ -22,6 +22,9 @@ export const SHOWN_ROOT = "/home/you/.claude";
 export const SHOWN_HISTORY = "/home/you/.local/share/claude-dashboard/history.sqlite";
 export const SHOWN_PROGRAM = "/home/you/.local/bin/claude-dashboard";
 export const SHOWN_ADDED_FOLDER = "//wsl.localhost/Ubuntu/home/you/.claude";
+/** The version the dashboard is shown, whatever the program's, so that screenshots stay the same
+ * from one release to the next. */
+export const SHOWN_VERSION = "0.1.0-alpha.1";
 
 export interface Scenario {
   /** The variant of the synthetic folder. */
@@ -106,7 +109,11 @@ export class Bridge {
   async request(method: string, params: unknown): Promise<unknown> {
     const result: unknown = await this.connection.sendRequest(method, this.sentAs(params));
     const patched = this.scenario.patch ? this.scenario.patch(method, result) : result;
-    return this.shownAs(patched);
+    const versioned =
+      method === "status" && patched !== null && typeof patched === "object"
+        ? { ...patched, version: SHOWN_VERSION }
+        : patched;
+    return this.shownAs(versioned);
   }
 
   onNotification(listener: Listener): () => void {
