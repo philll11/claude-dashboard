@@ -7,6 +7,8 @@ use serde::Deserialize;
 use serde::de::value::MapAccessDeserializer;
 use serde::de::{self, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
 
+use crate::tokens::Tokens;
+
 /// A transcript record that the history uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Record {
@@ -50,31 +52,7 @@ pub struct RequestRecord {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelUsage {
     pub model: String,
-    pub usage: Usage,
-}
-
-/// Tokens by type.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Usage {
-    pub input: u64,
-    pub output: u64,
-    pub cache_read: u64,
-    pub cache_write_5m: u64,
-    pub cache_write_1h: u64,
-}
-
-impl Usage {
-    fn is_empty(&self) -> bool {
-        *self == Self::default()
-    }
-
-    fn add(&mut self, other: Self) {
-        self.input = self.input.saturating_add(other.input);
-        self.output = self.output.saturating_add(other.output);
-        self.cache_read = self.cache_read.saturating_add(other.cache_read);
-        self.cache_write_5m = self.cache_write_5m.saturating_add(other.cache_write_5m);
-        self.cache_write_1h = self.cache_write_1h.saturating_add(other.cache_write_1h);
-    }
+    pub tokens: Tokens,
 }
 
 /// Why a line cannot be read.
@@ -164,19 +142,19 @@ fn usage_by_model(model: &str, usage: &RawUsage) -> Vec<ModelUsage> {
     let mut parts: Vec<ModelUsage> = Vec::new();
     for iteration in &usage.iterations {
         let iteration_model = iteration.model.as_deref().unwrap_or(model);
-        let tokens = iteration.tokens.usage();
+        let tokens = iteration.tokens.tokens();
         match parts.iter_mut().find(|part| part.model == iteration_model) {
-            Some(part) => part.usage.add(tokens),
+            Some(part) => part.tokens.add(tokens),
             None => parts.push(ModelUsage {
                 model: iteration_model.to_owned(),
-                usage: tokens,
+                tokens,
             }),
         }
     }
-    if parts.iter().all(|part| part.usage.is_empty()) {
+    if parts.iter().all(|part| part.tokens.is_empty()) {
         return vec![ModelUsage {
             model: model.to_owned(),
-            usage: usage.tokens.usage(),
+            tokens: usage.tokens.tokens(),
         }];
     }
     if let Some(own) = parts.iter().position(|part| part.model == model) {
@@ -265,7 +243,7 @@ struct RawTokens {
 }
 
 impl RawTokens {
-    fn usage(&self) -> Usage {
+    fn tokens(&self) -> Tokens {
         let split = self.cache_creation.as_ref();
         let five_minutes = split.and_then(|s| s.ephemeral_5m_input_tokens).unwrap_or(0);
         let one_hour = split.and_then(|s| s.ephemeral_1h_input_tokens).unwrap_or(0);
@@ -275,7 +253,7 @@ impl RawTokens {
         // Before Claude Code reported how long cache writes are kept, every write was kept for
         // five minutes, so whatever the split does not put at one hour counts as five minutes.
         let one_hour = one_hour.min(written);
-        Usage {
+        Tokens {
             input: self.input_tokens.unwrap_or(0),
             output: self.output_tokens.unwrap_or(0),
             cache_read: self.cache_read_input_tokens.unwrap_or(0),

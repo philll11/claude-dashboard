@@ -3,8 +3,9 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
+use claude_dashboard_core::tokens::Tokens;
 use claude_dashboard_core::transcript::{
-    self, ModelUsage, Record, RequestRecord, Usage, parse_line, read_from,
+    self, ModelUsage, Record, RequestRecord, parse_line, read_from,
 };
 use proptest::prelude::*;
 use serde_json::{Value, json};
@@ -71,8 +72,8 @@ fn request(record: &Value) -> RequestRecord {
     }
 }
 
-fn usage(input: u64, output: u64, cache_read: u64, five: u64, hour: u64) -> Usage {
-    Usage {
+fn tokens(input: u64, output: u64, cache_read: u64, five: u64, hour: u64) -> Tokens {
+    Tokens {
         input,
         output,
         cache_read,
@@ -103,7 +104,7 @@ fn reads_a_request_from_an_assistant_record() {
             web_fetch_requests: 1,
             usage: vec![ModelUsage {
                 model: "claude-opus-5-5".into(),
-                usage: usage(3, 640, 42_000, 500, 1_000),
+                tokens: tokens(3, 640, 42_000, 500, 1_000),
             }],
         }
     );
@@ -117,8 +118,8 @@ fn without_the_cache_split_every_cache_write_is_kept_five_minutes() {
     usage_json.as_object_mut().unwrap().remove("iterations");
 
     assert_eq!(
-        request(&record).usage[0].usage,
-        usage(3, 640, 42_000, 1_500, 0)
+        request(&record).usage[0].tokens,
+        tokens(3, 640, 42_000, 1_500, 0)
     );
 }
 
@@ -139,11 +140,11 @@ fn a_fallback_counts_each_model_with_the_records_own_model_first() {
         [
             ModelUsage {
                 model: "claude-opus-4-8".into(),
-                usage: usage(32, 5_978, 336_961, 0, 0),
+                tokens: tokens(32, 5_978, 336_961, 0, 0),
             },
             ModelUsage {
                 model: "claude-fable-5-1".into(),
-                usage: usage(32, 484, 424_503, 0, 2_448),
+                tokens: tokens(32, 484, 424_503, 0, 2_448),
             },
         ]
     );
@@ -173,7 +174,7 @@ fn a_response_cut_off_mid_stream_counts_what_its_iterations_used() {
         request(&record).usage,
         [ModelUsage {
             model: "claude-opus-5-5".into(),
-            usage: usage(2, 671, 966_536, 0, 363),
+            tokens: tokens(2, 671, 966_536, 0, 363),
         }]
     );
 }
@@ -237,7 +238,7 @@ fn a_field_of_an_unexpected_type_costs_only_that_field() {
     assert_eq!(request.entrypoint, None);
     assert_eq!(request.speed, None);
     assert_eq!(request.web_search_requests, 0);
-    assert_eq!(request.usage[0].usage, usage(3, 0, 42_000, 500, 1_000));
+    assert_eq!(request.usage[0].tokens, tokens(3, 0, 42_000, 500, 1_000));
     assert_eq!(request.message_id.as_deref(), Some("msg_01AbCdEf"));
 }
 
