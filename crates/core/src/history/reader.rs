@@ -4,6 +4,7 @@ use rusqlite::OptionalExtension;
 use rusqlite::types::ValueRef;
 
 use super::{History, HistoryError, ProjectKey, SessionKey};
+use crate::limits::{LimitSnapshot, Source};
 use crate::tokens::Tokens;
 
 /// A request as the history holds it.
@@ -223,6 +224,41 @@ impl History {
             })?
             .collect::<Result<_, _>>()?;
         Ok(held)
+    }
+
+    /// The latest reading of each plan window, from any source.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn latest_limits(&self) -> Result<Vec<LimitSnapshot>, HistoryError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT window, source, observed_ms, used_percentage, resets_at_ms
+             FROM limit_snapshots AS reading
+             WHERE observed_ms = (
+                 SELECT max(observed_ms) FROM limit_snapshots WHERE window = reading.window
+             )
+             ORDER BY window, source",
+        )?;
+        let mut seen = std::collections::HashSet::new();
+        let mut snapshots = Vec::new();
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let window: String = row.get(0)?;
+            let Some(source) = Source::from_name(&row.get::<_, String>(1)?) else {
+                continue;
+            };
+            if seen.insert(window.clone()) {
+                snapshots.push(LimitSnapshot {
+                    window,
+                    source,
+                    observed_ms: row.get(2)?,
+                    used_percentage: row.get(3)?,
+                    resets_at_ms: row.get(4)?,
+                });
+            }
+        }
+        Ok(snapshots)
     }
 
     /// The import from `source`, if the history holds one.

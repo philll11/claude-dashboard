@@ -3,6 +3,7 @@
 use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::HistoryError;
+use crate::limits::LimitSnapshot;
 use crate::tokens::Tokens;
 
 /// A project recorded in the history.
@@ -288,6 +289,37 @@ impl<'conn> Writer<'conn> {
         self.tx
             .prepare_cached(sql)?
             .execute(params![session.0, text])?;
+        Ok(())
+    }
+
+    /// Records a plan-limit reading. The latest reading in each five minutes of each window and
+    /// source is kept.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn limit_snapshot(&mut self, snapshot: &LimitSnapshot) -> Result<(), HistoryError> {
+        const BUCKET_MS: i64 = 5 * 60 * 1000;
+        self.tx
+            .prepare_cached(
+                "INSERT INTO limit_snapshots (
+                     window, source, bucket_ms, observed_ms, used_percentage, resets_at_ms
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                 ON CONFLICT (window, source, bucket_ms) DO UPDATE SET
+                     observed_ms = excluded.observed_ms,
+                     used_percentage = excluded.used_percentage,
+                     resets_at_ms = excluded.resets_at_ms
+                 WHERE excluded.observed_ms >= limit_snapshots.observed_ms",
+            )?
+            .execute(params![
+                snapshot.window,
+                snapshot.source.as_str(),
+                snapshot.observed_ms.div_euclid(BUCKET_MS) * BUCKET_MS,
+                snapshot.observed_ms,
+                snapshot.used_percentage,
+                snapshot.resets_at_ms
+            ])?;
         Ok(())
     }
 

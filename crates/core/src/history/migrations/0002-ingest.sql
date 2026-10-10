@@ -48,3 +48,19 @@ CREATE TABLE daily_totals (
     tokens INTEGER NOT NULL,
     PRIMARY KEY (day, model)
 ) STRICT, WITHOUT ROWID;
+
+-- Readings of how much of each plan window was used.
+CREATE TABLE limit_snapshots (
+    -- The plan window as Claude Code names it, such as `five_hour` or `seven_day`.
+    window TEXT NOT NULL,
+    -- Where the reading came from: `status-line` or `usage-endpoint`.
+    source TEXT NOT NULL,
+    -- The five minutes the reading falls in; the latest reading in them is kept.
+    bucket_ms INTEGER NOT NULL,
+    observed_ms INTEGER NOT NULL,
+    used_percentage REAL NOT NULL,
+    resets_at_ms INTEGER,
+    PRIMARY KEY (window, source, bucket_ms)
+) STRICT, WITHOUT ROWID;
+
+CREATE INDEX limit_snapshots_by_time ON limit_snapshots (window, observed_ms);
