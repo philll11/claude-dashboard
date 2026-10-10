@@ -1,6 +1,10 @@
 //! The `claude-dashboard` command.
 
-use clap::Parser;
+mod doctor;
+
+use std::process::ExitCode;
+
+use clap::{Parser, Subcommand};
 
 /// See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.
 #[derive(Debug, Parser)]
@@ -10,10 +14,21 @@ use clap::Parser;
     about,
     arg_required_else_help = true
 )]
-struct Cli {}
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
 
-fn main() {
-    Cli::parse();
+#[derive(Debug, Subcommand)]
+enum Command {
+    /// Check what claude-dashboard can find and read.
+    Doctor,
+}
+
+fn main() -> ExitCode {
+    match Cli::parse().command {
+        Command::Doctor => doctor::run(),
+    }
 }
 
 #[cfg(test)]
