@@ -18,3 +18,14 @@ Start with an issue, so we can agree on the change before you spend time on it.
 - In Markdown, each sentence goes on its own line, so diffs stay readable.
 - Commit messages are short, plain sentences that say what changed.
 - Comments explain constraints a future maintainer needs, not the history of how the code came about.
+
+## Release workflow
+
+[dist](https://github.com/axodotdev/cargo-dist) generates `.github/workflows/release.yml` from `dist-workspace.toml`.
+Release settings, and the versions of the actions the release uses, change in `dist-workspace.toml`, never in `release.yml`.
+After changing it:
+
+1. Install the dist version that `cargo-dist-version` names, with `cargo-dist-installer.sh` or `cargo-dist-installer.ps1` from that version's [release](https://github.com/axodotdev/cargo-dist/releases).
+2. Run `dist generate`, and commit both files.
+
+The release workflow's plan job fails when `release.yml` differs from what dist generates.
