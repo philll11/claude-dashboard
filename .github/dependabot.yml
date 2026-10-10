@@ -15,3 +15,9 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+    # dist generates release.yml and pins these actions in dist-workspace.toml; update them there with `dist generate`.
+    ignore:
+      - dependency-name: actions/checkout
+      - dependency-name: actions/upload-artifact
+      - dependency-name: actions/download-artifact
+      - dependency-name: actions/attest
