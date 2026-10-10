@@ -5,7 +5,7 @@
 // its own and a Claude Code folder of its own, so it never reads or changes the person's.
 
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -36,6 +36,33 @@ export interface Scenario {
 }
 
 type Listener = (method: string, params: unknown) => void;
+
+/** The start of every bridge folder's name; the process id that follows says whose it is. */
+const FOLDER_PREFIX = "claude-dashboard-bridge-";
+
+function running(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/** Removes the folders of bridges whose process has ended without removing them, as happens when
+ * a test run or a preview is stopped. */
+let swept = false;
+function sweep(): void {
+  if (swept) return;
+  swept = true;
+  for (const name of readdirSync(tmpdir())) {
+    if (!name.startsWith(FOLDER_PREFIX)) continue;
+    const pid = Number(name.slice(FOLDER_PREFIX.length).split("-")[0]);
+    if (Number.isInteger(pid) && pid !== process.pid && !running(pid)) {
+      rmSync(join(tmpdir(), name), { recursive: true, force: true });
+    }
+  }
+}
 
 function binary(): string {
   const fromEnvironment = process.env.CLAUDE_DASHBOARD_BIN;
@@ -113,7 +140,8 @@ export class Bridge {
   /** Writes the scenario's Claude Code folder, reads it into a new history, and starts a server
    * on them. */
   static start(scenario: Scenario = {}): Promise<Bridge> {
-    const folder = mkdtempSync(join(tmpdir(), "claude-dashboard-bridge-"));
+    sweep();
+    const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
     const root = join(folder, ".claude");
     const history = join(folder, "history.sqlite");
     const synthetic = scenario.empty
