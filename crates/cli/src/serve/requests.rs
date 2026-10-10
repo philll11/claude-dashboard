@@ -19,14 +19,14 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use super::protocol::{
-    Access, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, FiveHourWindow, Folder,
-    FolderState, Health, Level, Model, ModelDay, ModelRow, Overview, OverviewParams, Pace,
-    PriceRow, Prices, PricesParams, Project, ProjectRow, Provenance, SessionDetail, SessionParams,
-    SessionRow, SessionsPage, SessionsParams, Status, StatusLine, Tokens, Totals, UsePoint, WhoRow,
-    WindowReading, WindowView,
+    Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, FiveHourWindow, Folder,
+    FolderState, Health, Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams,
+    Pace, PriceDrift, PriceRow, Prices, PricesParams, Project, ProjectRow, Provenance,
+    SessionDetail, SessionParams, SessionRow, SessionsPage, SessionsParams, Status, StatusLine,
+    Tokens, Totals, UsePoint, WhoRow, WindowReading, WindowView,
 };
 use super::{Shared, lock};
-use crate::app::App;
+use crate::app::{self, App};
 use crate::breakdown::project_names;
 use crate::report::model_name;
 use crate::statusline::{self, Connection};
@@ -83,7 +83,7 @@ impl Server {
 
     pub fn answer(&mut self, request: Request) -> Response {
         let Request { id, method, params } = request;
-        let app = self.app.at(Timestamp::now());
+        let app = self.app.at(app::now());
         let answer = match method.as_str() {
             "status" => self.status(&app).and_then(json),
             "overview" => parse(params)
@@ -95,6 +95,7 @@ impl Server {
             "session" => parse(params)
                 .and_then(|p| self.session(&app, &p))
                 .and_then(json),
+            "choices" => self.choices(&app).and_then(json),
             "limits" => self.limits(&app).and_then(json),
             "prices" => parse(params)
                 .and_then(|p| self.prices(&app, &p))
@@ -438,6 +439,20 @@ impl Server {
         })
     }
 
+    fn choices(&mut self, app: &App) -> Result<Choices, Fault> {
+        let history = self.history()?;
+        let names = project_names(history);
+        let mut projects: Vec<Project> = names.keys().map(|&key| project_of(&names, key)).collect();
+        projects.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
+        let mut models: Vec<Model> = history
+            .models()?
+            .iter()
+            .map(|model| model_of(app, model))
+            .collect();
+        models.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
+        Ok(Choices { projects, models })
+    }
+
     fn prices(&mut self, app: &App, params: &PricesParams) -> Result<Prices, Fault> {
         let history = self.history()?;
         let reconciliation = reconcile::reconcile(history, app.prices, app.now.as_millisecond())?;
@@ -455,6 +470,17 @@ impl Server {
                     inference_geo: None,
                     web_search_requests: 0,
                 })?;
+                let long_prompt =
+                    app.prices
+                        .long_prompt(model, app.now.as_millisecond())
+                        .map(|(above, long)| LongPrompt {
+                            above,
+                            input: long.input,
+                            output: long.output,
+                            cache_write_5m: long.cache_write_5m,
+                            cache_write_1h: long.cache_write_1h,
+                            cache_read: long.cache_read,
+                        });
                 Some(PriceRow {
                     model: model_of(app, model),
                     input: rates.input,
@@ -462,6 +488,17 @@ impl Server {
                     cache_write_5m: rates.cache_write_5m,
                     cache_write_1h: rates.cache_write_1h,
                     cache_read: rates.cache_read,
+                    long_prompt,
+                })
+            })
+            .collect();
+        let out_of_line = reconciliation
+            .out_of_line()
+            .filter_map(|model| {
+                Some(PriceDrift {
+                    model: model_of(app, &model.model),
+                    drift: model.drift()?,
+                    sessions: model.sessions,
                 })
             })
             .collect();
@@ -471,6 +508,7 @@ impl Server {
             models,
             drift: reconciliation.drift(),
             sessions_compared: reconciliation.sessions,
+            out_of_line,
         })
     }
 
@@ -597,7 +635,8 @@ fn totals(totals: &report::Totals) -> Totals {
         input: input_cost,
         output: output_cost,
         cache_read: cache_read_cost,
-        cache_write,
+        cache_write_5m: five_minute_writes,
+        cache_write_1h: one_hour_writes,
         web_search,
     } = totals.cost;
     Totals {
@@ -614,7 +653,8 @@ fn totals(totals: &report::Totals) -> Totals {
             input: input_cost,
             output: output_cost,
             cache_read: cache_read_cost,
-            cache_write,
+            cache_write_5m: five_minute_writes,
+            cache_write_1h: one_hour_writes,
             web_search,
         },
         unpriced_requests: totals.unpriced_requests,

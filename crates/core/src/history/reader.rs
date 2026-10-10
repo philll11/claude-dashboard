@@ -301,6 +301,21 @@ impl History {
         Ok(projects)
     }
 
+    /// Every model the history's requests name, in order.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn models(&self) -> Result<Vec<String>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT DISTINCT model FROM requests ORDER BY model")?;
+        let models = statement
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(models)
+    }
+
     /// The cost Claude Code reports for each session and model, summed over its runs.
     ///
     /// # Errors

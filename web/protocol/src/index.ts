@@ -3,6 +3,7 @@
 // returns which, and how a surface carries them.
 
 import type {
+  Choices,
   Health,
   HistoryChanged,
   Limits,
@@ -23,6 +24,7 @@ export type * from "./generated/protocol";
 /** Each request the server answers, as its parameters and its result. */
 export interface Requests {
   status: [null, Status];
+  choices: [null, Choices];
   overview: [OverviewParams, Overview];
   sessions: [SessionsParams, SessionsPage];
   session: [SessionParams, SessionDetail];

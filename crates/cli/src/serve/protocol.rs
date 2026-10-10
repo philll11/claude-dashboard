@@ -51,8 +51,8 @@ pub struct Cost {
     pub input: f64,
     pub output: f64,
     pub cache_read: f64,
-    /// Cache writes of both durations.
-    pub cache_write: f64,
+    pub cache_write_5m: f64,
+    pub cache_write_1h: f64,
     pub web_search: f64,
 }
 
@@ -487,6 +487,35 @@ pub struct PriceRow {
     pub cache_write_5m: f64,
     pub cache_write_1h: f64,
     pub cache_read: f64,
+    /// The prices of prompts longer than a number of tokens, for a model that charges more for
+    /// them.
+    #[ts(optional = nullable)]
+    pub long_prompt: Option<LongPrompt>,
+}
+
+/// A model's prices for long prompts, in US dollars per million tokens.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct LongPrompt {
+    /// Prompts of more tokens than this pay these prices.
+    pub above: u64,
+    pub input: f64,
+    pub output: f64,
+    pub cache_write_5m: f64,
+    pub cache_write_1h: f64,
+    pub cache_read: f64,
+}
+
+/// A model whose API-equivalent cost drifts from Claude Code's own figure by more than rounding.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct PriceDrift {
+    pub model: Model,
+    /// The estimate against Claude Code's figure, as a share: -0.06 is 6% below it.
+    pub drift: f64,
+    pub sessions: u64,
 }
 
 /// `prices`: the price table and how well it agrees with Claude Code's own costs.
@@ -498,11 +527,13 @@ pub struct Prices {
     pub checked: String,
     pub source: String,
     pub models: Vec<PriceRow>,
-    /// Claude Code's own cost against ours, over the sessions that can be compared, as a share:
-    /// 0.004 is 0.4% higher.
+    /// The estimate against Claude Code's own figure, over the sessions that can be compared, as a
+    /// share: 0.004 is 0.4% above it.
     #[ts(optional = nullable)]
     pub drift: Option<f64>,
     pub sessions_compared: u64,
+    /// The models whose prices may be out of date.
+    pub out_of_line: Vec<PriceDrift>,
 }
 
 /// Something the person needs to know about the data folders or the history.
@@ -550,6 +581,17 @@ pub struct Health {
 pub struct HistoryChanged {
     #[ts(optional = nullable)]
     pub days: Option<Days>,
+}
+
+/// `choices`: every project and model the history holds, for the filters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct Choices {
+    /// By name.
+    pub projects: Vec<Project>,
+    /// By name.
+    pub models: Vec<Model>,
 }
 
 /// `prices` parameters: the models whose prices to show.

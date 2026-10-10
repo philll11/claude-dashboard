@@ -6,13 +6,22 @@
 export type Access = "readWrite" | "readOnly";
 
 /**
+ * `choices`: every project and model the history holds, for the filters.
+ */
+export type Choices = { 
+/**
+ * By name.
+ */
+projects: Array<Project>, 
+/**
+ * By name.
+ */
+models: Array<Model>, };
+
+/**
  * API-equivalent cost in US dollars, by what it pays for.
  */
-export type Cost = { total: number, input: number, output: number, cacheRead: number, 
-/**
- * Cache writes of both durations.
- */
-cacheWrite: number, webSearch: number, };
+export type Cost = { total: number, input: number, output: number, cacheRead: number, cacheWrite5m: number, cacheWrite1h: number, webSearch: number, };
 
 /**
  * The running API-equivalent cost at one moment.
@@ -118,6 +127,15 @@ export type Limits = { windows: Array<WindowView>,
 recent: Array<FiveHourWindow>, statusLine: StatusLine, endpoint: Endpoint, };
 
 /**
+ * A model's prices for long prompts, in US dollars per million tokens.
+ */
+export type LongPrompt = { 
+/**
+ * Prompts of more tokens than this pay these prices.
+ */
+above: number, input: number, output: number, cacheWrite5m: number, cacheWrite1h: number, cacheRead: number, };
+
+/**
  * A model, by its id and the short name the price table gives it.
  */
 export type Model = { id: string, 
@@ -176,9 +194,23 @@ limitReachedMs?: number | null,
 sinceMs: number, };
 
 /**
+ * A model whose API-equivalent cost drifts from Claude Code's own figure by more than rounding.
+ */
+export type PriceDrift = { model: Model, 
+/**
+ * The estimate against Claude Code's figure, as a share: -0.06 is 6% below it.
+ */
+drift: number, sessions: number, };
+
+/**
  * A model's prices, in US dollars per million tokens.
  */
-export type PriceRow = { model: Model, input: number, output: number, cacheWrite5m: number, cacheWrite1h: number, cacheRead: number, };
+export type PriceRow = { model: Model, input: number, output: number, cacheWrite5m: number, cacheWrite1h: number, cacheRead: number, 
+/**
+ * The prices of prompts longer than a number of tokens, for a model that charges more for
+ * them.
+ */
+longPrompt?: LongPrompt | null, };
 
 /**
  * `prices`: the price table and how well it agrees with Claude Code's own costs.
@@ -189,10 +221,14 @@ export type Prices = {
  */
 checked: string, source: string, models: Array<PriceRow>, 
 /**
- * Claude Code's own cost against ours, over the sessions that can be compared, as a share:
- * 0.004 is 0.4% higher.
+ * The estimate against Claude Code's own figure, over the sessions that can be compared, as a
+ * share: 0.004 is 0.4% above it.
  */
-drift?: number | null, sessionsCompared: number, };
+drift?: number | null, sessionsCompared: number, 
+/**
+ * The models whose prices may be out of date.
+ */
+outOfLine: Array<PriceDrift>, };
 
 /**
  * `prices` parameters: the models whose prices to show.

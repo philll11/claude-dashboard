@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use super::protocol::{Days, HistoryChanged, Progress};
 use super::{Shared, lock};
-use crate::app::App;
+use crate::app::{self, App};
 
 /// How often the transcripts are read again when nothing asks sooner.
 const READ_EVERY: Duration = Duration::from_secs(60);
@@ -98,7 +98,7 @@ fn read_transcripts(
             }
         }
         if let Some(history) = history.as_mut() {
-            read_once(&app.at(Timestamp::now()), history, client, shared);
+            read_once(&app.at(app::now()), history, client, shared);
         }
         select! {
             recv(stopped) -> _ => return,
@@ -132,7 +132,7 @@ fn read_once(app: &App, history: &mut History, client: &Sender<Message>, shared:
     state.reading = None;
     match result {
         Ok(Some(report)) => {
-            state.read_ms = Some(Timestamp::now().as_millisecond());
+            state.read_ms = Some(app::now().as_millisecond());
             state.problems = report
                 .failed
                 .iter()
@@ -183,7 +183,7 @@ fn watch_history(app: &App, client: &Sender<Message>, stopped: &Receiver<()>) {
             history = app.open_history().ok();
         }
         if let Some(history) = history.as_mut() {
-            let app = app.at(Timestamp::now());
+            let app = app.at(app::now());
             if endpoint_turn.is_none_or(|turn| turn.elapsed() >= ENDPOINT_EVERY) {
                 endpoint_turn = Some(Instant::now());
                 // `data_version` leaves out this connection's own changes, so a turn this watch

@@ -3,6 +3,7 @@
 use std::ffi::OsString;
 use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 use claude_dashboard_core::history::{self, History, HistoryError};
@@ -18,6 +19,18 @@ use crate::fmt::grouped;
 /// The environment variable that moves the history to another file, for a portable setup or a
 /// test.
 pub const HISTORY_ENV: &str = "CLAUDE_DASHBOARD_HISTORY";
+
+/// The environment variable that fixes the time every command sees, as an RFC 3339 timestamp such
+/// as `2026-10-10T12:15:00+13:00`, so that tests and the web UI's screenshots do not depend on
+/// when they run.
+pub const NOW_ENV: &str = "CLAUDE_DASHBOARD_NOW";
+
+/// The current time, or the time [`NOW_ENV`] fixes.
+pub fn now() -> Timestamp {
+    static FIXED: LazyLock<Option<Timestamp>> =
+        LazyLock::new(|| std::env::var(NOW_ENV).ok()?.parse().ok());
+    FIXED.unwrap_or_else(Timestamp::now)
+}
 
 /// How long a first ingest runs before it shows its progress.
 const QUIET_FOR: Duration = Duration::from_millis(300);
@@ -46,7 +59,7 @@ impl App {
             roots: roots::data_roots(config_dir.as_deref(), home.as_deref(), &[]),
             config_dir,
             zone: TimeZone::system(),
-            now: Timestamp::now(),
+            now: now(),
             prices: PriceTable::bundled(),
         }
     }
