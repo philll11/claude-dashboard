@@ -184,7 +184,7 @@ impl Format {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let app = App::new();
+    let app = App::new().with_shared_settings();
     match cli.command {
         Command::Today { format } => report::today(&app, format.output()),
         Command::Daily {

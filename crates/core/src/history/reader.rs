@@ -1,5 +1,8 @@
 //! Reading the history back, for reports and reconciliation.
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+
 use rusqlite::OptionalExtension;
 use rusqlite::types::ValueRef;
 
@@ -301,6 +304,25 @@ impl History {
         Ok(projects)
     }
 
+    /// The kind of agent each of a session's subagents is, by subagent id, as far as the history
+    /// knows it.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn subagent_types(
+        &self,
+        session: SessionKey,
+    ) -> Result<HashMap<String, String>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT subagent_id, agent_type FROM subagents WHERE session = ?1")?;
+        let types = statement
+            .query_map([session.0], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(types)
+    }
+
     /// Every model the history's requests name, in order.
     ///
     /// # Errors
@@ -438,6 +460,37 @@ impl History {
         Ok(self
             .conn
             .pragma_query_value(None, "user_version", |row| row.get(0))?)
+    }
+
+    /// The settings every surface shares, by name.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn settings(&self) -> Result<HashMap<String, String>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT name, value FROM settings")?;
+        let settings = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(settings)
+    }
+
+    /// The data folders the person added, in the order they were added.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn data_folders(&self) -> Result<Vec<PathBuf>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT path FROM data_folders ORDER BY added_ms, path")?;
+        let folders = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .map(|path| path.map(PathBuf::from))
+            .collect::<Result<_, _>>()?;
+        Ok(folders)
     }
 
     /// The import from `source`, if the history holds one.

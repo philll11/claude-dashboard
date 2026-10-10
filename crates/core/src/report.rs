@@ -480,6 +480,8 @@ pub struct SubagentTotals {
     pub subagent_id: String,
     /// When its first request was made.
     pub first_ms: i64,
+    /// When its last request was made.
+    pub last_ms: i64,
     pub totals: Totals,
     /// Its models, highest API-equivalent cost first.
     pub models: Vec<ModelTotals>,
@@ -530,7 +532,7 @@ pub fn session_detail(
 ) -> Result<Option<SessionDetail>, HistoryError> {
     let mut detail: Option<SessionDetail> = None;
     let mut own_models: HashMap<String, Totals> = HashMap::new();
-    let mut subagents: HashMap<String, (i64, Totals, HashMap<String, Totals>)> = HashMap::new();
+    let mut subagents: HashMap<String, SubagentSoFar> = HashMap::new();
     let mut skills: HashMap<String, Totals> = HashMap::new();
     let mut mcp_tools: HashMap<(String, Option<String>), Totals> = HashMap::new();
     let mut running = 0.0;
@@ -558,14 +560,9 @@ pub fn session_detail(
             detail.cumulative_cost.push((request.timestamp_ms, running));
         }
         if let Some(id) = request.subagent_id {
-            let (first_ms, totals, models) = subagents
+            subagents
                 .entry(id.to_owned())
-                .or_insert_with(|| (request.timestamp_ms, Totals::default(), HashMap::new()));
-            *first_ms = (*first_ms).min(request.timestamp_ms);
-            totals.add(request, cost);
-            models
-                .entry(request.model.to_owned())
-                .or_default()
+                .or_insert_with(|| SubagentSoFar::new(request.timestamp_ms))
                 .add(request, cost);
         } else {
             detail.own.add(request, cost);
@@ -596,11 +593,12 @@ pub fn session_detail(
         detail.own_models = by_cost(own_models);
         let mut subagents: Vec<SubagentTotals> = subagents
             .into_iter()
-            .map(|(subagent_id, (first_ms, totals, models))| SubagentTotals {
+            .map(|(subagent_id, so_far)| SubagentTotals {
                 subagent_id,
-                first_ms,
-                totals,
-                models: by_cost(models),
+                first_ms: so_far.first_ms,
+                last_ms: so_far.last_ms,
+                totals: so_far.totals,
+                models: by_cost(so_far.models),
             })
             .collect();
         subagents.sort_by(|a, b| {
@@ -621,6 +619,35 @@ pub fn session_detail(
         );
         detail
     }))
+}
+
+/// A subagent's requests added up so far, while its session is read.
+struct SubagentSoFar {
+    first_ms: i64,
+    last_ms: i64,
+    totals: Totals,
+    models: HashMap<String, Totals>,
+}
+
+impl SubagentSoFar {
+    fn new(timestamp_ms: i64) -> Self {
+        Self {
+            first_ms: timestamp_ms,
+            last_ms: timestamp_ms,
+            totals: Totals::default(),
+            models: HashMap::new(),
+        }
+    }
+
+    fn add(&mut self, request: &StoredRequest<'_>, cost: Option<Cost>) {
+        self.first_ms = self.first_ms.min(request.timestamp_ms);
+        self.last_ms = self.last_ms.max(request.timestamp_ms);
+        self.totals.add(request, cost);
+        self.models
+            .entry(request.model.to_owned())
+            .or_default()
+            .add(request, cost);
+    }
 }
 
 /// Credits, highest API-equivalent cost first.

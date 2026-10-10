@@ -4,27 +4,31 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 use claude_dashboard_core::history::{self, History, HistoryError, ProjectKey};
+use claude_dashboard_core::import;
 use claude_dashboard_core::limits::{self, FIVE_HOUR, FIVE_HOURS_MS, LimitSnapshot, Source};
 use claude_dashboard_core::pricing;
 use claude_dashboard_core::reconcile;
 use claude_dashboard_core::report::{self, Filter, Range};
 use claude_dashboard_core::roots::{self, RootSource, RootStatus};
 use claude_dashboard_core::tokens;
-use crossbeam_channel::Sender;
+use jiff::Timestamp;
 use jiff::civil::Date;
-use jiff::{Timestamp, ToSpan};
+use jiff::tz::TimeZone;
 use lsp_server::{ErrorCode, Request, Response};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use super::protocol::{
-    Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, FiveHourWindow, Folder,
-    FolderState, Health, Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams,
+    Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, EndpointParams,
+    FiveHourWindow, Folder, FolderParams, FolderState, Health, HistoryFacts, ImportDone,
+    ImportOffer, Imported, Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams,
     Pace, PriceDrift, PriceRow, Prices, PricesParams, Project, ProjectRow, Provenance,
-    SessionDetail, SessionParams, SessionRow, SessionsPage, SessionsParams, Status, StatusLine,
-    Tokens, Totals, UsePoint, WhoRow, WindowReading, WindowView,
+    SessionDetail, SessionParams, SessionRow, SessionsPage, SessionsParams, Settings,
+    SettingsChange, Status, StatusLine, StatusLineApply, StatusLineParams, StatusLinePlan, Tokens,
+    Totals, UsePoint, WhoRow, WindowReading, WindowView,
 };
+use super::workers::Triggers;
 use super::{Shared, lock};
 use crate::app::{self, App};
 use crate::breakdown::project_names;
@@ -67,23 +71,23 @@ impl From<HistoryError> for Fault {
 pub struct Server {
     app: App,
     shared: Arc<Mutex<Shared>>,
-    trigger: Sender<()>,
+    triggers: Triggers,
     history: Option<History>,
 }
 
 impl Server {
-    pub fn new(app: App, shared: Arc<Mutex<Shared>>, trigger: Sender<()>) -> Self {
+    pub fn new(app: App, shared: Arc<Mutex<Shared>>, triggers: Triggers) -> Self {
         Self {
             app,
             shared,
-            trigger,
+            triggers,
             history: None,
         }
     }
 
     pub fn answer(&mut self, request: Request) -> Response {
         let Request { id, method, params } = request;
-        let app = self.app.at(app::now());
+        let app = self.shared_app().at(app::now());
         let answer = match method.as_str() {
             "status" => self.status(&app).and_then(json),
             "overview" => parse(params)
@@ -102,9 +106,31 @@ impl Server {
                 .and_then(json),
             "health" => json(self.health(&app)),
             "refresh" => {
-                let _ = self.trigger.send(());
+                let _ = self.triggers.read.send(());
                 Ok(Value::Null)
             }
+            "endpoint/set" => parse(params)
+                .and_then(|p| self.set_endpoint(&p))
+                .and_then(json),
+            "statusLine/plan" => parse(params)
+                .map(|p| plan_status_line(&app, &p))
+                .and_then(json),
+            "statusLine/apply" => parse(params)
+                .and_then(|p| apply_status_line(&app, &p))
+                .and_then(json),
+            "settings" => json(settings(&app)),
+            "settings/set" => parse(params)
+                .and_then(|p| self.set_settings(&p))
+                .and_then(json),
+            "folders/add" => parse(params)
+                .and_then(|p| self.add_folder(&app, &p))
+                .and_then(json),
+            "folders/remove" => parse(params)
+                .and_then(|p| self.remove_folder(&p))
+                .and_then(json),
+            "import/offer" => self.import_offer(&app).and_then(json),
+            "import/run" => self.run_import(&app).and_then(json),
+            "import/dismiss" => self.dismiss_import().and_then(json),
             other => Err(Fault {
                 code: ErrorCode::MethodNotFound as i32,
                 message: format!("claude-dashboard has no method {other}"),
@@ -126,12 +152,26 @@ impl Server {
         Ok(self.history.as_ref().expect("opened above"))
     }
 
+    /// The app with the settings every surface shares, as the history holds them now.
+    fn shared_app(&mut self) -> App {
+        if self.history.is_none() {
+            self.history = self.app.open_history().ok();
+        }
+        match &self.history {
+            Some(history) => self.app.with_shared(history),
+            None => self.app.clone(),
+        }
+    }
+
+    fn history_mut(&mut self) -> Result<&mut History, Fault> {
+        self.history()?;
+        Ok(self.history.as_mut().expect("opened above"))
+    }
+
     fn status(&mut self, app: &App) -> Result<Status, Fault> {
         let history = self.history()?;
         let today = app.now_zoned().date();
-        let week_start = today
-            .checked_sub(i64::from(today.weekday().to_monday_zero_offset()).days())
-            .unwrap_or(today);
+        let week_start = app.start_of_week(today);
         let totals_of = |first: Date| {
             report::totals(
                 history,
@@ -164,7 +204,7 @@ impl Server {
             limits,
             today_totals,
             week_totals,
-            week_start: "monday".to_owned(),
+            week_start: week_start_name(app).to_owned(),
         })
     }
 
@@ -239,7 +279,7 @@ impl Server {
             .map(str::trim)
             .filter(|search| !search.is_empty())
             .map(str::to_lowercase);
-        let matching: Vec<SessionRow> =
+        let mut matching: Vec<SessionRow> =
             report::sessions_matching(history, app.prices, range, &filter)?
                 .into_iter()
                 .filter_map(|session| {
@@ -272,6 +312,7 @@ impl Server {
                     })
                 })
                 .collect();
+        matching.sort_by(|a, b| b.first_ms.cmp(&a.first_ms).then_with(|| a.id.cmp(&b.id)));
         let limit = params.limit.clamp(1, LONGEST_PAGE) as usize;
         Ok(SessionsPage {
             total: matching.len() as u64,
@@ -294,24 +335,41 @@ impl Server {
             .ok_or_else(|| Fault::invalid(format!("Session {} has no requests", params.id)))?;
         let names = project_names(history);
         let reported = reported_costs(history)?;
+        let agent_types = history.subagent_types(stored.key)?;
         let mut who: Vec<WhoRow> = detail
             .own_models
             .iter()
             .map(|model| WhoRow {
                 subagent: None,
+                agent_type: None,
                 model: model_of(app, &model.model),
                 first_ms: detail.first_ms,
+                last_ms: detail.last_ms,
                 totals: totals(&model.totals),
             })
             .collect();
         for subagent in &detail.subagents {
             who.extend(subagent.models.iter().map(|model| WhoRow {
                 subagent: Some(subagent.subagent_id.clone()),
+                agent_type: agent_types.get(&subagent.subagent_id).cloned(),
                 model: model_of(app, &model.model),
                 first_ms: subagent.first_ms,
+                last_ms: subagent.last_ms,
                 totals: totals(&model.totals),
             }));
         }
+        let project = project_of(&names, stored.project);
+        let transcript = app
+            .roots
+            .iter()
+            .map(|root| {
+                root.path
+                    .join("projects")
+                    .join(&project.id)
+                    .join(format!("{}.jsonl", stored.session_id))
+            })
+            .find(|path| path.is_file())
+            .map(|path| path.display().to_string());
         let credits = |credits: &[report::Credit]| -> Vec<Credit> {
             credits
                 .iter()
@@ -325,7 +383,8 @@ impl Server {
         Ok(SessionDetail {
             id: stored.session_id,
             title: stored.title,
-            project: project_of(&names, stored.project),
+            project,
+            transcript,
             first_ms: detail.first_ms,
             last_ms: detail.last_ms,
             claude_code_version: detail.claude_code_version.clone(),
@@ -338,7 +397,6 @@ impl Server {
                 .iter()
                 .map(|&(ms, usd)| CostPoint { ms, usd })
                 .collect(),
-            subagent_starts: detail.subagents.iter().map(|s| s.first_ms).collect(),
             who,
             skills: credits(&detail.skills),
             mcp_tools: credits(&detail.mcp_tools),
@@ -433,10 +491,142 @@ impl Server {
                 enabled: state.enabled,
                 asked_ms: state.asked_ms,
                 outcome: state.outcome.map(|outcome| outcome.as_str().to_owned()),
+                problem: crate::limits::problem(app, &state),
                 detail: state.detail,
                 next_ask_ms: state.next_ask_ms,
+                consent: crate::limits::CONSENT.map(str::to_owned).to_vec(),
             },
         })
+    }
+
+    /// Turns the usage endpoint on or off; once on, it is asked as soon as its rules allow.
+    fn set_endpoint(&mut self, params: &EndpointParams) -> Result<Value, Fault> {
+        let history = self.history_mut()?;
+        history
+            .write(|w| w.set_usage_endpoint(params.enabled))
+            .map_err(Fault::from)?;
+        if params.enabled {
+            let _ = self.triggers.endpoint.send(());
+        }
+        Ok(Value::Null)
+    }
+
+    fn set_settings(&mut self, change: &SettingsChange) -> Result<Value, Fault> {
+        let zone = match change.time_zone.as_deref() {
+            None => None,
+            Some("") => Some(None),
+            Some(name) => {
+                let zone = TimeZone::get(name)
+                    .map_err(|_| Fault::invalid(format!("{name} is not a time zone")))?;
+                Some(Some(zone.iana_name().unwrap_or(name).to_owned()))
+            }
+        };
+        let week_start = match change.week_start.as_deref() {
+            None => None,
+            Some(name) => Some(
+                app::weekday(name)
+                    .ok_or_else(|| Fault::invalid(format!("{name} is not a day of the week")))?,
+            ),
+        };
+        self.history_mut()?
+            .write(|w| {
+                if let Some(zone) = &zone {
+                    w.set_setting(app::TIME_ZONE_SETTING, zone.as_deref())?;
+                }
+                if let Some(day) = week_start {
+                    let name = app::WEEKDAYS
+                        .iter()
+                        .find(|(_, weekday)| *weekday == day)
+                        .map(|(name, _)| *name);
+                    w.set_setting(app::WEEK_START_SETTING, name)?;
+                }
+                Ok(())
+            })
+            .map_err(Fault::from)?;
+        Ok(Value::Null)
+    }
+
+    fn add_folder(&mut self, app: &App, params: &FolderParams) -> Result<Value, Fault> {
+        let path = std::path::Path::new(params.path.trim());
+        if !path.is_absolute() {
+            return Err(Fault::invalid(format!(
+                "{} is not a full path to a folder",
+                path.display()
+            )));
+        }
+        let now_ms = app.now.as_millisecond();
+        let path = path.display().to_string();
+        self.history_mut()?
+            .write(|w| w.add_data_folder(&path, now_ms))
+            .map_err(Fault::from)?;
+        let _ = self.triggers.read.send(());
+        Ok(Value::Null)
+    }
+
+    fn remove_folder(&mut self, params: &FolderParams) -> Result<Value, Fault> {
+        self.history_mut()?
+            .write(|w| w.remove_data_folder(&params.path))
+            .map_err(Fault::from)?;
+        Ok(Value::Null)
+    }
+
+    /// What the claude-usage dashboard's database in a data folder would add, if there is one.
+    fn import_offer(&mut self, app: &App) -> Result<Option<ImportOffer>, Fault> {
+        let Some(database) = app
+            .roots
+            .iter()
+            .find_map(|root| import::claude_usage_database(&root.path))
+        else {
+            return Ok(None);
+        };
+        let history = self.history()?;
+        let preview = import::preview_claude_usage(history, &database).map_err(|error| Fault {
+            code: ErrorCode::InternalError as i32,
+            message: error.to_string(),
+        })?;
+        let day = |ms: i64| {
+            Timestamp::from_millisecond(ms)
+                .ok()
+                .map(|at| at.to_zoned(app.zone.clone()).date().to_string())
+        };
+        let dismissed = history
+            .settings()?
+            .get(IMPORT_DISMISSED_SETTING)
+            .is_some_and(|source| source == import::CLAUDE_USAGE);
+        Ok(Some(ImportOffer {
+            path: database.display().to_string(),
+            requests: preview.requests,
+            first_day: preview.span_ms.and_then(|(first, _)| day(first)),
+            last_day: preview.span_ms.and_then(|(_, last)| day(last)),
+            dismissed,
+        }))
+    }
+
+    fn run_import(&mut self, app: &App) -> Result<ImportDone, Fault> {
+        let database = app
+            .roots
+            .iter()
+            .find_map(|root| import::claude_usage_database(&root.path))
+            .ok_or_else(|| Fault::invalid("There is no claude-usage database to import."))?;
+        let now_ms = app.now.as_millisecond();
+        let report = import::import_claude_usage(self.history_mut()?, &database, now_ms).map_err(
+            |error| Fault {
+                code: ErrorCode::InternalError as i32,
+                message: error.to_string(),
+            },
+        )?;
+        Ok(ImportDone {
+            imported: report.imported,
+            already_held: report.already_held,
+            unreadable: report.unreadable,
+        })
+    }
+
+    fn dismiss_import(&mut self) -> Result<Value, Fault> {
+        self.history_mut()?
+            .write(|w| w.set_setting(IMPORT_DISMISSED_SETTING, Some(import::CLAUDE_USAGE)))
+            .map_err(Fault::from)?;
+        Ok(Value::Null)
     }
 
     fn choices(&mut self, app: &App) -> Result<Choices, Fault> {
@@ -549,9 +739,29 @@ impl Server {
         if let Err(fault) = self.history() {
             problems.push(fault.message);
         }
+        let facts = self.history().ok().and_then(|history| {
+            let counts = history.counts().ok()?;
+            let bytes = std::fs::metadata(history.path()).map_or(0, |meta| meta.len());
+            let imported = history
+                .import(import::CLAUDE_USAGE)
+                .ok()
+                .flatten()
+                .map(|import| Imported {
+                    requests: import.requests,
+                    imported_ms: import.imported_ms,
+                });
+            Some(HistoryFacts {
+                bytes,
+                requests: counts.requests,
+                sessions: counts.sessions,
+                imported,
+            })
+        });
         Health {
             folders,
             history_path,
+            history: facts,
+            cleanup_days: statusline::cleanup_period_days(app),
             access,
             newer_schema,
             problems,
@@ -599,6 +809,69 @@ fn filter(names: &Names, filters: &super::protocol::Filters) -> Result<Filter, F
         project,
         model: filters.model.clone(),
     })
+}
+
+/// The shared setting that records an import the person chose not to make.
+const IMPORT_DISMISSED_SETTING: &str = "import_dismissed";
+
+fn settings(app: &App) -> Settings {
+    let chosen = app.zone.iana_name().unwrap_or("UTC");
+    let system = app.system_zone.iana_name().unwrap_or("UTC");
+    Settings {
+        time_zone: (app.zone != app.system_zone).then(|| chosen.to_owned()),
+        system_time_zone: system.to_owned(),
+        week_start: week_start_name(app).to_owned(),
+    }
+}
+
+fn week_start_name(app: &App) -> &'static str {
+    app::WEEKDAYS
+        .iter()
+        .find(|(_, day)| *day == app.week_start)
+        .map_or("monday", |(name, _)| *name)
+}
+
+fn status_line_plan(app: &App, connect: bool) -> statusline::Plan {
+    if connect {
+        statusline::plan_connect(app)
+    } else {
+        statusline::plan_disconnect(app)
+    }
+}
+
+fn plan_status_line(app: &App, params: &StatusLineParams) -> StatusLinePlan {
+    match status_line_plan(app, params.connect) {
+        statusline::Plan::Change(change) => StatusLinePlan::Change {
+            path: change.path.display().to_string(),
+            before: change.old_members(),
+            after: change.new_members(),
+            exists: change.backed_up(),
+            effect: change.effect.to_owned(),
+        },
+        statusline::Plan::Nothing(reason) => StatusLinePlan::Nothing { reason },
+        statusline::Plan::Refused(reason) => StatusLinePlan::Refused { reason },
+    }
+}
+
+/// Makes the change the person saw, as long as Claude Code's settings still call for it.
+fn apply_status_line(app: &App, params: &StatusLineApply) -> Result<Value, Fault> {
+    let statusline::Plan::Change(change) = status_line_plan(app, params.connect) else {
+        return Err(Fault::invalid(
+            "Claude Code's settings changed since the change was shown; look at it again."
+                .to_owned(),
+        ));
+    };
+    if change.old_members() != params.before || change.new_members() != params.after {
+        return Err(Fault::invalid(
+            "Claude Code's settings changed since the change was shown; look at it again."
+                .to_owned(),
+        ));
+    }
+    change.make().map_err(|reason| Fault {
+        code: ErrorCode::InternalError as i32,
+        message: format!("Cannot save the change: {reason}."),
+    })?;
+    Ok(Value::Null)
 }
 
 fn project_of(names: &Names, key: ProjectKey) -> Project {

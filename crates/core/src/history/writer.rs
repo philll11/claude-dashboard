@@ -216,6 +216,26 @@ impl<'conn> Writer<'conn> {
         Ok(())
     }
 
+    /// Records the kind of agent a subagent of a session is.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn subagent_type(
+        &mut self,
+        session: SessionKey,
+        subagent_id: &str,
+        agent_type: &str,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO subagents (session, subagent_id, agent_type) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (session, subagent_id) DO UPDATE SET agent_type = excluded.agent_type",
+            )?
+            .execute(params![session.0, subagent_id, agent_type])?;
+        Ok(())
+    }
+
     /// Records the cost that one run of Claude Code reports for a session and model.
     ///
     /// A run reports its running total several times, so the largest report of a run wins,
@@ -539,6 +559,55 @@ impl<'conn> Writer<'conn> {
             )?
             .execute(params![source, imported_ms, requests])?;
         self.imports_exist = Some(true);
+        Ok(())
+    }
+
+    /// Sets a setting every surface shares, or clears it with `None`.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn set_setting(&mut self, name: &str, value: Option<&str>) -> Result<(), HistoryError> {
+        match value {
+            Some(value) => self
+                .tx
+                .prepare_cached(
+                    "INSERT INTO settings (name, value) VALUES (?1, ?2)
+                 ON CONFLICT (name) DO UPDATE SET value = excluded.value",
+                )?
+                .execute(params![name, value])?,
+            None => self
+                .tx
+                .prepare_cached("DELETE FROM settings WHERE name = ?1")?
+                .execute([name])?,
+        };
+        Ok(())
+    }
+
+    /// Adds a data folder, read after the default one or `CLAUDE_CONFIG_DIR`'s.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn add_data_folder(&mut self, path: &str, added_ms: i64) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO data_folders (path, added_ms) VALUES (?1, ?2)
+                 ON CONFLICT (path) DO NOTHING",
+            )?
+            .execute(params![path, added_ms])?;
+        Ok(())
+    }
+
+    /// Removes a data folder the person added; what was read from it stays.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn remove_data_folder(&mut self, path: &str) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached("DELETE FROM data_folders WHERE path = ?1")?
+            .execute([path])?;
         Ok(())
     }
 

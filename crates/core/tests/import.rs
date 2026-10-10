@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use claude_dashboard_core::history::History;
 use claude_dashboard_core::import::{self, CLAUDE_USAGE, ImportError, ImportReport};
@@ -168,6 +169,34 @@ fn imports_the_requests_the_history_does_not_hold() {
             .map(|i| i.requests),
         Some(3)
     );
+}
+
+#[test]
+fn a_preview_counts_what_the_import_would_add_and_writes_nothing() {
+    let mut fixture = Fixture::new();
+    fixture.transcript("msg_1", "req_1", 50);
+    fixture.ingest();
+    let database = fixture.dir.path().join("usage.db");
+    claude_usage(
+        &database,
+        &[
+            (SESSION, "msg_1", r"C:\code\app", 50, None),
+            (OLD_SESSION, "msg_2", r"C:\code\app", 60, None),
+            (OLD_SESSION, "msg_2", r"C:\code\app", 60, None),
+            (API_SESSION, "msg_4", r"D:\work\api_v2", 80, None),
+        ],
+    );
+    let before = fixture.requests();
+
+    let preview = import::preview_claude_usage(&fixture.history, &database).unwrap();
+
+    let at = jiff::Timestamp::from_str("2026-08-01T10:00:00Z")
+        .unwrap()
+        .as_millisecond();
+    assert_eq!(preview.requests, 2);
+    assert_eq!(preview.span_ms, Some((at, at)));
+    assert_eq!(fixture.requests(), before);
+    assert_eq!(fixture.import(&database).unwrap().imported, 2);
 }
 
 #[test]

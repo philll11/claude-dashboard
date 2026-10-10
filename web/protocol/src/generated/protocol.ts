@@ -56,7 +56,20 @@ export type Endpoint = { enabled: boolean, askedMs?: number | null,
  * `answered`, `no-login`, `login-expired`, `login-refused`, `rate-limited`, `unreadable` or
  * `failed`.
  */
-outcome?: string | null, detail?: string | null, nextAskMs: number, };
+outcome?: string | null, detail?: string | null, nextAskMs: number, 
+/**
+ * What went wrong the last time it was asked, as a sentence, while it is on.
+ */
+problem?: string | null, 
+/**
+ * What turning it on means, which the person agrees to first.
+ */
+consent: Array<string>, };
+
+/**
+ * `endpoint/set` parameters: turning Anthropic's usage endpoint on or off.
+ */
+export type EndpointParams = { enabled: boolean, };
 
 /**
  * Which requests to count, besides the days.
@@ -90,6 +103,11 @@ export type Folder = { path: string,
 source: string, state: FolderState, };
 
 /**
+ * `folders/add` and `folders/remove` parameters.
+ */
+export type FolderParams = { path: string, };
+
+/**
  * Something the person needs to know about the data folders or the history.
  */
 export type FolderState = { "state": "found", transcripts: number, bytes: number, } | { "state": "missing" } | { "state": "unreachable", reason: string, } | { "state": "unreadable", reason: string, };
@@ -97,7 +115,15 @@ export type FolderState = { "state": "found", transcripts: number, bytes: number
 /**
  * `health`: what the error and empty states show.
  */
-export type Health = { folders: Array<Folder>, historyPath?: string | null, access: Access, 
+export type Health = { folders: Array<Folder>, historyPath?: string | null, 
+/**
+ * What the history holds, once it can be read.
+ */
+history?: HistoryFacts | null, 
+/**
+ * How many days Claude Code keeps transcripts for.
+ */
+cleanupDays: number, access: Access, 
 /**
  * The schema that made the history read-only.
  */
@@ -111,6 +137,38 @@ problems: Array<string>, };
  * The `history/changed` notification: new requests arrived for these days.
  */
 export type HistoryChanged = { days?: Days | null, };
+
+/**
+ * What the history holds.
+ */
+export type HistoryFacts = { bytes: number, requests: number, sessions: number, 
+/**
+ * The import from the claude-usage dashboard, once one ran.
+ */
+imported?: Imported | null, };
+
+/**
+ * `import/run`: what the import did.
+ */
+export type ImportDone = { imported: number, alreadyHeld: number, unreadable: number, };
+
+/**
+ * `import/offer`: what the claude-usage dashboard's database would add to the history.
+ */
+export type ImportOffer = { path: string, 
+/**
+ * Requests the history does not hold yet.
+ */
+requests: number, firstDay?: string | null, lastDay?: string | null, 
+/**
+ * Whether the person chose not to import it.
+ */
+dismissed: boolean, };
+
+/**
+ * An import that ran.
+ */
+export type Imported = { requests: number, importedMs: number, };
 
 /**
  * How close a plan window is to its limit.
@@ -274,7 +332,11 @@ export type Provenance = "official" | "experimental";
 /**
  * `session`: everything about one session.
  */
-export type SessionDetail = { id: string, title?: string | null, project: Project, firstMs: number, lastMs: number, claudeCodeVersion?: string | null, 
+export type SessionDetail = { id: string, title?: string | null, project: Project, 
+/**
+ * The session's transcript, while Claude Code keeps it.
+ */
+transcript?: string | null, firstMs: number, lastMs: number, claudeCodeVersion?: string | null, 
 /**
  * How Claude Code was started, such as `cli` or `claude-vscode`.
  */
@@ -283,10 +345,6 @@ entrypoint?: string | null, totals: Totals,
  * The session's own requests, without its subagents'.
  */
 own: Totals, reportedUsd?: number | null, cumulativeCost: Array<CostPoint>, 
-/**
- * When each subagent started, in order.
- */
-subagentStarts: Array<number>, 
 /**
  * The session's own models first, then each subagent's, in the order they started.
  */
@@ -319,7 +377,7 @@ models: Array<Model>, subagents: number, totals: Totals,
 reportedUsd?: number | null, };
 
 /**
- * `sessions`: one page of sessions, most recent first.
+ * `sessions`: one page of sessions, the one started last first.
  */
 export type SessionsPage = { 
 /**
@@ -335,6 +393,36 @@ export type SessionsParams = { days: Days, filters: Filters,
  * Text the session's title, id or project name contains, in any case.
  */
 search?: string | null, offset: number, limit: number, };
+
+/**
+ * `settings`: the settings every surface shares.
+ */
+export type Settings = { 
+/**
+ * The IANA time zone days are counted in, when one is chosen; `None` for this computer's.
+ */
+timeZone?: string | null, 
+/**
+ * This computer's IANA time zone.
+ */
+systemTimeZone: string, 
+/**
+ * The first day of the week, such as `monday`.
+ */
+weekStart: string, };
+
+/**
+ * `settings/set` parameters: what to change; whatever is left out stays as it is.
+ */
+export type SettingsChange = { 
+/**
+ * An IANA time zone, or `""` for this computer's.
+ */
+timeZone?: string, 
+/**
+ * A day of the week, such as `sunday`.
+ */
+weekStart?: string, };
 
 /**
  * `status`: what every view's header, the status bar and the tree show.
@@ -371,6 +459,42 @@ export type StatusLine = { "state": "connected",
 wrapping?: string | null, } | { "state": "notConnected" } | { "state": "unknown", reason: string, };
 
 /**
+ * `statusLine/apply` parameters: the change as the person saw it, which is made only while it
+ * still stands.
+ */
+export type StatusLineApply = { connect: boolean, before: string | null, after: string | null, };
+
+/**
+ * `statusLine/plan` parameters: connecting claude-dashboard's status line, or disconnecting it.
+ */
+export type StatusLineParams = { connect: boolean, };
+
+/**
+ * `statusLine/plan`: what connecting or disconnecting would do to Claude Code's settings.
+ */
+export type StatusLinePlan = { "kind": "change", 
+/**
+ * Claude Code's settings.json.
+ */
+path: string, 
+/**
+ * The setting as it is, as one line of JSON members; `None` when there is none.
+ */
+before: string | null, 
+/**
+ * The setting the change leaves; `None` when the change removes it.
+ */
+after: string | null, 
+/**
+ * Whether settings.json exists, so that a backup of it is kept.
+ */
+exists: boolean, 
+/**
+ * What changes for the person once the change is made.
+ */
+effect: string, } | { "kind": "nothing", reason: string, } | { "kind": "refused", reason: string, };
+
+/**
  * Tokens by kind.
  */
 export type Tokens = { input: number, output: number, cacheRead: number, cacheWrite5m: number, cacheWrite1h: number, };
@@ -400,7 +524,11 @@ export type WhoRow = {
 /**
  * The subagent's id; `None` for the session itself.
  */
-subagent?: string | null, model: Model, firstMs: number, totals: Totals, };
+subagent?: string | null, 
+/**
+ * The kind of agent the subagent is, such as `Explore`, where Claude Code recorded it.
+ */
+agentType?: string | null, model: Model, firstMs: number, lastMs: number, totals: Totals, };
 
 /**
  * The latest reading of one plan window.

@@ -294,6 +294,175 @@ fn shows_the_plan_limits_a_status_line_records() {
 }
 
 #[test]
+fn keeps_the_settings_every_surface_shares() {
+    let mut server = Server::start();
+    server.changed();
+
+    let settings = server.result("settings", &Value::Null);
+    assert_eq!(settings["timeZone"], Value::Null);
+    assert_eq!(settings["systemTimeZone"], "UTC");
+    assert_eq!(settings["weekStart"], "monday");
+
+    server.result(
+        "settings/set",
+        &json!({"timeZone": "Pacific/Auckland", "weekStart": "Sunday"}),
+    );
+    let settings = server.result("settings", &Value::Null);
+    assert_eq!(settings["timeZone"], "Pacific/Auckland");
+    assert_eq!(settings["weekStart"], "sunday");
+    let status = server.result("status", &Value::Null);
+    assert_eq!(status["timeZone"], "Pacific/Auckland");
+    assert_eq!(status["weekStart"], "sunday");
+
+    let not_a_zone = server.request("settings/set", &json!({"timeZone": "Mars/Olympus"}));
+    assert_eq!(not_a_zone["error"]["code"], -32602);
+    server.result("settings/set", &json!({"timeZone": ""}));
+    assert_eq!(
+        server.result("settings", &Value::Null)["timeZone"],
+        Value::Null
+    );
+
+    let added = server.root.with_file_name("other-claude");
+    fs::create_dir_all(added.join("projects")).unwrap();
+    let path = added.display().to_string();
+    server.result("folders/add", &json!({"path": path}));
+    let health = server.result("health", &Value::Null);
+    let folders = health["folders"].as_array().unwrap();
+    assert_eq!(folders.len(), 2);
+    assert_eq!(folders[1]["source"], "added");
+    assert_eq!(folders[1]["path"], path);
+    let relative = server.request("folders/add", &json!({"path": "somewhere"}));
+    assert_eq!(relative["error"]["code"], -32602);
+    server.result("folders/remove", &json!({"path": path}));
+    let health = server.result("health", &Value::Null);
+    assert_eq!(health["folders"].as_array().unwrap().len(), 1);
+    assert_eq!(health["history"]["requests"], 2);
+    assert_eq!(health["cleanupDays"], 30);
+}
+
+#[test]
+fn changes_claude_codes_settings_only_as_shown() {
+    let mut server = Server::start();
+    let settings = server.root.join("settings.json");
+
+    let plan = server.result("statusLine/plan", &json!({"connect": true}));
+    assert_eq!(plan["kind"], "change");
+    assert_eq!(plan["path"], settings.display().to_string());
+    assert_eq!(plan["before"], Value::Null);
+    assert!(plan["after"].as_str().unwrap().contains(" statusline"));
+    assert_eq!(plan["exists"], false);
+
+    let not_shown = server.request(
+        "statusLine/apply",
+        &json!({"connect": true, "before": null, "after": "\"type\": \"command\""}),
+    );
+    assert_eq!(not_shown["error"]["code"], -32602);
+    assert!(
+        !settings.exists(),
+        "nothing changes without the change shown"
+    );
+
+    server.result(
+        "statusLine/apply",
+        &json!({"connect": true, "before": plan["before"], "after": plan["after"]}),
+    );
+    let saved: Value = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+    assert!(
+        saved["statusLine"]["command"]
+            .as_str()
+            .unwrap()
+            .ends_with(" statusline")
+    );
+    assert_eq!(
+        server.result("limits", &Value::Null)["statusLine"]["state"],
+        "connected"
+    );
+    assert_eq!(
+        server.result("statusLine/plan", &json!({"connect": true}))["kind"],
+        "nothing"
+    );
+
+    let plan = server.result("statusLine/plan", &json!({"connect": false}));
+    assert_eq!(plan["kind"], "change");
+    assert_eq!(plan["after"], Value::Null);
+    server.result(
+        "statusLine/apply",
+        &json!({"connect": false, "before": plan["before"], "after": plan["after"]}),
+    );
+    let saved: Value = serde_json::from_str(&fs::read_to_string(&settings).unwrap()).unwrap();
+    assert_eq!(saved.get("statusLine"), None);
+    assert!(
+        server
+            .root
+            .join("settings.claude-dashboard-backup.json")
+            .is_file()
+    );
+}
+
+#[test]
+fn turns_the_usage_endpoint_on_and_off() {
+    let mut server = Server::start();
+
+    let endpoint = &server.result("limits", &Value::Null)["endpoint"];
+    assert_eq!(endpoint["enabled"], false);
+    assert_eq!(endpoint["consent"].as_array().unwrap().len(), 5);
+
+    server.result("endpoint/set", &json!({"enabled": true}));
+    assert_eq!(
+        server.result("limits", &Value::Null)["endpoint"]["enabled"],
+        true
+    );
+    server.result("endpoint/set", &json!({"enabled": false}));
+    assert_eq!(
+        server.result("limits", &Value::Null)["endpoint"]["enabled"],
+        false
+    );
+}
+
+#[test]
+fn offers_the_claude_usage_dashboards_history_once() {
+    let mut server = Server::start();
+    server.changed();
+    assert_eq!(server.result("import/offer", &Value::Null), Value::Null);
+
+    let database = rusqlite::Connection::open(server.root.join("usage.db")).unwrap();
+    database
+        .execute_batch(
+            "CREATE TABLE turns (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, timestamp TEXT,
+                 model TEXT, input_tokens INTEGER, output_tokens INTEGER,
+                 cache_read_tokens INTEGER, cache_creation_tokens INTEGER, cwd TEXT,
+                 message_id TEXT
+             );
+             INSERT INTO turns (session_id, timestamp, model, input_tokens, output_tokens,
+                     cache_read_tokens, cache_creation_tokens, cwd, message_id)
+                 VALUES ('old', '2026-08-01T10:00:00.000Z', 'claude-opus-5', 4, 50, 30000, 900,
+                     '/code/old', 'msg_old');",
+        )
+        .unwrap();
+    drop(database);
+
+    let offer = server.result("import/offer", &Value::Null);
+    assert_eq!(offer["requests"], 1);
+    assert_eq!(offer["firstDay"], "2026-08-01");
+    assert_eq!(offer["dismissed"], false);
+
+    server.result("import/dismiss", &Value::Null);
+    assert_eq!(
+        server.result("import/offer", &Value::Null)["dismissed"],
+        true
+    );
+
+    let done = server.result("import/run", &Value::Null);
+    assert_eq!(done["imported"], 1);
+    assert_eq!(server.result("import/offer", &Value::Null)["requests"], 0);
+    assert_eq!(
+        server.result("health", &Value::Null)["history"]["imported"]["requests"],
+        1
+    );
+}
+
+#[test]
 fn answers_a_mistake_with_an_error() {
     let mut server = Server::start();
 

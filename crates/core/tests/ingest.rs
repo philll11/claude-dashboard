@@ -175,6 +175,50 @@ fn ingests_a_session_its_subagents_and_its_titles() {
 }
 
 #[test]
+fn a_subagents_kind_comes_from_the_metadata_beside_its_transcript_and_nothing_else_does() {
+    let mut fixture = Fixture::new();
+    let subagents = fixture.project().join(SESSION).join("subagents");
+    write(
+        &fixture.project().join(format!("{SESSION}.jsonl")),
+        &lines(&[assistant("rec-1", "msg_1", "req_1", 10)]),
+    );
+    write(
+        &subagents.join("agent-a1.jsonl"),
+        &lines(&[assistant("rec-2", "msg_2", "req_2", 20)]),
+    );
+    write(
+        &subagents.join("agent-a1.meta.json"),
+        json!({"agentType": "Explore", "description": "Made-up task.", "spawnDepth": 1})
+            .to_string()
+            .as_bytes(),
+    );
+    write(
+        &subagents.join("agent-b2.jsonl"),
+        &lines(&[assistant("rec-3", "msg_3", "req_3", 30)]),
+    );
+    write(&subagents.join("agent-b2.meta.json"), b"not json");
+
+    let report = fixture.ingest();
+
+    assert_eq!(report.failed, []);
+    assert_eq!(
+        fixture.query::<String>("SELECT subagent_id || ' ' || agent_type FROM subagents"),
+        ["a1 Explore"]
+    );
+    let stored: Vec<u8> = ["", "-wal"]
+        .iter()
+        .flat_map(|suffix| {
+            std::fs::read(format!("{}{suffix}", fixture.history.path().display()))
+                .unwrap_or_default()
+        })
+        .collect();
+    assert!(
+        !stored.windows(13).any(|bytes| bytes == b"Made-up task."),
+        "the history keeps no task descriptions"
+    );
+}
+
+#[test]
 fn a_second_ingest_reads_only_what_was_added() {
     let mut fixture = Fixture::new();
     let main = fixture.project().join(format!("{SESSION}.jsonl"));

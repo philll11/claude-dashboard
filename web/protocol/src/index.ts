@@ -4,6 +4,10 @@
 
 import type {
   Choices,
+  EndpointParams,
+  FolderParams,
+  ImportDone,
+  ImportOffer,
   Health,
   HistoryChanged,
   Limits,
@@ -16,7 +20,12 @@ import type {
   SessionParams,
   SessionsPage,
   SessionsParams,
+  Settings,
+  SettingsChange,
   Status,
+  StatusLineApply,
+  StatusLineParams,
+  StatusLinePlan,
 } from "./generated/protocol";
 
 export type * from "./generated/protocol";
@@ -32,6 +41,16 @@ export interface Requests {
   prices: [PricesParams, Prices];
   health: [null, Health];
   refresh: [null, null];
+  "endpoint/set": [EndpointParams, null];
+  "statusLine/plan": [StatusLineParams, StatusLinePlan];
+  "statusLine/apply": [StatusLineApply, null];
+  settings: [null, Settings];
+  "settings/set": [SettingsChange, null];
+  "folders/add": [FolderParams, null];
+  "folders/remove": [FolderParams, null];
+  "import/offer": [null, ImportOffer | null];
+  "import/run": [null, ImportDone];
+  "import/dismiss": [null, null];
 }
 
 /** Each notification the server sends, and what it carries. */

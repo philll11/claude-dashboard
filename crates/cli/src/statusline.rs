@@ -243,6 +243,15 @@ fn status_line_command(settings: &Map<String, Value>) -> Result<Option<&str>, St
     }
 }
 
+/// How many days Claude Code keeps transcripts for: its `cleanupPeriodDays` setting, or 30.
+pub fn cleanup_period_days(app: &App) -> u32 {
+    settings_path(app)
+        .and_then(|path| read_settings(&path).ok())
+        .and_then(|settings| settings.get("cleanupPeriodDays")?.as_u64())
+        .and_then(|days| u32::try_from(days).ok())
+        .unwrap_or(30)
+}
+
 /// Whether a status line command is claude-dashboard's: its program is `claude-dashboard`,
 /// however it is reached, and its first argument is `statusline`.
 fn is_ours(command: &str) -> bool {
@@ -336,18 +345,15 @@ fn members(status_line: &Map<String, Value>) -> String {
         .join(", ")
 }
 
-/// Claude Code's user settings and where they are, or why they cannot be read.
-fn load(app: &App, verb: &str) -> Result<(PathBuf, Map<String, Value>), ExitCode> {
+/// Claude Code's user settings and where they are, or why they cannot be read, as a sentence that
+/// says what could not be done.
+fn load(app: &App, verb: &str) -> Result<(PathBuf, Map<String, Value>), String> {
     let Some(path) = settings_path(app) else {
-        eprintln!("There is no data folder to find Claude Code's settings in.");
-        return Err(ExitCode::FAILURE);
+        return Err("There is no data folder to find Claude Code's settings in.".to_owned());
     };
     match read_settings(&path) {
         Ok(settings) => Ok((path, settings)),
-        Err(reason) => {
-            eprintln!("Cannot {verb}: {reason}.");
-            Err(ExitCode::FAILURE)
-        }
+        Err(reason) => Err(format!("Cannot {verb}: {reason}.")),
     }
 }
 
@@ -385,38 +391,81 @@ fn describe_change(
     }
 }
 
-pub fn connect(app: &App, yes: bool) -> ExitCode {
+/// A change to the `statusLine` setting in Claude Code's settings, worked out but not made.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Change {
+    pub path: PathBuf,
+    /// The setting as it is; `None` when there is none.
+    pub old: Option<Map<String, Value>>,
+    /// The setting the change leaves; `None` when the change removes it.
+    pub new: Option<Map<String, Value>>,
+    /// What changes for the person once the change is made.
+    pub effect: &'static str,
+    /// The settings as the change leaves them.
+    settings: Map<String, Value>,
+}
+
+impl Change {
+    /// The setting as it is, as one line of JSON members.
+    pub fn old_members(&self) -> Option<String> {
+        self.old.as_ref().map(members)
+    }
+
+    /// The setting the change leaves, as one line of JSON members.
+    pub fn new_members(&self) -> Option<String> {
+        self.new.as_ref().map(members)
+    }
+
+    /// Whether settings.json exists, so that a backup of it is kept.
+    pub fn backed_up(&self) -> bool {
+        self.path.is_file()
+    }
+
+    /// Makes the change, keeping a backup of the settings as they were.
+    ///
+    /// # Errors
+    ///
+    /// Why the settings could not be saved.
+    pub fn make(&self) -> Result<(), String> {
+        save(&self.path, &self.settings)
+    }
+}
+
+/// What connecting or disconnecting would do.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Plan {
+    Change(Box<Change>),
+    /// Nothing needs changing, for the reason given.
+    Nothing(String),
+    /// The change cannot be made, for the reason given.
+    Refused(String),
+}
+
+/// What connecting claude-dashboard's status line would change.
+pub fn plan_connect(app: &App) -> Plan {
     let (path, mut settings) = match load(app, "connect") {
         Ok(loaded) => loaded,
-        Err(code) => return code,
+        Err(reason) => return Plan::Refused(reason),
     };
     let current = match status_line_command(&settings) {
         Ok(current) => current.map(str::to_owned),
-        Err(reason) => {
-            eprintln!("Cannot connect: {reason}.");
-            return ExitCode::FAILURE;
-        }
+        Err(reason) => return Plan::Refused(format!("Cannot connect: {reason}.")),
     };
     let program = match our_program() {
         Ok(program) => program,
-        Err(reason) => {
-            eprintln!("Cannot connect: {reason}.");
-            return ExitCode::FAILURE;
-        }
+        Err(reason) => return Plan::Refused(format!("Cannot connect: {reason}.")),
     };
     let new_command = match &current {
         Some(command) if is_ours(command) => {
-            println!(
+            return Plan::Nothing(format!(
                 "claude-dashboard's status line is already connected in {}.",
                 path.display()
-            );
-            return ExitCode::SUCCESS;
+            ));
         }
         Some(command) if has_shell_operators(command) => {
-            eprintln!(
-                "Your status line command uses shell operators such as pipes, which claude-dashboard cannot wrap safely:\n  {command}\nPut it in a script, point statusLine at the script, and run claude-dashboard statusline connect again."
-            );
-            return ExitCode::FAILURE;
+            return Plan::Refused(format!(
+                "Your status line command uses shell operators such as pipes, which claude-dashboard cannot wrap safely:\n  {command}\nPut it in a script, point statusLine at the script, and connect again."
+            ));
         }
         Some(command) => format!("{program} statusline{THEN}{command}"),
         None => format!("{program} statusline"),
@@ -428,40 +477,27 @@ pub fn connect(app: &App, yes: bool) -> ExitCode {
     let mut status_line = old.clone().unwrap_or_default();
     status_line.insert("type".to_owned(), Value::String("command".to_owned()));
     status_line.insert("command".to_owned(), Value::String(new_command));
-
-    let paint = Paint::for_stdout();
-    let undo = paint.strong("claude-dashboard statusline disconnect");
-    let mut out = describe_change(paint, &path, old.as_ref(), Some(&status_line));
-    out.push('\n');
-    out.push_str(if old.is_some() {
-        "Your status line keeps showing; claude-dashboard records the plan limits Claude Code passes to it.\n"
+    settings.insert("statusLine".to_owned(), Value::Object(status_line.clone()));
+    let effect = if old.is_some() {
+        "Your status line keeps showing; claude-dashboard records the plan limits Claude Code passes to it."
     } else {
-        "Claude Code shows claude-dashboard's status line, with the model, the plan limits and today's API-equivalent cost, and claude-dashboard records the plan limits Claude Code passes to it.\n"
-    });
-    if path.is_file() {
-        let _ = writeln!(
-            out,
-            "A backup is saved next to settings.json. Undo it with {undo}."
-        );
-    } else {
-        let _ = writeln!(out, "Undo it with {undo}.");
-    }
-    print!("{out}");
-    if !prompt::confirmed(paint, yes, "Make this change?") {
-        return ExitCode::FAILURE;
-    }
-    settings.insert("statusLine".to_owned(), Value::Object(status_line));
-    finish(
-        &path,
-        &settings,
-        "Connected. Claude Code runs it after its next response.",
-    )
+        "Claude Code shows claude-dashboard's status line, with the model, the plan limits and today's API-equivalent cost, and claude-dashboard records the plan limits Claude Code passes to it."
+    };
+    Plan::Change(Box::new(Change {
+        path,
+        old,
+        new: Some(status_line),
+        effect,
+        settings,
+    }))
 }
 
-pub fn disconnect(app: &App, yes: bool) -> ExitCode {
+/// What disconnecting claude-dashboard's status line would change: the person's own status line
+/// comes back, or none.
+pub fn plan_disconnect(app: &App) -> Plan {
     let (path, mut settings) = match load(app, "disconnect") {
         Ok(loaded) => loaded,
-        Err(code) => return code,
+        Err(reason) => return Plan::Refused(reason),
     };
     let Some(command) = status_line_command(&settings)
         .ok()
@@ -469,11 +505,10 @@ pub fn disconnect(app: &App, yes: bool) -> ExitCode {
         .filter(|command| is_ours(command))
         .map(str::to_owned)
     else {
-        println!(
+        return Plan::Nothing(format!(
             "claude-dashboard's status line is not connected in {}.",
             path.display()
-        );
-        return ExitCode::SUCCESS;
+        ));
     };
     let old = settings
         .get("statusLine")
@@ -485,30 +520,63 @@ pub fn disconnect(app: &App, yes: bool) -> ExitCode {
         status_line.insert("command".to_owned(), Value::String(wrapped.to_owned()));
         status_line
     });
-
-    let paint = Paint::for_stdout();
-    let mut out = describe_change(paint, &path, Some(&old), restored.as_ref());
-    out.push('\n');
-    out.push_str(if restored.is_some() {
-        "Claude Code shows your own status line again, and claude-dashboard stops recording plan limits from it.\n"
+    let effect = if let Some(status_line) = &restored {
+        settings.insert("statusLine".to_owned(), Value::Object(status_line.clone()));
+        "Claude Code shows your own status line again, and claude-dashboard stops recording plan limits from it."
     } else {
-        "Claude Code shows no status line, and claude-dashboard stops recording plan limits from it.\n"
-    });
-    out.push_str("A backup is saved next to settings.json.\n");
+        settings.remove("statusLine");
+        "Claude Code shows no status line, and claude-dashboard stops recording plan limits from it."
+    };
+    Plan::Change(Box::new(Change {
+        path,
+        old: Some(old),
+        new: restored,
+        effect,
+        settings,
+    }))
+}
+
+/// Prints a plan's change and asks before making it; `undo` names how to take it back.
+fn confirm_and_make(plan: Plan, yes: bool, undo: Option<&str>, done: &str) -> ExitCode {
+    let change = match plan {
+        Plan::Change(change) => change,
+        Plan::Nothing(reason) => {
+            println!("{reason}");
+            return ExitCode::SUCCESS;
+        }
+        Plan::Refused(reason) => {
+            eprintln!("{reason}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let paint = Paint::for_stdout();
+    let mut out = describe_change(
+        paint,
+        &change.path,
+        change.old.as_ref(),
+        change.new.as_ref(),
+    );
+    out.push('\n');
+    out.push_str(change.effect);
+    out.push('\n');
+    match (undo, change.backed_up()) {
+        (Some(undo), true) => {
+            let _ = writeln!(
+                out,
+                "A backup is saved next to settings.json. Undo it with {}.",
+                paint.strong(undo)
+            );
+        }
+        (Some(undo), false) => {
+            let _ = writeln!(out, "Undo it with {}.", paint.strong(undo));
+        }
+        (None, _) => out.push_str("A backup is saved next to settings.json.\n"),
+    }
     print!("{out}");
     if !prompt::confirmed(paint, yes, "Make this change?") {
         return ExitCode::FAILURE;
     }
-    if let Some(status_line) = restored {
-        settings.insert("statusLine".to_owned(), Value::Object(status_line));
-    } else {
-        settings.remove("statusLine");
-    }
-    finish(&path, &settings, "Disconnected.")
-}
-
-fn finish(path: &Path, settings: &Map<String, Value>, done: &str) -> ExitCode {
-    match save(path, settings) {
+    match change.make() {
         Ok(()) => {
             println!("{done}");
             ExitCode::SUCCESS
@@ -520,8 +588,19 @@ fn finish(path: &Path, settings: &Map<String, Value>, done: &str) -> ExitCode {
     }
 }
 
-/// Saves settings, keeping a backup of the file they replace, through a file beside it so that
-/// a failure never leaves half a file.
+pub fn connect(app: &App, yes: bool) -> ExitCode {
+    confirm_and_make(
+        plan_connect(app),
+        yes,
+        Some("claude-dashboard statusline disconnect"),
+        "Connected. Claude Code runs it after its next response.",
+    )
+}
+
+pub fn disconnect(app: &App, yes: bool) -> ExitCode {
+    confirm_and_make(plan_disconnect(app), yes, None, "Disconnected.")
+}
+
 fn save(path: &Path, settings: &Map<String, Value>) -> Result<(), String> {
     let folder = path.parent().ok_or("the settings file has no folder")?;
     fs::create_dir_all(folder).map_err(|error| error.to_string())?;

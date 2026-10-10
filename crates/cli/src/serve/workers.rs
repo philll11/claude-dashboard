@@ -33,14 +33,22 @@ const RECENT_MS: i64 = 2 * 60 * 60 * 1000;
 pub struct Workers {
     /// Dropping it stops the workers.
     stop: Option<Sender<()>>,
-    trigger: Sender<()>,
+    triggers: Triggers,
     handles: Vec<JoinHandle<()>>,
 }
 
+/// Ways to ask the workers to do something now rather than at their next turn.
+#[derive(Clone)]
+pub struct Triggers {
+    /// Reads new transcript content.
+    pub read: Sender<()>,
+    /// Gives the usage endpoint its turn, which its own rules may still decline.
+    pub endpoint: Sender<()>,
+}
+
 impl Workers {
-    /// A way to ask for new transcript content to be read now.
-    pub fn trigger(&self) -> Sender<()> {
-        self.trigger.clone()
+    pub fn triggers(&self) -> Triggers {
+        self.triggers.clone()
     }
 
     pub fn stop(mut self) {
@@ -54,6 +62,7 @@ impl Workers {
 pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -> Workers {
     let (stop, stopped) = bounded::<()>(0);
     let (trigger, triggered) = unbounded::<()>();
+    let (endpoint, endpoint_asked) = unbounded::<()>();
     let reader = {
         let (app, client, shared, stopped) = (
             app.clone(),
@@ -65,11 +74,14 @@ pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -
     };
     let watcher = {
         let (app, client) = (app.clone(), client.clone());
-        thread::spawn(move || watch_history(&app, &client, &stopped))
+        thread::spawn(move || watch_history(&app, &client, &stopped, &endpoint_asked))
     };
     Workers {
         stop: Some(stop),
-        trigger,
+        triggers: Triggers {
+            read: trigger,
+            endpoint,
+        },
         handles: vec![reader, watcher],
     }
 }
@@ -98,7 +110,8 @@ fn read_transcripts(
             }
         }
         if let Some(history) = history.as_mut() {
-            read_once(&app.at(app::now()), history, client, shared);
+            let app = app.with_shared(history).at(app::now());
+            read_once(&app, history, client, shared);
         }
         select! {
             recv(stopped) -> _ => return,
@@ -173,7 +186,12 @@ struct Marks {
 
 /// Notices changes other processes make, such as a status line's readings and requests, and
 /// gives the usage endpoint its chance of a turn.
-fn watch_history(app: &App, client: &Sender<Message>, stopped: &Receiver<()>) {
+fn watch_history(
+    app: &App,
+    client: &Sender<Message>,
+    stopped: &Receiver<()>,
+    endpoint_asked: &Receiver<()>,
+) {
     let mut history: Option<History> = None;
     let mut version: Option<i64> = None;
     let mut marks: Option<Marks> = None;
@@ -183,7 +201,7 @@ fn watch_history(app: &App, client: &Sender<Message>, stopped: &Receiver<()>) {
             history = app.open_history().ok();
         }
         if let Some(history) = history.as_mut() {
-            let app = app.at(app::now());
+            let app = app.with_shared(history).at(app::now());
             if endpoint_turn.is_none_or(|turn| turn.elapsed() >= ENDPOINT_EVERY) {
                 endpoint_turn = Some(Instant::now());
                 // `data_version` leaves out this connection's own changes, so a turn this watch
@@ -216,6 +234,7 @@ fn watch_history(app: &App, client: &Sender<Message>, stopped: &Receiver<()>) {
         }
         select! {
             recv(stopped) -> _ => return,
+            recv(endpoint_asked) -> _ => endpoint_turn = None,
             default(CHECK_EVERY) => {}
         }
     }

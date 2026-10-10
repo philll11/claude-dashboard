@@ -299,7 +299,7 @@ pub struct SessionRow {
     pub reported_usd: Option<f64>,
 }
 
-/// `sessions`: one page of sessions, most recent first.
+/// `sessions`: one page of sessions, the one started last first.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "protocol.ts")]
@@ -326,8 +326,12 @@ pub struct WhoRow {
     /// The subagent's id; `None` for the session itself.
     #[ts(optional = nullable)]
     pub subagent: Option<String>,
+    /// The kind of agent the subagent is, such as `Explore`, where Claude Code recorded it.
+    #[ts(optional = nullable)]
+    pub agent_type: Option<String>,
     pub model: Model,
     pub first_ms: i64,
+    pub last_ms: i64,
     pub totals: Totals,
 }
 
@@ -360,6 +364,9 @@ pub struct SessionDetail {
     #[ts(optional = nullable)]
     pub title: Option<String>,
     pub project: Project,
+    /// The session's transcript, while Claude Code keeps it.
+    #[ts(optional = nullable)]
+    pub transcript: Option<String>,
     pub first_ms: i64,
     pub last_ms: i64,
     #[ts(optional = nullable)]
@@ -373,8 +380,6 @@ pub struct SessionDetail {
     #[ts(optional = nullable)]
     pub reported_usd: Option<f64>,
     pub cumulative_cost: Vec<CostPoint>,
-    /// When each subagent started, in order.
-    pub subagent_starts: Vec<i64>,
     /// The session's own models first, then each subagent's, in the order they started.
     pub who: Vec<WhoRow>,
     pub skills: Vec<Credit>,
@@ -462,6 +467,11 @@ pub struct Endpoint {
     #[ts(optional = nullable)]
     pub detail: Option<String>,
     pub next_ask_ms: i64,
+    /// What went wrong the last time it was asked, as a sentence, while it is on.
+    #[ts(optional = nullable)]
+    pub problem: Option<String>,
+    /// What turning it on means, which the person agrees to first.
+    pub consent: Vec<String>,
 }
 
 /// `limits`: every plan window, where the readings come from, and recent five-hour windows.
@@ -566,12 +576,102 @@ pub struct Health {
     pub folders: Vec<Folder>,
     #[ts(optional = nullable)]
     pub history_path: Option<String>,
+    /// What the history holds, once it can be read.
+    #[ts(optional = nullable)]
+    pub history: Option<HistoryFacts>,
+    /// How many days Claude Code keeps transcripts for.
+    pub cleanup_days: u32,
     pub access: Access,
     /// The schema that made the history read-only.
     #[ts(optional = nullable)]
     pub newer_schema: Option<u32>,
     /// What went wrong reading files during the last ingest.
     pub problems: Vec<String>,
+}
+
+/// What the history holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct HistoryFacts {
+    pub bytes: u64,
+    pub requests: u64,
+    pub sessions: u64,
+    /// The import from the claude-usage dashboard, once one ran.
+    #[ts(optional = nullable)]
+    pub imported: Option<Imported>,
+}
+
+/// An import that ran.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct Imported {
+    pub requests: u64,
+    pub imported_ms: i64,
+}
+
+/// `settings`: the settings every surface shares.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct Settings {
+    /// The IANA time zone days are counted in, when one is chosen; `None` for this computer's.
+    #[ts(optional = nullable)]
+    pub time_zone: Option<String>,
+    /// This computer's IANA time zone.
+    pub system_time_zone: String,
+    /// The first day of the week, such as `monday`.
+    pub week_start: String,
+}
+
+/// `settings/set` parameters: what to change; whatever is left out stays as it is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct SettingsChange {
+    /// An IANA time zone, or `""` for this computer's.
+    #[serde(default)]
+    #[ts(optional)]
+    pub time_zone: Option<String>,
+    /// A day of the week, such as `sunday`.
+    #[serde(default)]
+    #[ts(optional)]
+    pub week_start: Option<String>,
+}
+
+/// `folders/add` and `folders/remove` parameters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct FolderParams {
+    pub path: String,
+}
+
+/// `import/offer`: what the claude-usage dashboard's database would add to the history.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ImportOffer {
+    pub path: String,
+    /// Requests the history does not hold yet.
+    pub requests: u64,
+    #[ts(optional = nullable)]
+    pub first_day: Option<String>,
+    #[ts(optional = nullable)]
+    pub last_day: Option<String>,
+    /// Whether the person chose not to import it.
+    pub dismissed: bool,
+}
+
+/// `import/run`: what the import did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ImportDone {
+    pub imported: u64,
+    pub already_held: u64,
+    pub unreadable: u64,
 }
 
 /// The `history/changed` notification: new requests arrived for these days.
@@ -592,6 +692,57 @@ pub struct Choices {
     pub projects: Vec<Project>,
     /// By name.
     pub models: Vec<Model>,
+}
+
+/// `endpoint/set` parameters: turning Anthropic's usage endpoint on or off.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct EndpointParams {
+    pub enabled: bool,
+}
+
+/// `statusLine/plan` parameters: connecting claude-dashboard's status line, or disconnecting it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct StatusLineParams {
+    pub connect: bool,
+}
+
+/// `statusLine/plan`: what connecting or disconnecting would do to Claude Code's settings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+#[ts(export, export_to = "protocol.ts")]
+pub enum StatusLinePlan {
+    /// A change to the `statusLine` setting, shown before it is made.
+    Change {
+        /// Claude Code's settings.json.
+        path: String,
+        /// The setting as it is, as one line of JSON members; `None` when there is none.
+        before: Option<String>,
+        /// The setting the change leaves; `None` when the change removes it.
+        after: Option<String>,
+        /// Whether settings.json exists, so that a backup of it is kept.
+        exists: bool,
+        /// What changes for the person once the change is made.
+        effect: String,
+    },
+    /// Nothing needs changing.
+    Nothing { reason: String },
+    /// The change cannot be made.
+    Refused { reason: String },
+}
+
+/// `statusLine/apply` parameters: the change as the person saw it, which is made only while it
+/// still stands.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct StatusLineApply {
+    pub connect: bool,
+    pub before: Option<String>,
+    pub after: Option<String>,
 }
 
 /// `prices` parameters: the models whose prices to show.

@@ -58,6 +58,15 @@ pub struct ImportReport {
     pub unreadable: u64,
 }
 
+/// What an import would add, before it runs.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportPreview {
+    /// Requests the history does not hold yet.
+    pub requests: u64,
+    /// When the first and last of them were made, in milliseconds since the Unix epoch.
+    pub span_ms: Option<(i64, i64)>,
+}
+
 struct Turn {
     id: i64,
     session_id: String,
@@ -175,6 +184,70 @@ pub fn import_claude_usage(
         })?;
     }
     Ok(report)
+}
+
+/// What importing the claude-usage database at `database` would add: the requests the history
+/// does not hold yet. Nothing is written.
+///
+/// # Errors
+///
+/// [`ImportError::NotClaudeUsage`] when `database` lacks claude-usage's tables, and errors
+/// reading `database` or the history.
+pub fn preview_claude_usage(
+    history: &History,
+    database: &Path,
+) -> Result<ImportPreview, ImportError> {
+    let source_error = |source| ImportError::Source {
+        path: database.to_owned(),
+        source,
+    };
+    let source = Connection::open_with_flags(
+        database,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(source_error)?;
+    let columns = table_columns(&source, "turns").map_err(source_error)?;
+    if !TURN_COLUMNS.iter().all(|column| columns.contains(*column)) {
+        return Err(ImportError::NotClaudeUsage {
+            path: database.to_owned(),
+        });
+    }
+    let has_agent_id = columns.contains("agent_id");
+    let known = Known::read(history)?;
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    let mut preview = ImportPreview::default();
+    let mut after = i64::MIN;
+    loop {
+        let turns = read_turns(&source, after, has_agent_id).map_err(source_error)?;
+        let Some(last) = turns.last() else {
+            break;
+        };
+        after = last.id;
+        for turn in turns {
+            let Ok(timestamp) = turn.timestamp.parse::<jiff::Timestamp>() else {
+                continue;
+            };
+            if turn.model.is_empty() || turn.message_id.is_empty() {
+                continue;
+            }
+            let held = known
+                .sessions
+                .get(&turn.session_id)
+                .is_some_and(|&session| known.holds(session, &turn.message_id))
+                || known.with_request_id.contains(&turn.message_id);
+            if held || !seen.insert((turn.session_id, turn.message_id)) {
+                continue;
+            }
+            let ms = timestamp.as_millisecond();
+            preview.requests += 1;
+            preview.span_ms = Some(
+                preview
+                    .span_ms
+                    .map_or((ms, ms), |(first, last)| (first.min(ms), last.max(ms))),
+            );
+        }
+    }
+    Ok(preview)
 }
 
 fn import_turn(

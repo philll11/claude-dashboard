@@ -33,7 +33,7 @@ pub fn run(app: &App) -> ExitCode {
     let (connection, io_threads) = Connection::stdio();
     let shared = Arc::new(Mutex::new(Shared::default()));
     let workers = workers::start(app, &connection.sender, &shared);
-    let mut server = requests::Server::new(app.clone(), Arc::clone(&shared), workers.trigger());
+    let mut server = requests::Server::new(app.clone(), Arc::clone(&shared), workers.triggers());
     for message in &connection.receiver {
         if let Message::Request(request) = message {
             let response = server.answer(request);

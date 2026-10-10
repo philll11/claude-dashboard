@@ -204,6 +204,8 @@ enum Found {
         index: usize,
         read: Read,
         last: bool,
+        /// The kind of agent a subagent is, with the first part of its transcript.
+        agent_type: Option<String>,
     },
     /// Transcript `index` could not be read, or not to the end.
     Failed { index: usize, error: String },
@@ -309,12 +311,21 @@ fn read_changed(changed: &[Changed<'_>], next: &AtomicUsize, sender: &SyncSender
             return;
         };
         let mut from = *from;
+        let mut agent_type = transcript
+            .subagent_id
+            .as_ref()
+            .and_then(|_| transcript::agent_type(&transcript.path));
         loop {
             let found = match transcript::read_from(&transcript.path, from, CHUNK_BYTES) {
                 Ok(read) => {
                     let last = read.end == from || read.end >= transcript.len;
                     from = read.end;
-                    Found::Part { index, read, last }
+                    Found::Part {
+                        index,
+                        read,
+                        last,
+                        agent_type: agent_type.take(),
+                    }
                 }
                 Err(error) => Found::Failed {
                     index,
@@ -352,14 +363,24 @@ fn write_found(
         }
         history.write(|w| {
             for found in &batch {
-                if let Found::Part { index, read, .. } = found {
+                if let Found::Part {
+                    index,
+                    read,
+                    agent_type,
+                    ..
+                } = found
+                {
                     let changed = &changed[*index];
                     let position = ReadPosition {
                         read_to: read.end,
                         len: changed.transcript.len,
                         modified_ms: changed.modified_ms,
                     };
-                    record(w, changed.transcript, &read.records, &changed.key, position)?;
+                    let kept = Kept {
+                        records: &read.records,
+                        agent_type: agent_type.as_deref(),
+                    };
+                    record(w, changed.transcript, kept, &changed.key, position)?;
                 }
             }
             Ok(())
@@ -369,11 +390,21 @@ fn write_found(
     Ok(())
 }
 
+/// What one read of a transcript found that the history keeps.
+struct Kept<'a> {
+    records: &'a [Record],
+    /// The kind of agent a subagent is.
+    agent_type: Option<&'a str>,
+}
+
 /// Records what one read of a transcript found, and where the next read starts.
 fn record(
     w: &mut Writer<'_>,
     transcript: &Transcript,
-    records: &[Record],
+    Kept {
+        records,
+        agent_type,
+    }: Kept<'_>,
     key: &str,
     position: ReadPosition,
 ) -> Result<(), HistoryError> {
@@ -390,6 +421,9 @@ fn record(
         };
         let project = w.project(&transcript.project_folder, cwd)?;
         let session = w.session(&transcript.session_id, project)?;
+        if let (Some(subagent_id), Some(agent_type)) = (&transcript.subagent_id, agent_type) {
+            w.subagent_type(session, subagent_id, agent_type)?;
+        }
         for record in records {
             match record {
                 Record::Request(request) => {
