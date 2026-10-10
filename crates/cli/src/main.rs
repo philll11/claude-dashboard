@@ -1,6 +1,7 @@
 //! The `claude-dashboard` command.
 
 mod app;
+mod breakdown;
 mod doctor;
 mod fmt;
 mod import;
@@ -46,6 +47,27 @@ enum Command {
         /// The last day; today unless given.
         #[arg(long, value_name = "DATE")]
         until: Option<Date>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Requests and API-equivalent cost by model, for the last 30 days unless told otherwise.
+    Models {
+        #[command(flatten)]
+        days: Days,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Requests and API-equivalent cost by session, for the last 7 days unless told otherwise.
+    Sessions {
+        #[command(flatten)]
+        days: Days,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Requests and API-equivalent cost by project, for the last 30 days unless told otherwise.
+    Projects {
+        #[command(flatten)]
+        days: Days,
         #[command(flatten)]
         format: Format,
     },
@@ -95,6 +117,16 @@ enum ImportSource {
 }
 
 #[derive(Debug, Args)]
+struct Days {
+    /// The first day, such as 2026-10-05.
+    #[arg(long, value_name = "DATE")]
+    since: Option<Date>,
+    /// The last day; today unless given.
+    #[arg(long, value_name = "DATE")]
+    until: Option<Date>,
+}
+
+#[derive(Debug, Args)]
 #[group(multiple = false)]
 struct Format {
     /// Write JSON.
@@ -127,6 +159,15 @@ fn main() -> ExitCode {
             until,
             format,
         } => report::daily(&app, since, until, format.output()),
+        Command::Models { days, format } => {
+            breakdown::models(&app, days.since, days.until, format.output())
+        }
+        Command::Sessions { days, format } => {
+            breakdown::sessions(&app, days.since, days.until, format.output())
+        }
+        Command::Projects { days, format } => {
+            breakdown::projects(&app, days.since, days.until, format.output())
+        }
         Command::Doctor => doctor::run(&app),
         Command::Statusline { action, then } => match action {
             None => statusline::run(&app, &then),

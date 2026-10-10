@@ -160,7 +160,7 @@ pub fn daily(app: &App, since: Option<Date>, until: Option<Date>, output: Output
     ExitCode::SUCCESS
 }
 
-fn sum(models: &[ModelTotals]) -> Totals {
+pub fn sum(models: &[ModelTotals]) -> Totals {
     let mut totals = Totals::default();
     for model in models {
         totals.requests += model.totals.requests;
@@ -178,7 +178,7 @@ const HEADINGS: [&str; 5] = ["Requests", "Output", "Cache writes", "Cache reads"
 const WIDTHS: [usize; 5] = [8, 10, 15, 14, 9];
 const LABEL_WIDTH: usize = 14;
 
-fn cells(totals: &Totals) -> [String; 5] {
+pub fn cells(totals: &Totals) -> [String; 5] {
     let cost = if totals.requests > 0 && totals.unpriced_requests == totals.requests {
         "unpriced".to_owned()
     } else {
@@ -194,14 +194,14 @@ fn cells(totals: &Totals) -> [String; 5] {
 }
 
 /// A row of a table: its label as written, with the length it shows at, and its values.
-struct Row {
-    label: String,
-    label_len: usize,
-    values: [String; 5],
+pub struct Row {
+    pub label: String,
+    pub label_len: usize,
+    pub values: [String; 5],
 }
 
 /// A table with a heading row, its rows and a total row in bold.
-fn table(paint: Paint, first_heading: &str, rows: &[Row], total: &Row) -> String {
+pub fn table(paint: Paint, first_heading: &str, rows: &[Row], total: &Row) -> String {
     let all = || rows.iter().chain(std::iter::once(total));
     let label_width = all()
         .map(|row| row.label_len + 2)
@@ -245,7 +245,7 @@ fn table(paint: Paint, first_heading: &str, rows: &[Row], total: &Row) -> String
     out
 }
 
-fn total_row(totals: &Totals) -> Row {
+pub fn total_row(totals: &Totals) -> Row {
     Row {
         label: "  Total".to_owned(),
         label_len: 7,
@@ -420,7 +420,7 @@ struct DayJson {
 }
 
 #[derive(Serialize)]
-struct TokensJson {
+pub struct TokensJson {
     input: u64,
     output: u64,
     cache_write_5m: u64,
@@ -429,7 +429,7 @@ struct TokensJson {
 }
 
 #[derive(Serialize)]
-struct CostJson {
+pub struct CostJson {
     usd: f64,
     provenance: &'static str,
     price_table: String,
@@ -445,28 +445,38 @@ struct LimitJson {
     provenance: &'static str,
 }
 
+/// The tokens of a total, for JSON.
+pub fn tokens_json(totals: &Totals) -> TokensJson {
+    let tokens = totals.tokens;
+    TokensJson {
+        input: tokens.input,
+        output: tokens.output,
+        cache_write_5m: tokens.cache_write_5m,
+        cache_write_1h: tokens.cache_write_1h,
+        cache_read: tokens.cache_read,
+    }
+}
+
+/// The API-equivalent cost of a total, for JSON.
+pub fn cost_json(app: &App, totals: &Totals) -> CostJson {
+    CostJson {
+        usd: cents(totals.cost.total()),
+        provenance: "estimate",
+        price_table: app.prices.checked().to_string(),
+        unpriced_requests: totals.unpriced_requests,
+    }
+}
+
 fn cents(usd: f64) -> f64 {
     (usd * 100.0).round() / 100.0
 }
 
 fn day_json(app: &App, day: &DayTotals) -> DayJson {
-    let tokens = day.totals.tokens;
     DayJson {
         date: day.day.to_string(),
         requests: day.totals.requests,
-        tokens: TokensJson {
-            input: tokens.input,
-            output: tokens.output,
-            cache_write_5m: tokens.cache_write_5m,
-            cache_write_1h: tokens.cache_write_1h,
-            cache_read: tokens.cache_read,
-        },
-        cost: CostJson {
-            usd: cents(day.totals.cost.total()),
-            provenance: "estimate",
-            price_table: app.prices.checked().to_string(),
-            unpriced_requests: day.totals.unpriced_requests,
-        },
+        tokens: tokens_json(&day.totals),
+        cost: cost_json(app, &day.totals),
         models: day.models.iter().map(|model| model.model.clone()).collect(),
     }
 }
@@ -520,7 +530,7 @@ fn days_csv(app: &App, days: &[DayTotals]) -> String {
 }
 
 /// Prints JSON, coloured as the design shows it when standard output is a terminal.
-fn print_json(value: &impl Serialize) {
+pub fn print_json(value: &impl Serialize) {
     let text = serde_json::to_string_pretty(value).unwrap_or_default();
     println!("{}", colour_json(&text, Paint::for_stdout()));
 }

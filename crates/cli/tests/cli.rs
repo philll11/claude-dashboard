@@ -451,3 +451,48 @@ fn json_is_written_without_colour_when_piped() {
         .success()
         .stdout(predicate::str::contains('\u{1b}').not());
 }
+
+#[test]
+fn models_sessions_and_projects_break_the_days_down() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[
+            json!({"type": "ai-title", "aiTitle": "Fix the importer"}),
+            request("1", "claude-opus-5-5", "2026-10-05T10:00:00Z"),
+            request("2", "claude-sonnet-5-5", "2026-10-05T11:00:00Z"),
+        ],
+    );
+    let range = ["--since", "2026-10-01", "--until", "2026-10-07"];
+    let json = |command: &str| -> Value {
+        let mut args = vec![command];
+        args.extend(range);
+        args.push("--json");
+        let output = fixture.cli(&args).assert().success();
+        serde_json::from_slice(&output.get_output().stdout).unwrap()
+    };
+
+    let models = json("models");
+    assert_eq!(models[0]["model"], "claude-opus-5-5");
+    assert_eq!(models[0]["name"], "Claude Opus 5.5");
+    assert_eq!(models[1]["model"], "claude-sonnet-5-5");
+
+    let sessions = json("sessions");
+    assert_eq!(sessions[0]["session_id"], "s1");
+    assert_eq!(sessions[0]["title"], "Fix the importer");
+    assert_eq!(sessions[0]["project"], "app");
+    assert_eq!(sessions[0]["requests"], 2);
+
+    let projects = json("projects");
+    assert_eq!(projects[0]["name"], "app");
+    assert_eq!(projects[0]["transcript_folder"], "C--code-app");
+    assert_eq!(projects[0]["sessions"], 1);
+
+    let mut args = vec!["sessions"];
+    args.extend(range);
+    fixture
+        .cli(&args)
+        .assert()
+        .success()
+        .stdout(contains("Fix the importer · app"));
+}
