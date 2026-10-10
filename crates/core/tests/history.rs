@@ -35,6 +35,7 @@ fn request<'a>(
         attribution: Attribution::default(),
         entrypoint: Some("cli"),
         claude_code_version: Some("2.1.296"),
+        imported_from: None,
     }
 }
 

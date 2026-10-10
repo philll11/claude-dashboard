@@ -59,6 +59,7 @@ impl Fixture {
                     attribution: Attribution::default(),
                     entrypoint: None,
                     claude_code_version: None,
+                    imported_from: None,
                 })
             })
             .unwrap();

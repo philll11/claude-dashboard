@@ -1,5 +1,6 @@
 //! Ingest: reading what Claude Code's transcripts added since the last ingest into the history.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -7,6 +8,7 @@ use crate::history::{
     Attribution, History, HistoryError, Identity, ReadPosition, ReportedCost, Request, SessionKey,
     SessionTitle, Writer,
 };
+use crate::stats_cache;
 use crate::transcript::{self, ModelUsage, Record, RequestRecord, Transcript};
 
 /// How much of a transcript one transaction takes in, so that a large transcript does not keep
@@ -24,13 +26,16 @@ pub struct Report {
     pub request_records: u64,
     /// Lines that this version cannot read.
     pub unreadable_lines: u64,
-    /// Transcripts that could not be read, such as one Claude Code deleted meanwhile, with the
+    /// Days with tokens from Claude Code's statistics, summed over the data roots.
+    pub daily_totals: u64,
+    /// Files that could not be read, such as a transcript Claude Code deleted meanwhile, with the
     /// reason.
     pub failed: Vec<(PathBuf, String)>,
 }
 
 /// Reads what the transcripts in `roots` added since the last ingest into the history, starting
-/// with the most recently changed transcripts so that recent days are complete first.
+/// with the most recently changed transcripts so that recent days are complete first, and then
+/// the daily totals from Claude Code's statistics.
 ///
 /// Returns `None` without reading anything while another process holds the ingest lock.
 ///
@@ -93,6 +98,34 @@ pub fn ingest(history: &mut History, roots: &[PathBuf]) -> Result<Option<Report>
             }
             offset = read.end;
         }
+    }
+
+    let mut totals: BTreeMap<(String, String), u64> = BTreeMap::new();
+    for root in roots {
+        match stats_cache::daily_totals(root) {
+            Ok(days) => {
+                for day in days {
+                    let total = totals.entry((day.day, day.model)).or_default();
+                    *total = total.saturating_add(day.tokens);
+                }
+            }
+            Err(error) => report
+                .failed
+                .push((root.join("stats-cache.json"), error.to_string())),
+        }
+    }
+    if !totals.is_empty() {
+        history.write(|w| {
+            for ((day, model), tokens) in &totals {
+                w.daily_total(day, model, *tokens)?;
+            }
+            Ok(())
+        })?;
+        report.daily_totals = totals
+            .keys()
+            .map(|(day, _)| day)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len() as u64;
     }
     Ok(Some(report))
 }
@@ -193,6 +226,7 @@ fn record_request(
             },
             entrypoint: request.entrypoint.as_deref(),
             claude_code_version: request.claude_code_version.as_deref(),
+            imported_from: None,
         })?;
     }
     Ok(())

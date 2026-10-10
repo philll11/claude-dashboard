@@ -1,6 +1,6 @@
 //! Recording projects, sessions and requests.
 
-use rusqlite::{Transaction, params};
+use rusqlite::{OptionalExtension, Transaction, params};
 
 use super::HistoryError;
 use crate::tokens::Tokens;
@@ -104,6 +104,8 @@ pub struct Request<'a> {
     /// How Claude Code was started, such as `cli` or `sdk-cli`.
     pub entrypoint: Option<&'a str>,
     pub claude_code_version: Option<&'a str>,
+    /// The source the request was imported from; `None` for a request read from a transcript.
+    pub imported_from: Option<&'a str>,
 }
 
 /// Records into the history within one transaction, which [`History::write`] opens.
@@ -112,11 +114,16 @@ pub struct Request<'a> {
 #[derive(Debug)]
 pub struct Writer<'conn> {
     tx: Transaction<'conn>,
+    /// Whether the history holds imported requests, once a write has asked.
+    imports_exist: Option<bool>,
 }
 
 impl<'conn> Writer<'conn> {
     pub(super) fn new(tx: Transaction<'conn>) -> Self {
-        Self { tx }
+        Self {
+            tx,
+            imports_exist: None,
+        }
     }
 
     pub(super) fn commit(self) -> Result<(), HistoryError> {
@@ -146,6 +153,20 @@ impl<'conn> Writer<'conn> {
             .prepare_cached("SELECT id FROM projects WHERE transcript_folder = ?1")?
             .query_row([transcript_folder], |row| row.get(0))?;
         Ok(ProjectKey(id))
+    }
+
+    /// The project whose working folder is `path`, if the history holds one.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn project_with_path(&mut self, path: &str) -> Result<Option<ProjectKey>, HistoryError> {
+        let id = self
+            .tx
+            .prepare_cached("SELECT id FROM projects WHERE path = ?1 ORDER BY id LIMIT 1")?
+            .query_row([path], |row| row.get(0))
+            .optional()?;
+        Ok(id.map(ProjectKey))
     }
 
     /// Records a session of a project, identified by Claude Code's session id.
@@ -242,6 +263,34 @@ impl<'conn> Writer<'conn> {
         Ok(())
     }
 
+    /// Records a session title unless the session already has a title of either kind.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session_title_if_none(
+        &mut self,
+        session: SessionKey,
+        title: SessionTitle<'_>,
+    ) -> Result<(), HistoryError> {
+        let (sql, text) = match title {
+            SessionTitle::Ai(text) => (
+                "UPDATE sessions SET ai_title = ?2
+                 WHERE id = ?1 AND ai_title IS NULL AND custom_title IS NULL",
+                text,
+            ),
+            SessionTitle::Custom(text) => (
+                "UPDATE sessions SET custom_title = ?2
+                 WHERE id = ?1 AND ai_title IS NULL AND custom_title IS NULL",
+                text,
+            ),
+        };
+        self.tx
+            .prepare_cached(sql)?
+            .execute(params![session.0, text])?;
+        Ok(())
+    }
+
     /// Records how far a transcript has been read.
     ///
     /// # Errors
@@ -271,11 +320,12 @@ impl<'conn> Writer<'conn> {
 
     /// Records a request, or replaces the recorded request with the same identity.
     ///
-    /// Of the records that share an identity, the one with the most tokens wins, because it
-    /// carries the final tally of a streamed response. Equal usage goes to the later record, then
-    /// to the larger record id, then to the larger session id, which separates a resumed
-    /// session's verbatim copy from its original. So the history never depends on the order
-    /// records arrive in.
+    /// Of the records that share an identity, one read from a transcript wins over an imported
+    /// one, and then the one with the most tokens, because it carries the final tally of a
+    /// streamed response. Equal usage goes to the later record, then to the larger record id,
+    /// then to the larger session id, which separates a resumed session's verbatim copy from its
+    /// original. So the history never depends on the order records arrive in. A request read
+    /// from a transcript also replaces an imported request for the same message.
     ///
     /// # Errors
     ///
@@ -330,8 +380,71 @@ impl<'conn> Writer<'conn> {
             mcp_tool,
             request.entrypoint,
             request.claude_code_version,
+            request.imported_from,
         ])?;
+        if let (Identity::MessageAndRequest { message_id, .. }, None) =
+            (request.identity, request.imported_from)
+            && self.imports_exist()?
+        {
+            self.tx
+                .prepare_cached(
+                    "DELETE FROM requests
+                     WHERE session = ?1 AND message_id = ?2 AND request_id IS NULL
+                         AND imported_from IS NOT NULL",
+                )?
+                .execute(params![request.session.0, message_id])?;
+        }
         Ok(())
+    }
+
+    /// Records an import from `source`, adding `requests` to the requests it has added.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn record_import(
+        &mut self,
+        source: &str,
+        imported_ms: i64,
+        requests: u64,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO imports (source, imported_ms, requests) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (source) DO UPDATE SET
+                     imported_ms = excluded.imported_ms,
+                     requests = imports.requests + excluded.requests",
+            )?
+            .execute(params![source, imported_ms, requests])?;
+        self.imports_exist = Some(true);
+        Ok(())
+    }
+
+    /// Records a model's tokens on one day, from Claude Code's statistics.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn daily_total(&mut self, day: &str, model: &str, tokens: u64) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO daily_totals (day, model, tokens) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (day, model) DO UPDATE SET tokens = excluded.tokens",
+            )?
+            .execute(params![day, model, tokens])?;
+        Ok(())
+    }
+
+    fn imports_exist(&mut self) -> Result<bool, HistoryError> {
+        if let Some(exist) = self.imports_exist {
+            return Ok(exist);
+        }
+        let exist = self
+            .tx
+            .prepare_cached("SELECT EXISTS (SELECT 1 FROM imports)")?
+            .query_row([], |row| row.get(0))?;
+        self.imports_exist = Some(exist);
+        Ok(exist)
     }
 }
 
@@ -345,11 +458,11 @@ macro_rules! upsert_request {
                 input_tokens, output_tokens, cache_read_tokens, cache_write_5m_tokens,
                 cache_write_1h_tokens, web_search_requests, web_fetch_requests, speed,
                 service_tier, inference_geo, skill, mcp_server, mcp_tool, entrypoint,
-                claude_code_version
+                claude_code_version, imported_from
             )
             VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                ?19, ?20, ?21, ?22
+                ?19, ?20, ?21, ?22, ?23
             )
             ON CONFLICT ",
             $conflict_target,
@@ -373,14 +486,17 @@ macro_rules! upsert_request {
                 mcp_server = excluded.mcp_server,
                 mcp_tool = excluded.mcp_tool,
                 entrypoint = excluded.entrypoint,
-                claude_code_version = excluded.claude_code_version
+                claude_code_version = excluded.claude_code_version,
+                imported_from = excluded.imported_from
             WHERE (
+                excluded.imported_from IS NULL,
                 excluded.input_tokens + excluded.output_tokens + excluded.cache_read_tokens
                     + excluded.cache_write_5m_tokens + excluded.cache_write_1h_tokens,
                 excluded.timestamp_ms,
                 excluded.record_id,
                 (SELECT session_id FROM sessions WHERE id = excluded.session)
             ) > (
+                requests.imported_from IS NULL,
                 requests.input_tokens + requests.output_tokens + requests.cache_read_tokens
                     + requests.cache_write_5m_tokens + requests.cache_write_1h_tokens,
                 requests.timestamp_ms,

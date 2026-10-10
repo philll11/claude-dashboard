@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
 
 pub use lock::IngestLock;
-pub use reader::{StoredProject, StoredReportedCost, StoredRequest, StoredSession};
+pub use reader::{StoredImport, StoredProject, StoredReportedCost, StoredRequest, StoredSession};
 pub use writer::{
     Attribution, Identity, ProjectKey, ReadPosition, ReportedCost, Request, SessionKey,
     SessionTitle, Writer,

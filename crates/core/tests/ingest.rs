@@ -374,3 +374,34 @@ proptest! {
         prop_assert_eq!(growing.requests().len(), 5);
     }
 }
+
+#[test]
+fn daily_totals_from_every_data_root_add_up() {
+    let mut fixture = Fixture::new();
+    let wsl = fixture.root.parent().unwrap().join("wsl-claude");
+    for (root, opus) in [(&fixture.root, 1_200), (&wsl, 800)] {
+        write(
+            &root.join("stats-cache.json"),
+            format!(
+                r#"{{"dailyModelTokens": [{{"date": "2026-07-31",
+                    "tokensByModel": {{"claude-opus-5": {opus}, "claude-sonnet-5": 10}}}}]}}"#
+            )
+            .as_bytes(),
+        );
+    }
+
+    let report = ingest::ingest(&mut fixture.history, &[fixture.root.clone(), wsl])
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(report.daily_totals, 1);
+    assert_eq!(
+        fixture.query::<String>(
+            "SELECT day || ' ' || model || ' ' || tokens FROM daily_totals ORDER BY model"
+        ),
+        [
+            "2026-07-31 claude-opus-5 2000",
+            "2026-07-31 claude-sonnet-5 20"
+        ]
+    );
+}

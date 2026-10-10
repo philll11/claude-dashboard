@@ -305,6 +305,7 @@ fn write_the_workload(folder: &Path, index: u64) {
                         attribution: Attribution::default(),
                         entrypoint: None,
                         claude_code_version: None,
+                        imported_from: None,
                     })?;
                 }
                 Ok(())

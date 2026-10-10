@@ -1,5 +1,6 @@
 //! Reading the history back, for reports and reconciliation.
 
+use rusqlite::OptionalExtension;
 use rusqlite::types::ValueRef;
 
 use super::{History, HistoryError, ProjectKey, SessionKey};
@@ -43,6 +44,24 @@ pub struct StoredProject {
     pub transcript_folder: String,
     /// The working folder, once a transcript has named it.
     pub path: Option<String>,
+}
+
+/// A message id the history holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeldMessage {
+    pub session: SessionKey,
+    pub message_id: String,
+    /// Whether a request id goes with it.
+    pub with_request_id: bool,
+}
+
+/// A one-time import the history holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StoredImport {
+    /// When the import last ran, in milliseconds since the Unix epoch.
+    pub imported_ms: i64,
+    /// Requests it added.
+    pub requests: u64,
 }
 
 /// What Claude Code reports a session cost for one model, summed over its runs.
@@ -182,5 +201,46 @@ impl History {
             })?
             .collect::<Result<_, _>>()?;
         Ok(costs)
+    }
+
+    /// Every message id the history holds.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn message_ids(&self) -> Result<Vec<HeldMessage>, HistoryError> {
+        let mut statement = self.conn.prepare(
+            "SELECT session, message_id, request_id IS NOT NULL FROM requests
+             WHERE message_id IS NOT NULL",
+        )?;
+        let held = statement
+            .query_map([], |row| {
+                Ok(HeldMessage {
+                    session: SessionKey(row.get(0)?),
+                    message_id: row.get(1)?,
+                    with_request_id: row.get(2)?,
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(held)
+    }
+
+    /// The import from `source`, if the history holds one.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn import(&self, source: &str) -> Result<Option<StoredImport>, HistoryError> {
+        let import = self
+            .conn
+            .prepare_cached("SELECT imported_ms, requests FROM imports WHERE source = ?1")?
+            .query_row([source], |row| {
+                Ok(StoredImport {
+                    imported_ms: row.get(0)?,
+                    requests: row.get(1)?,
+                })
+            })
+            .optional()?;
+        Ok(import)
     }
 }

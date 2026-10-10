@@ -27,3 +27,24 @@ CREATE TABLE reported_costs (
     cache_write_tokens INTEGER NOT NULL,
     PRIMARY KEY (session, started_ms, model)
 ) STRICT, WITHOUT ROWID;
+
+-- The source a request was imported from, such as `claude-usage`; NULL for a request read from a
+-- transcript.
+ALTER TABLE requests ADD COLUMN imported_from TEXT;
+
+-- One-time imports from other sources.
+CREATE TABLE imports (
+    source TEXT PRIMARY KEY,
+    imported_ms INTEGER NOT NULL,
+    requests INTEGER NOT NULL
+) STRICT;
+
+-- Tokens per model per day from Claude Code's statistics, which outlive its transcripts. They
+-- stand in for days that no request covers.
+CREATE TABLE daily_totals (
+    -- The day as Claude Code dates it, YYYY-MM-DD.
+    day TEXT NOT NULL,
+    model TEXT NOT NULL,
+    tokens INTEGER NOT NULL,
+    PRIMARY KEY (day, model)
+) STRICT, WITHOUT ROWID;
