@@ -1,0 +1,17 @@
+# The package holds the bundled code, the dashboard, the program for its platform and the media.
+# vsce ignores a file that any line ignores unless a line starting with ! includes it, whatever
+# the order, so every file to include is named.
+**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!dist/extension.js
+!dist/webview/**
+!dist/swatches/**
+!server/**
+!media/icon.png
+!media/activity.svg
+!media/gauge-dark.svg
+!media/gauge-light.svg
+!media/walkthrough/**
