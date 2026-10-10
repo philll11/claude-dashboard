@@ -5,6 +5,7 @@
 
 mod lock;
 mod migrations;
+mod reader;
 mod writer;
 
 use std::collections::HashMap;
@@ -17,8 +18,10 @@ use std::time::{Duration, Instant};
 use rusqlite::{Connection, ErrorCode, OpenFlags, TransactionBehavior};
 
 pub use lock::IngestLock;
+pub use reader::{StoredProject, StoredReportedCost, StoredRequest, StoredSession};
 pub use writer::{
-    Attribution, Identity, ProjectKey, ReadPosition, Request, SessionKey, SessionTitle, Writer,
+    Attribution, Identity, ProjectKey, ReadPosition, ReportedCost, Request, SessionKey,
+    SessionTitle, Writer,
 };
 
 use migrations::{MIGRATIONS, Schema};

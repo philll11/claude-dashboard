@@ -13,7 +13,9 @@ use std::time::SystemTime;
 
 use walkdir::WalkDir;
 
-pub use record::{ModelUsage, Record, RequestRecord, Unreadable, parse_line};
+pub use record::{
+    CostState, ModelUsage, Record, ReportedModelCost, RequestRecord, Unreadable, parse_line,
+};
 
 /// A transcript in a data root.
 #[derive(Debug, Clone, PartialEq, Eq)]

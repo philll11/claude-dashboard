@@ -198,7 +198,6 @@ fn other_records_are_ignored() {
         json!({"type": "user", "message": {"role": "user", "content": "Made-up prompt."}, "uuid": "u1"}),
         json!({"type": "user", "message": "a message that is not an object"}),
         json!({"type": "attachment", "attachment": {"type": "file"}}),
-        json!({"type": "cost-state", "totalCostUSD": 1.25, "modelUsage": {}}),
         json!({"type": "a-record-type-from-a-later-version", "anything": [1, 2, 3]}),
         json!({"no-type": true}),
     ];
@@ -385,8 +384,51 @@ fn record_ids(records: &[Record]) -> Vec<String> {
         .map(|record| match record {
             Record::Request(request) => request.record_id.clone(),
             Record::AiTitle(title) | Record::CustomTitle(title) => title.clone(),
+            Record::CostState(state) => format!("cost-state {}", state.started_ms),
         })
         .collect()
+}
+
+#[test]
+fn reads_claude_codes_running_cost() {
+    use claude_dashboard_core::transcript::{CostState, ReportedModelCost};
+
+    let line = br#"{"type":"cost-state","sessionId":"s","totalCostUSD":1.75,"startTime":1791600000000,
+        "totalDuration":5000,"hasUnknownModelCost":false,"modelUsage":{
+        "claude-opus-5-5":{"inputTokens":12,"outputTokens":640,"thinkingTokens":100,
+            "cacheReadInputTokens":42000,"cacheCreationInputTokens":1500,"webSearchRequests":1,"costUSD":1.5},
+        "claude-haiku-4-5-20251001":{"inputTokens":900,"outputTokens":40,"thinkingTokens":0,
+            "cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.25}}}"#;
+    let line: Vec<u8> = line.iter().copied().filter(|&byte| byte != b'\n').collect();
+
+    assert_eq!(
+        parse_line(&line),
+        Ok(Some(Record::CostState(CostState {
+            started_ms: 1_791_600_000_000,
+            models: vec![
+                ReportedModelCost {
+                    model: "claude-haiku-4-5-20251001".into(),
+                    cost_usd: 0.25,
+                    input: 900,
+                    output: 40,
+                    cache_read: 0,
+                    cache_write: 0,
+                },
+                ReportedModelCost {
+                    model: "claude-opus-5-5".into(),
+                    cost_usd: 1.5,
+                    input: 12,
+                    output: 640,
+                    cache_read: 42_000,
+                    cache_write: 1_500,
+                },
+            ],
+        })))
+    );
+    assert_eq!(
+        parse_line(br#"{"type":"cost-state","totalCostUSD":1.75}"#),
+        Err(claude_dashboard_core::transcript::Unreadable::Incomplete)
+    );
 }
 
 #[test]

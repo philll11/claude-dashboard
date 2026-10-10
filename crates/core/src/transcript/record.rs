@@ -1,5 +1,6 @@
 //! What the history takes from one transcript record.
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -10,13 +11,39 @@ use serde::de::{self, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
 use crate::tokens::Tokens;
 
 /// A transcript record that the history uses.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Record {
     Request(Box<RequestRecord>),
     /// The title Claude Code gave the session; the last one counts.
     AiTitle(String),
     /// The title the person gave the session; the last one counts, ahead of any AI title.
     CustomTitle(String),
+    /// Claude Code's own running cost for the session.
+    CostState(CostState),
+}
+
+/// The cost that one run of Claude Code reports for a session, at list prices.
+///
+/// Claude Code writes it several times during a run, each time with the total so far, and a
+/// resumed session starts a new run with a total of its own.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CostState {
+    /// When the run started, in milliseconds since the Unix epoch.
+    pub started_ms: i64,
+    /// The cost and tokens by model, ordered by model id.
+    pub models: Vec<ReportedModelCost>,
+}
+
+/// What one run of Claude Code reports one model cost.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReportedModelCost {
+    pub model: String,
+    pub cost_usd: f64,
+    pub input: u64,
+    pub output: u64,
+    pub cache_read: u64,
+    /// Cache writes of both durations, which Claude Code does not report apart.
+    pub cache_write: u64,
 }
 
 /// A request, as one transcript record holds it.
@@ -90,8 +117,27 @@ pub fn parse_line(line: &[u8]) -> Result<Option<Record>, Unreadable> {
         }
         Some("ai-title") => Ok(raw.ai_title.map(Record::AiTitle)),
         Some("custom-title") => Ok(raw.custom_title.map(Record::CustomTitle)),
+        Some("cost-state") => cost_state(raw).map(|state| Some(Record::CostState(state))),
         _ => Ok(None),
     }
+}
+
+fn cost_state(raw: RawRecord) -> Result<CostState, Unreadable> {
+    let started_ms = raw.start_time.ok_or(Unreadable::Incomplete)?;
+    let models = raw
+        .model_usage
+        .ok_or(Unreadable::Incomplete)?
+        .into_iter()
+        .map(|(model, cost)| ReportedModelCost {
+            model,
+            cost_usd: cost.cost_usd.unwrap_or(0.0),
+            input: cost.input_tokens.unwrap_or(0),
+            output: cost.output_tokens.unwrap_or(0),
+            cache_read: cost.cache_read_input_tokens.unwrap_or(0),
+            cache_write: cost.cache_creation_input_tokens.unwrap_or(0),
+        })
+        .collect();
+    Ok(CostState { started_ms, models })
 }
 
 fn request(raw: RawRecord) -> Result<Option<RequestRecord>, Unreadable> {
@@ -190,8 +236,27 @@ struct RawRecord {
     ai_title: Option<String>,
     #[serde(default, deserialize_with = "lenient")]
     custom_title: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    start_time: Option<i64>,
+    #[serde(default, deserialize_with = "lenient")]
+    model_usage: Option<BTreeMap<String, RawModelCost>>,
     #[serde(default, deserialize_with = "object")]
     message: Option<RawMessage>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawModelCost {
+    #[serde(rename = "costUSD", default, deserialize_with = "lenient")]
+    cost_usd: Option<f64>,
+    #[serde(default, deserialize_with = "lenient")]
+    input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "lenient")]
+    output_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "lenient")]
+    cache_read_input_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "lenient")]
+    cache_creation_input_tokens: Option<u64>,
 }
 
 #[derive(Deserialize)]

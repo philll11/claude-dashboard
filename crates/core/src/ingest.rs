@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::history::{
-    Attribution, History, HistoryError, Identity, ReadPosition, Request, SessionKey, SessionTitle,
-    Writer,
+    Attribution, History, HistoryError, Identity, ReadPosition, ReportedCost, Request, SessionKey,
+    SessionTitle, Writer,
 };
 use crate::transcript::{self, ModelUsage, Record, RequestRecord, Transcript};
 
@@ -120,6 +120,22 @@ fn record(
                 Record::AiTitle(title) => w.session_title(session, SessionTitle::Ai(title))?,
                 Record::CustomTitle(title) => {
                     w.session_title(session, SessionTitle::Custom(title))?;
+                }
+                Record::CostState(state) => {
+                    for cost in &state.models {
+                        w.reported_cost(
+                            session,
+                            state.started_ms,
+                            &ReportedCost {
+                                model: &cost.model,
+                                cost_usd: cost.cost_usd,
+                                input: cost.input,
+                                output: cost.output,
+                                cache_read: cost.cache_read,
+                                cache_write: cost.cache_write,
+                            },
+                        )?;
+                    }
                 }
             }
         }

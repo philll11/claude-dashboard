@@ -5,6 +5,7 @@
 pub mod history;
 pub mod ingest;
 pub mod pricing;
+pub mod reconcile;
 pub mod roots;
 pub mod tokens;
 pub mod transcript;

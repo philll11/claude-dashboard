@@ -7,11 +7,11 @@ use crate::tokens::Tokens;
 
 /// A project recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ProjectKey(i64);
+pub struct ProjectKey(pub(super) i64);
 
 /// A session recorded in the history.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SessionKey(i64);
+pub struct SessionKey(pub(super) i64);
 
 /// What tells a request apart from every other request (ADR 0003).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +50,18 @@ pub enum SessionTitle<'a> {
     Ai(&'a str),
     /// The title the person gave the session.
     Custom(&'a str),
+}
+
+/// The cost that Claude Code reports for one model in a session, at list prices.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ReportedCost<'a> {
+    pub model: &'a str,
+    pub cost_usd: f64,
+    pub input: u64,
+    pub output: u64,
+    pub cache_read: u64,
+    /// Cache writes of both durations.
+    pub cache_write: u64,
 }
 
 /// How far a transcript has been read, and its size and modification time then.
@@ -178,6 +190,55 @@ impl<'conn> Writer<'conn> {
         self.tx
             .prepare_cached(sql)?
             .execute(params![session.0, text])?;
+        Ok(())
+    }
+
+    /// Records the cost that one run of Claude Code reports for a session and model.
+    ///
+    /// A run reports its running total several times, so the largest report of a run wins,
+    /// whatever order the reports arrive in.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn reported_cost(
+        &mut self,
+        session: SessionKey,
+        started_ms: i64,
+        cost: &ReportedCost<'_>,
+    ) -> Result<(), HistoryError> {
+        self.tx
+            .prepare_cached(
+                "INSERT INTO reported_costs (
+                     session, started_ms, model, cost_usd, input_tokens, output_tokens,
+                     cache_read_tokens, cache_write_tokens
+                 )
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                 ON CONFLICT (session, started_ms, model) DO UPDATE SET
+                     cost_usd = excluded.cost_usd,
+                     input_tokens = excluded.input_tokens,
+                     output_tokens = excluded.output_tokens,
+                     cache_read_tokens = excluded.cache_read_tokens,
+                     cache_write_tokens = excluded.cache_write_tokens
+                 WHERE (
+                     excluded.cost_usd, excluded.output_tokens, excluded.input_tokens,
+                     excluded.cache_read_tokens, excluded.cache_write_tokens
+                 ) > (
+                     reported_costs.cost_usd, reported_costs.output_tokens,
+                     reported_costs.input_tokens, reported_costs.cache_read_tokens,
+                     reported_costs.cache_write_tokens
+                 )",
+            )?
+            .execute(params![
+                session.0,
+                started_ms,
+                cost.model,
+                cost.cost_usd,
+                cost.input,
+                cost.output,
+                cost.cache_read,
+                cost.cache_write
+            ])?;
         Ok(())
     }
 
