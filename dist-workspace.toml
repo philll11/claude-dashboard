@@ -30,6 +30,8 @@ github-attestations = true
 # Attest only when publishing: pull request builds are never published, and Dependabot pull requests cannot write attestations.
 github-attestations-phase = "host"
 github-release = "host"
+# Once a release is published, install it on every operating system and run it (.github/workflows/install-check.yml).
+post-announce-jobs = ["./install-check"]
 # Release builds start from a clean target directory.
 cache-builds = false
 

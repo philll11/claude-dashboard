@@ -30,6 +30,14 @@ After changing it:
 
 The release workflow's plan job fails when `release.yml` differs from what dist generates.
 
+To cut a release:
+
+1. In a pull request, set the version in the workspace `Cargo.toml`, and add a section to `CHANGELOG.md` with a heading such as `## Version 0.1.0-alpha.2 (2026-10-20)`, which becomes the release's title and notes.
+   A version with a pre-release part, such as `-alpha.2`, makes a GitHub pre-release.
+2. Once it is merged, tag the merge commit on `main` with `v` and the version, and push the tag.
+3. The release workflow builds and publishes the release, then installs it on every operating system and runs it (`.github/workflows/install-check.yml`).
+   To check an existing release again, run that workflow by hand with its tag.
+
 ## Price table
 
 `pricing/prices.json` holds the API prices that API-equivalent cost is calculated from, with the page they come from and the date they were last checked against it.
