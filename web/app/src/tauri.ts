@@ -1,6 +1,7 @@
 // The dashboard in the desktop app: requests go to the server in the app's own process through one
 // Tauri command, and its notifications come back as one event (ADR 0008). The app's window follows
-// the system's light or dark theme, and stays hidden until the dashboard has drawn in it.
+// the system's light or dark theme, in the page's colour, and stays hidden until the dashboard has
+// drawn in it.
 
 import type {
   Backend,
@@ -12,7 +13,7 @@ import type {
 } from "@claude-dashboard/protocol";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -139,7 +140,7 @@ function storage(): Storage | undefined {
 /** The host the desktop app provides, or `undefined` outside it. */
 export async function tauriHost(): Promise<Host | undefined> {
   if (!isTauri()) return undefined;
-  const window = getCurrentWindow();
+  const window = getCurrentWebviewWindow();
   const store = storage();
   return desktopHost({
     invoke: (command, args) => invoke(command, args),
@@ -158,6 +159,10 @@ export async function tauriHost(): Promise<Host | undefined> {
     applyTheme(theme) {
       if (theme === "light") document.documentElement.dataset.theme = "desktop-light";
       else delete document.documentElement.dataset.theme;
+      // Wherever the page has not drawn yet, such as where the window has just grown, the window
+      // shows the page's colour rather than its own.
+      const page = getComputedStyle(document.documentElement).getPropertyValue("--page").trim();
+      void window.setBackgroundColor(page);
     },
     check: () => check(),
     relaunch: () => relaunch(),
