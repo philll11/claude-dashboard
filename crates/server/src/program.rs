@@ -21,6 +21,10 @@ pub const FILE_NAME: &str = if cfg!(windows) {
 const ABANDONED: Duration = Duration::from_hours(1);
 
 /// This program, with links resolved.
+///
+/// # Errors
+///
+/// Why the program's own path cannot be told.
 pub fn this() -> Result<PathBuf, String> {
     std::env::current_exe()
         .and_then(fs::canonicalize)
@@ -28,7 +32,8 @@ pub fn this() -> Result<PathBuf, String> {
 }
 
 /// Where the copy lives that a status line runs for a surface whose program an update moves,
-/// such as the VS Code extension: `bin` in the folder that holds the history.
+/// such as the VS Code extension and the desktop app: `bin` in the folder that holds the history.
+#[must_use]
 pub fn copy_path(app: &App) -> Option<PathBuf> {
     Some(
         app.history_path
@@ -39,18 +44,20 @@ pub fn copy_path(app: &App) -> Option<PathBuf> {
     )
 }
 
-/// Puts this program at `copy`, unless a copy of the same or a newer version is there already, so
+/// Puts `program` at `copy`, unless a copy of the same or a newer version is there already, so
 /// that surfaces of different versions never take the copy back to an older one.
 ///
 /// # Errors
 ///
 /// Why the copy could not be made.
-pub fn keep_copy(copy: &Path) -> Result<(), String> {
-    let program = this()?;
+pub fn keep_copy(program: &Path, copy: &Path) -> Result<(), String> {
+    let program = fs::canonicalize(program)
+        .map_err(|error| format!("cannot find {}: {error}", program.display()))?;
     if fs::canonicalize(copy).is_ok_and(|found| found == program) {
         return Ok(());
     }
-    let ours = Version::parse(env!("CARGO_PKG_VERSION")).map_err(|error| error.to_string())?;
+    let ours = version_at(&program)
+        .ok_or_else(|| format!("cannot tell the version of {}", program.display()))?;
     if version_at(copy).is_some_and(|theirs| theirs >= ours) {
         return Ok(());
     }

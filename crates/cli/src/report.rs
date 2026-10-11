@@ -10,9 +10,13 @@ use jiff::Timestamp;
 use jiff::civil::Date;
 use serde::Serialize;
 
-use crate::app::App;
-use crate::fmt::{ago, compact, grouped, long_day, money, short_date, when};
+use claude_dashboard_server::app::App;
+use claude_dashboard_server::fmt::{ago, compact, grouped, long_day, money, short_date, when};
+use claude_dashboard_server::limits::login_note;
+use claude_dashboard_server::names::model_name;
+
 use crate::limits;
+use crate::progress;
 use crate::style::{Paint, Rgb, palette};
 
 /// How a report is written.
@@ -38,21 +42,13 @@ pub fn series_colour(model: &str) -> Rgb {
     }
 }
 
-/// A model's short name, such as `Opus 5.5`, or its id when the price table does not know it.
-pub fn model_name(app: &App, model: &str) -> String {
-    app.prices.model_name(model).map_or_else(
-        || model.to_owned(),
-        |name| name.strip_prefix("Claude ").unwrap_or(name).to_owned(),
-    )
-}
-
 /// Opens and ingests the history, printing why when it cannot.
 pub fn ready_history(app: &App) -> Result<History, ExitCode> {
     let mut history = app.open_history().map_err(|error| {
         eprintln!("{error}");
         ExitCode::FAILURE
     })?;
-    if let Err(error) = app.ingest(&mut history) {
+    if let Err(error) = progress::ingest(app, &mut history) {
         eprintln!("Cannot read new transcripts into the history: {error}");
     }
     Ok(history)
@@ -96,7 +92,7 @@ pub fn today(app: &App, output: Output) -> ExitCode {
             out.push('\n');
             let _ = writeln!(out, "{}", limits_line(app, paint, &limits));
             let endpoint = history.usage_endpoint().unwrap_or_default();
-            if let Some(note) = limits::login_note(&endpoint) {
+            if let Some(note) = login_note(&endpoint) {
                 let _ = writeln!(out, "{}", paint.paint(note, palette::WARNING, false));
             }
             print!("{out}");

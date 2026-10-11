@@ -246,16 +246,14 @@ dependencies = [
  "assert_cmd",
  "clap",
  "claude-dashboard-core",
- "crossbeam-channel",
+ "claude-dashboard-server",
  "jiff",
  "lsp-server",
  "predicates",
  "rusqlite",
- "semver",
  "serde",
  "serde_json",
  "tempfile",
- "ts-rs",
 ]
 
 [[package]]
@@ -276,6 +274,20 @@ dependencies = [
  "thiserror",
  "ureq",
  "walkdir",
+]
+
+[[package]]
+name = "claude-dashboard-server"
+version = "0.1.1"
+dependencies = [
+ "claude-dashboard-core",
+ "crossbeam-channel",
+ "jiff",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "ts-rs",
 ]
 
 [[package]]

@@ -1,12 +1,10 @@
 //! The `claude-dashboard` command.
 
-mod app;
 mod breakdown;
 mod doctor;
-mod fmt;
 mod import;
 mod limits;
-mod program;
+mod progress;
 mod prompt;
 mod report;
 mod serve;
@@ -18,9 +16,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use claude_dashboard_server::app::App;
+use claude_dashboard_server::program;
 use jiff::civil::Date;
 
-use crate::app::App;
 use crate::report::Output;
 
 /// See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.
@@ -221,8 +220,8 @@ fn main() -> ExitCode {
         Command::Serve {
             stdio: _,
             status_line_copy,
-        } => serve::run(&App {
-            status_line_copy,
+        } => serve::run(App {
+            status_line_copy: status_line_copy.then(program::this).and_then(Result::ok),
             ..app
         }),
     }

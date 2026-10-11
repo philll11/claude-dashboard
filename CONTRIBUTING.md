@@ -45,7 +45,7 @@ To cut a release:
 ## Web dashboard
 
 `web/app` is the dashboard that VS Code and the desktop app show, and `web/protocol` describes the messages it exchanges with `claude-dashboard serve`.
-The Rust types in `crates/cli/src/serve/protocol.rs` generate `web/protocol/src/generated/protocol.ts` whenever the CLI's tests run, and CI fails when that file is out of date.
+The Rust types in `crates/server/src/protocol.rs` generate `web/protocol/src/generated/protocol.ts` whenever the server library's tests run, and CI fails when that file is out of date.
 The web workspace needs Node 24 and pnpm, which `corepack enable` provides.
 
 To preview the dashboard as you change it:

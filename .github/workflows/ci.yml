@@ -81,9 +81,9 @@ jobs:
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      # The server's unit tests write the TypeScript types; the web UI must use the ones the Rust
-      # types generate.
-      - run: cargo test --locked -p claude-dashboard --bin claude-dashboard
+      # The server library's unit tests write the TypeScript types; the web UI must use the ones
+      # the Rust types generate.
+      - run: cargo test --locked -p claude-dashboard-server --lib
       - run: git diff --exit-code -- web/protocol/src/generated
       - run: cargo build --locked -p claude-dashboard
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
