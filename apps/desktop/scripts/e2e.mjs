@@ -11,6 +11,7 @@
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -18,6 +19,8 @@ import { parseArgs } from "node:util";
 import { prepare } from "@claude-dashboard/app/testing";
 import { build } from "esbuild";
 import Mocha from "mocha";
+
+import { newAppFolders } from "./app-folders.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({
@@ -62,6 +65,7 @@ async function edgeDriver() {
     if (version) break;
   }
   if (!version) throw new Error("This computer has no WebView2 runtime.");
+  console.log(`WebView2 ${version}, driven by Microsoft Edge WebDriver ${version}.`);
   const folder = join(root, "out/drivers", version);
   const driver = join(folder, "msedgedriver.exe");
   if (existsSync(driver)) return driver;
@@ -79,45 +83,72 @@ async function edgeDriver() {
 }
 
 const nativeDriver = values["native-driver"] ?? (windows ? await edgeDriver() : undefined);
+// Each WebDriver session starts the app with a profile of its own, so the window's storage, such as
+// the remembered section, never mixes with an installed copy's.
 const prepared = prepare();
-// WebView2 keeps the window's storage, such as the remembered section, in a folder of the test's
-// own rather than beside an installed copy's.
-if (windows) prepared.env.WEBVIEW2_USER_DATA_FOLDER = join(prepared.folder, "webview");
 const screenshots = join(root, "out/screenshots");
 rmSync(screenshots, { recursive: true, force: true });
 mkdirSync(screenshots, { recursive: true });
 
-// The app installs where the test can find it, and removes it again.
-let app;
-let uninstall;
-if (windows) {
-  const folder = join(prepared.folder, "app");
-  // NSIS takes the folder last, unquoted.
-  execFileSync(installer, ["/S", `/D=${folder}`], { stdio: "inherit" });
-  app = join(folder, "claude-dashboard-desktop.exe");
-  uninstall = () => {
-    execFileSync(join(folder, "uninstall.exe"), ["/S"], { stdio: "inherit" });
-  };
-} else {
+/** Runs an NSIS installer or uninstaller, which takes a folder last and unquoted, spaces and all. */
+function nsis(program, ...options) {
+  execFileSync(program, options, {
+    stdio: "inherit",
+    windowsVerbatimArguments: true,
+    argv0: `"${program}"`,
+  });
+}
+
+/** Installs the app where the test can find it, and says how to remove it again. */
+function install() {
+  if (windows) {
+    const folder = join(prepared.folder, "app");
+    nsis(installer, "/S", `/D=${folder}`);
+    return {
+      app: join(folder, "claude-dashboard-desktop.exe"),
+      uninstall() {
+        // `_?=` runs the uninstaller in place until it has finished, rather than from a copy of
+        // itself that carries on after this returns.
+        nsis(join(folder, "uninstall.exe"), "/S", `_?=${folder}`);
+      },
+    };
+  }
+  const name = execFileSync("dpkg-deb", ["--field", installer, "Package"], { encoding: "utf8" });
   execFileSync("sudo", ["dpkg", "-i", installer], { stdio: "inherit" });
-  app = "/usr/bin/claude-dashboard-desktop";
-  uninstall = () => {
-    execFileSync("sudo", ["dpkg", "-r", "claude-dashboard-desktop"], { stdio: "inherit" });
+  return {
+    app: "/usr/bin/claude-dashboard-desktop",
+    uninstall() {
+      execFileSync("sudo", ["dpkg", "-r", name.trim()], { stdio: "inherit" });
+    },
   };
 }
-if (!existsSync(app)) throw new Error(`The installer put no app at ${app}.`);
 
-// tauri-driver starts the app for each session, in its own environment.
-const driver = spawn(
-  "tauri-driver",
-  ["--port", "4444", ...(nativeDriver ? ["--native-driver", nativeDriver] : [])],
-  { env: prepared.env, stdio: "inherit" },
-);
-
+// Whatever fails, the app is uninstalled again, with the folders it created.
+const created = newAppFolders();
+let installed;
+let driver;
 let failures = 1;
 try {
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  process.env.E2E_APP = app;
+  installed = install();
+  if (!existsSync(installed.app)) throw new Error(`The installer put no app at ${installed.app}.`);
+  // tauri-driver starts the app for each session, in its own environment. The drivers keep their
+  // temporary files, such as each session's web view profile, in the test's folder, which goes
+  // with it.
+  const temporary = join(prepared.folder, "temp");
+  mkdirSync(temporary);
+  driver = spawn(
+    "tauri-driver",
+    ["--port", "4444", ...(nativeDriver ? ["--native-driver", nativeDriver] : [])],
+    {
+      env: { ...prepared.env, TEMP: temporary, TMP: temporary, TMPDIR: temporary },
+      stdio: "inherit",
+    },
+  );
+  await new Promise((resolve, reject) => {
+    driver.on("error", reject);
+    setTimeout(resolve, 1500);
+  });
+  process.env.E2E_APP = installed.app;
   process.env.E2E_PROGRAM = prepared.program;
   process.env.E2E_FOLDER = prepared.folder;
   process.env.E2E_ROOT = prepared.root;
@@ -127,16 +158,20 @@ try {
   for (const file of globSync(tests).sort()) mocha.addFile(file);
   failures = await new Promise((resolve) => mocha.run(resolve));
 } finally {
-  driver.kill();
-  // The app ends with the WebDriver session; give it a moment before uninstalling it.
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  uninstall();
-  // Uninstalling the app leaves the history, which every other surface shares.
-  if (!existsSync(prepared.history)) {
-    console.error("Uninstalling the app removed the history.");
-    failures += 1;
+  driver?.kill();
+  if (installed) {
+    // The app ends with the WebDriver session; give it a moment before uninstalling it.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    installed.uninstall();
+    // Uninstalling the app leaves the history, which every other surface shares.
+    if (!existsSync(prepared.history)) {
+      console.error("Uninstalling the app removed the history.");
+      failures += 1;
+    }
   }
-  // WebView2's processes outlive the app by a moment, holding files in the folder.
-  rmSync(prepared.folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 });
+  // WebView2's processes outlive the app by a moment, holding files in the folder, and only the
+  // asynchronous rm waits for them on Windows.
+  await rm(prepared.folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 });
+  await created.remove();
 }
 process.exitCode = failures > 0 ? 1 : 0;

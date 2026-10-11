@@ -5,7 +5,8 @@
 //   node scripts/start.mjs --target aarch64-apple-darwin
 
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, globSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, globSync, mkdirSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -13,6 +14,8 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { prepare } from "@claude-dashboard/app/testing";
+
+import { newAppFolders } from "./app-folders.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repository = join(root, "..", "..");
@@ -38,6 +41,7 @@ mkdirSync(dirname(history), { recursive: true });
 const screenshots = join(root, "out/screenshots");
 mkdirSync(screenshots, { recursive: true });
 
+const created = newAppFolders();
 const child = spawn(app, [], {
   env: {
     ...prepared.env,
@@ -82,9 +86,10 @@ if (process.platform === "darwin" && ended === undefined) {
 // Whether the app ended before this check stops it.
 const endedEarly = ended;
 child.kill();
-// WebView2's processes outlive the app by a moment, holding files in the folder.
-await sleep(2000);
-rmSync(prepared.folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 });
+// WebView2's processes outlive the app by a moment, holding files in the folder, and only the
+// asynchronous rm waits for them on Windows.
+await rm(prepared.folder, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 });
+await created.remove();
 
 if (endedEarly !== undefined) {
   throw new Error(`The app ended by itself (${String(endedEarly)}).`);

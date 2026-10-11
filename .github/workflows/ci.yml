@@ -197,8 +197,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Microsoft Edge WebDriver cannot start a WebView2 app on the Windows Server 2025 image
+          # (actions/runner-images#14738), so the end-to-end tests run on Windows Server 2022.
           - name: Windows x64
-            os: windows-latest
+            os: windows-2022
             target: x86_64-pc-windows-msvc
             bundles: nsis
             check: e2e
@@ -233,8 +235,9 @@ jobs:
       run:
         shell: bash
     env:
-      # The app needs a display, which xvfb-run gives it on Linux.
-      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a' || '' }}
+      # On Linux the app needs a display, which xvfb-run gives it, and a D-Bus session bus, which
+      # every desktop has and the app's single instance relies on.
+      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a dbus-run-session --' || '' }}
       # The program the tests read their synthetic Claude Code folder with.
       CLAUDE_DASHBOARD_BIN: ${{ github.workspace }}/target/${{ matrix.target }}/release/claude-dashboard${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
     steps:
@@ -245,7 +248,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils webkit2gtk-driver xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils webkit2gtk-driver xvfb dbus
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
