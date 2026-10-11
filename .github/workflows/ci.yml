@@ -175,10 +175,12 @@ jobs:
           --out apps/vscode/claude-dashboard.vsix
       - name: End-to-end tests on the package
         run: $WITH_DISPLAY node apps/vscode/scripts/e2e.mjs --vsix apps/vscode/claude-dashboard.vsix
+        env:
+          E2E_STORAGE: ${{ runner.temp }}/e2e
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vscode-screenshots-${{ matrix.target }}
-          path: apps/vscode/test-resources/screenshots
+          path: ${{ runner.temp }}/e2e/screenshots
           if-no-files-found: ignore
           retention-days: 7

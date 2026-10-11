@@ -13,7 +13,6 @@ export default tseslint.config(
       "**/playwright-report/",
       "apps/vscode/out/",
       "apps/vscode/.vscode-test/",
-      "apps/vscode/test-resources/",
     ],
   },
   js.configs.recommended,

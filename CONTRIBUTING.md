@@ -99,7 +99,7 @@ The tests:
 - `pnpm --filter claude-dashboard test` checks what the status bar and the sidebar show, with Vitest.
 - `pnpm --filter claude-dashboard test:integration` runs the extension in VS Code over the browser tests' generated Claude Code folder.
   It downloads the latest VS Code; set `VSCODE_VERSION=1.126.0` for the oldest the extension supports, or `VSCODE_PATH` to the program of a VS Code you have installed.
-- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, and look at the status bar, the sidebar and inside the dashboard, leaving a screenshot of each default theme in `apps/vscode/test-resources/screenshots`:
+- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, and look at the status bar, the sidebar and inside the dashboard, leaving a screenshot of each default theme in `screenshots` in the folder `E2E_STORAGE` names, or in `claude-dashboard-e2e` in your system's temporary folder:
 
   ```sh
   node apps/vscode/scripts/package.mjs --target win32-x64 --program target/debug/claude-dashboard.exe --out apps/vscode/claude-dashboard.vsix

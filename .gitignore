@@ -13,7 +13,6 @@ dist/
 /apps/vscode/out/
 /apps/vscode/.vscode-test/
 /apps/vscode/*.vsix
-/apps/vscode/test-resources/
 # Copied from the repository's root when the extension is packaged.
 /apps/vscode/LICENSE
 /apps/vscode/CHANGELOG.md

@@ -1,11 +1,16 @@
 // End-to-end tests: installs a package of the extension into a fresh VS Code, as a person would,
 // and checks what it shows, inside the dashboard's webview too, on a synthetic Claude Code folder.
 // ExTester 8.27 drives VS Code 1.135 to 1.137, so the tests run on 1.137; the integration tests
-// cover the oldest VS Code the extension supports. Screenshots land in test-resources/screenshots.
+// cover the oldest VS Code the extension supports.
+//
+// VS Code, its user data and the screenshots go in the folder E2E_STORAGE names, or else in
+// claude-dashboard-e2e in the system's temporary folder: VS Code keeps its IPC socket in the user
+// data folder, and macOS limits a socket's path to 104 bytes, which a deep checkout exceeds.
 //
 //   node scripts/e2e.mjs --vsix <package>
 
 import { copyFileSync, globSync, mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -33,7 +38,7 @@ await build({
 });
 if (globSync(tests).length === 0) throw new Error(`No tests match ${tests}.`);
 
-const storage = join(root, "test-resources");
+const storage = process.env.E2E_STORAGE ?? join(tmpdir(), "claude-dashboard-e2e");
 const settings = join(storage, "e2e-settings.json");
 mkdirSync(storage, { recursive: true });
 copyFileSync(join(root, "test/e2e/settings.json"), settings);
