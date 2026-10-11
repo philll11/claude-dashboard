@@ -16,7 +16,7 @@ export default defineConfig({
       output: {
         entryFileNames: "dashboard.js",
         assetFileNames: "dashboard.[ext]",
-        inlineDynamicImports: true,
+        codeSplitting: false,
       },
     },
   },

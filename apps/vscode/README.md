@@ -2,8 +2,7 @@
 
 See how you use Claude Code: how close you are to your plan limits, what your usage would cost at API prices, and where it goes.
 
-> **Pre-release.**
-> Feedback and problems are welcome in the [issues](https://github.com/philll11/claude-dashboard/issues).
+> New versions are on the [releases page](https://github.com/philll11/claude-dashboard/releases): install the package for your platform with **Extensions: Install from VSIX…**.
 
 ## What you get
 

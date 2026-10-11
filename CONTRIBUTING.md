@@ -33,14 +33,14 @@ The release workflow's plan job fails when `release.yml` differs from what dist 
 To cut a release:
 
 1. In a pull request, set the version in the workspace `Cargo.toml` and in `apps/vscode/package.json`, and add a section to `CHANGELOG.md` with a heading such as `## Version 0.1.2 (2026-10-20)`, which becomes the release's title and notes.
-   Every surface has the same version, as plain `major.minor.patch`, because the Visual Studio Marketplace takes no other: an odd minor version, such as `0.1.2`, is a pre-release, and an even one, such as `0.2.0`, is a release.
+   Every surface has the same version, as plain `major.minor.patch`, and each release becomes the latest release on GitHub, which the README's install links read.
+   A suffix such as `-alpha.1` would make dist publish a pre-release instead, which those links skip.
 2. Once it is merged, tag the merge commit on `main` with `v` and the version, and push the tag.
 3. The release workflow builds and publishes the release, then:
    - installs it on every operating system and runs it (`.github/workflows/install-check.yml`);
-   - marks it a pre-release on GitHub when its minor version is odd (`.github/workflows/release-channel.yml`);
-   - packages the VS Code extension for every platform with the release's programs, attaches the packages to the release, and publishes them to the Visual Studio Marketplace and Open VSX (`.github/workflows/vscode-release.yml`), which [the runbook](docs/runbook.md) sets up.
+   - packages the VS Code extension for every platform with the release's programs and attaches the packages to the release (`.github/workflows/vscode-release.yml`).
 
-   To check an existing release again, run the install check by hand with its tag; to package or publish its extension again, run the VS Code release workflow by hand from the tag.
+   To check an existing release again, run the install check by hand with its tag; to package its extension again, run the VS Code release workflow by hand from the tag.
 
 ## Web dashboard
 

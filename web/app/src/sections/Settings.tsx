@@ -16,6 +16,9 @@ import { ConsentDialog, StatusLineDialog } from "./dialogs";
 
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
+/** Where every version is published, with its VS Code packages. */
+const RELEASES = "https://github.com/philll11/claude-dashboard/releases";
+
 export function Settings() {
   const health = useRequest("health", null).data;
   const limits = useRequest("limits", null).data;
@@ -407,7 +410,12 @@ function Privacy() {
     <Panel title="Updates and privacy">
       <p className="note">
         Version {status.version}.
-        {host.surface === "vscode" ? " VS Code keeps the extension up to date." : ""}
+        {host.surface === "vscode" && (
+          <>
+            {" "}
+            New versions are on the <a href={RELEASES}>releases page</a>.
+          </>
+        )}
       </p>
       <p className="note">
         claude-dashboard collects no telemetry. It never stores prompt or code content, and it only

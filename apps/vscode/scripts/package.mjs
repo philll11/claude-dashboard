@@ -2,8 +2,8 @@
 // platform, as the package VS Code installs where no other fits, which explains that the platform
 // needs `claudeDashboard.server.path`.
 //
-//   node scripts/package.mjs --target win32-x64 --program <claude-dashboard.exe> [--pre-release] [--out <file>]
-//   node scripts/package.mjs [--pre-release] [--out <file>]
+//   node scripts/package.mjs --target win32-x64 --program <claude-dashboard.exe> [--out <file>]
+//   node scripts/package.mjs [--out <file>]
 
 import { execFileSync } from "node:child_process";
 import { chmodSync, copyFileSync, mkdirSync, rmSync } from "node:fs";
@@ -18,7 +18,6 @@ const { values } = parseArgs({
   options: {
     target: { type: "string" },
     program: { type: "string" },
-    "pre-release": { type: "boolean", default: false },
     out: { type: "string" },
   },
 });
@@ -49,7 +48,6 @@ execFileSync(
     "package",
     "--no-dependencies",
     ...(values.target ? ["--target", values.target] : []),
-    ...(values["pre-release"] ? ["--pre-release"] : []),
     ...(values.out ? ["--out", resolve(values.out)] : []),
   ],
   { cwd: root, stdio: "inherit" },
