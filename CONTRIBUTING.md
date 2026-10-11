@@ -70,7 +70,9 @@ docker run --rm -v "$PWD":/work -w /work -e CARGO_TARGET_DIR=/work/target/linux 
 docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
   -v claude-dashboard-modules:/work/node_modules \
   -v claude-dashboard-app-modules:/work/web/app/node_modules \
-  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules   -v claude-dashboard-vscode-modules:/work/apps/vscode/node_modules   -v claude-dashboard-desktop-modules:/work/apps/desktop/node_modules \
+  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules \
+  -v claude-dashboard-vscode-modules:/work/apps/vscode/node_modules \
+  -v claude-dashboard-desktop-modules:/work/apps/desktop/node_modules \
   -v claude-dashboard-pnpm-store:/pnpm-store \
   -e CLAUDE_DASHBOARD_BIN=/work/target/linux/debug/claude-dashboard \
   mcr.microsoft.com/playwright:v1.63.0-noble \
