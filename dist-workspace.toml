@@ -21,6 +21,8 @@ targets = [
 # The crates set publish = false, which hides them from dist unless dist = true. A binary crate
 # that dist leaves alone, as the desktop app's, sets dist = false in its own manifest.
 dist = true
+# Build only the packages the release holds: the desktop app's crate does not build for musl.
+precise-builds = true
 install-path = "CARGO_HOME"
 install-updater = false
 # Pull requests build every artefact without publishing, so each one proves the release still builds.
