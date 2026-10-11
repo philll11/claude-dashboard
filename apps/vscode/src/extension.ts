@@ -54,7 +54,8 @@ export function activate(context: vscode.ExtensionContext): void {
     server.onDidChangeState(shown),
     summary.onDidChange(() => {
       const current = summary.summary;
-      if (!current) return;
+      // Once the server has stopped, the status bar says so rather than show its last numbers.
+      if (!current || server.state.kind !== "running") return;
       statusBar.show(current);
       setContext("state", "running");
       setContext("limitsConnected", current.limitsConnected);
