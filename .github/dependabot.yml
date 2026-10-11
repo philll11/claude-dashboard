@@ -8,6 +8,17 @@ updates:
       cargo:
         patterns: ["*"]
 
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # pnpm-workspace.yaml holds back versions newer than two weeks; Dependabot waits as long.
+    cooldown:
+      default-days: 14
+    groups:
+      npm:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

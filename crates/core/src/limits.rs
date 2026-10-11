@@ -3,10 +3,27 @@
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::history::{History, HistoryError};
+use crate::pricing::PriceTable;
+use crate::report::{self, Filter, Range, Totals};
+
 /// The rolling five-hour window.
 pub const FIVE_HOUR: &str = "five_hour";
 /// The weekly window.
 pub const SEVEN_DAY: &str = "seven_day";
+
+/// The weekly window of one model, such as Fable's, which only the usage endpoint reports.
+#[must_use]
+pub fn weekly_model_window(model: &str) -> Option<String> {
+    let model = model.trim();
+    (!model.is_empty()).then(|| format!("{SEVEN_DAY}:{model}"))
+}
+
+/// The model whose weekly window `window` is, by the name the usage endpoint gives it.
+#[must_use]
+pub fn weekly_model(window: &str) -> Option<&str> {
+    window.strip_prefix(SEVEN_DAY)?.strip_prefix(':')
+}
 
 /// How old a reading may be before it is shown as stale: Claude Code reports limits only while
 /// it runs in a terminal, and other Claude apps use the same windows meanwhile.
@@ -173,9 +190,183 @@ impl StatusLineInput {
     }
 }
 
+/// How long the five-hour window lasts.
+pub const FIVE_HOURS_MS: i64 = 5 * 60 * 60 * 1000;
+
+/// How long a pace must have run before it says where a window is heading.
+const SHORTEST_PACE_MS: i64 = 15 * 60 * 1000;
+
+/// Where a window is heading at its current pace.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pace {
+    /// The share of the limit used by the time the window resets.
+    pub at_reset: f64,
+    /// When the limit is reached, if that comes before the window resets.
+    pub limit_reached_ms: Option<i64>,
+}
+
+/// The pace from `since` to `now`, each a time and the share of the limit used then, and where
+/// it leads by `resets_at_ms`. `None` while too little time has passed to tell, or once the
+/// window has reset.
+#[must_use]
+pub fn pace(since: (i64, f64), now: (i64, f64), resets_at_ms: i64) -> Option<Pace> {
+    let (since_ms, since_used) = since;
+    let (now_ms, now_used) = now;
+    let elapsed = now_ms - since_ms;
+    if elapsed < SHORTEST_PACE_MS || now_ms >= resets_at_ms {
+        return None;
+    }
+    let per_ms = (now_used - since_used) / milliseconds(elapsed);
+    if per_ms <= 0.0 {
+        return Some(Pace {
+            at_reset: now_used,
+            limit_reached_ms: None,
+        });
+    }
+    let limit_reached_ms = (now_used < 100.0)
+        .then(|| now_ms.saturating_add(whole_ms((100.0 - now_used) / per_ms)))
+        .filter(|at| *at < resets_at_ms);
+    Some(Pace {
+        at_reset: now_used + per_ms * milliseconds(resets_at_ms - now_ms),
+        limit_reached_ms,
+    })
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "times in milliseconds stay far below 2^53, where f64 starts to skip whole numbers"
+)]
+fn milliseconds(ms: i64) -> f64 {
+    ms as f64
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the duration is clamped to fit, and a pace never looks past a week"
+)]
+fn whole_ms(ms: f64) -> i64 {
+    ms.clamp(0.0, 1e15) as i64
+}
+
+/// One five-hour window, as its readings saw it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WindowSpan {
+    pub start_ms: i64,
+    pub resets_at_ms: i64,
+    /// The largest share of the limit any reading in it saw.
+    pub highest: f64,
+}
+
+/// The five-hour windows that `readings` saw, newest first. Readings belong to one window when
+/// they say it resets in the same minute, because the status line gives seconds and the usage
+/// endpoint fractions of them.
+#[must_use]
+pub fn five_hour_windows(readings: &[LimitSnapshot]) -> Vec<WindowSpan> {
+    const MINUTE_MS: i64 = 60 * 1000;
+    let mut windows: Vec<WindowSpan> = Vec::new();
+    for reading in readings {
+        let Some(resets_at_ms) = reading.resets_at_ms else {
+            continue;
+        };
+        let minute = resets_at_ms.div_euclid(MINUTE_MS);
+        match windows
+            .iter_mut()
+            .find(|window| window.resets_at_ms.div_euclid(MINUTE_MS) == minute)
+        {
+            Some(window) => window.highest = window.highest.max(reading.used_percentage),
+            None => windows.push(WindowSpan {
+                start_ms: resets_at_ms - FIVE_HOURS_MS,
+                resets_at_ms,
+                highest: reading.used_percentage,
+            }),
+        }
+    }
+    windows.sort_by_key(|window| std::cmp::Reverse(window.resets_at_ms));
+    windows
+}
+
+/// The five-hour windows seen from `since_ms` to `now_ms`, newest first, each with the totals of
+/// the requests made in it.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn recent_five_hour_windows(
+    history: &History,
+    table: &PriceTable,
+    since_ms: i64,
+    now_ms: i64,
+) -> Result<Vec<(WindowSpan, Totals)>, HistoryError> {
+    let readings = history.limit_snapshots(FIVE_HOUR, since_ms, now_ms.saturating_add(1))?;
+    five_hour_windows(&readings)
+        .into_iter()
+        .map(|window| {
+            let range = Range {
+                from_ms: window.start_ms,
+                to_ms: window.resets_at_ms.min(now_ms.saturating_add(1)),
+            };
+            let totals = report::totals(history, table, range, &Filter::default())?;
+            Ok((window, totals))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const MINUTE: i64 = 60 * 1000;
+
+    #[test]
+    fn a_steady_pace_says_where_the_window_ends_and_when_it_hits_the_limit() {
+        let pace = pace((0, 0.0), (60 * MINUTE, 30.0), 300 * MINUTE).unwrap();
+        assert!((pace.at_reset - 150.0).abs() < 1e-9);
+        assert_eq!(pace.limit_reached_ms, Some(200 * MINUTE));
+    }
+
+    #[test]
+    fn a_pace_that_stays_under_the_limit_never_reaches_it() {
+        let pace = pace((0, 0.0), (60 * MINUTE, 10.0), 300 * MINUTE).unwrap();
+        assert!((pace.at_reset - 50.0).abs() < 1e-9);
+        assert_eq!(pace.limit_reached_ms, None);
+    }
+
+    #[test]
+    fn too_short_a_pace_or_a_reset_window_says_nothing() {
+        assert_eq!(pace((0, 0.0), (10 * MINUTE, 30.0), 300 * MINUTE), None);
+        assert_eq!(pace((0, 0.0), (300 * MINUTE, 30.0), 300 * MINUTE), None);
+        let flat = pace((0, 40.0), (60 * MINUTE, 40.0), 300 * MINUTE).unwrap();
+        assert_eq!((flat.at_reset, flat.limit_reached_ms), (40.0, None));
+    }
+
+    #[test]
+    fn readings_that_reset_in_the_same_minute_are_one_window() {
+        let reading = |observed_ms: i64, used: f64, resets_at_ms: i64| LimitSnapshot {
+            window: FIVE_HOUR.into(),
+            source: Source::StatusLine,
+            observed_ms,
+            used_percentage: used,
+            resets_at_ms: Some(resets_at_ms),
+        };
+        let first = 1_000 * MINUTE;
+        let second = first + FIVE_HOURS_MS;
+        let windows = five_hour_windows(&[
+            reading(first - 60 * MINUTE, 20.0, first),
+            reading(first - 30 * MINUTE, 35.0, first + 1_756),
+            reading(second - 200 * MINUTE, 5.0, second),
+        ]);
+        let spans: Vec<_> = windows
+            .iter()
+            .map(|w| (w.start_ms, w.resets_at_ms, w.highest))
+            .collect();
+        assert_eq!(
+            spans,
+            [
+                (second - FIVE_HOURS_MS, second, 5.0),
+                (first - FIVE_HOURS_MS, first, 35.0),
+            ]
+        );
+    }
 
     #[test]
     fn reads_the_plan_windows_claude_code_passes_to_a_status_line() {

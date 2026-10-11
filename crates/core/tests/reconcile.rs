@@ -3,6 +3,7 @@ use claude_dashboard_core::history::{
 };
 use claude_dashboard_core::pricing::PriceTable;
 use claude_dashboard_core::reconcile::{self, Reconciliation};
+use claude_dashboard_core::report;
 use claude_dashboard_core::tokens::Tokens;
 
 /// 2026-10-10T06:16:27.123Z.
@@ -204,4 +205,41 @@ fn an_unpriced_model_has_no_drift() {
     assert_eq!(result.models[0].api_equivalent_usd, None);
     assert_eq!(result.models[0].drift(), None);
     assert_eq!(result.drift(), None);
+}
+
+impl Fixture {
+    /// The session's drift from Claude Code's own figure, as the dashboard shows it.
+    fn session_drift(&self, session: SessionKey) -> Option<f64> {
+        let detail = report::session_detail(&self.history, PriceTable::bundled(), session)
+            .unwrap()
+            .unwrap();
+        let reported = reconcile::reported(&self.history).unwrap();
+        reconcile::session_drift(&detail.models, reported.get(&session)?)
+    }
+}
+
+#[test]
+fn a_session_is_compared_with_claude_codes_figure_for_the_same_requests() {
+    let mut fixture = Fixture::new();
+    let session = fixture.session("session-1");
+    fixture.request(session, "req_1", "claude-opus-5-5", REQUEST_MS);
+    fixture.reported(session, "claude-opus-5-5", COST * 1.1, TOKENS.output);
+    // A call that gave the session its title, which no transcript records.
+    fixture.reported(session, "claude-haiku-5-5", 0.000_5, 20);
+
+    let drift = fixture.session_drift(session).unwrap();
+    assert!((drift - (1.0 / 1.1 - 1.0)).abs() < 1e-9, "{drift}");
+}
+
+#[test]
+fn a_session_still_running_after_a_process_ended_is_not_compared() {
+    let mut fixture = Fixture::new();
+    let session = fixture.session("session-1");
+    fixture.request(session, "req_1", "claude-opus-5-5", REQUEST_MS);
+    // The session goes on in a process that has not written its cost yet.
+    fixture.request(session, "req_2", "claude-opus-5-5", REQUEST_MS + HOUR_MS);
+    fixture.request(session, "req_3", "claude-sonnet-5-5", REQUEST_MS + HOUR_MS);
+    fixture.reported(session, "claude-opus-5-5", COST, TOKENS.output);
+
+    assert_eq!(fixture.session_drift(session), None);
 }

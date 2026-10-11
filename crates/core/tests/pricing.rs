@@ -169,19 +169,23 @@ fn every_model_on_the_pricing_page_costs_what_the_page_says() {
         assert_prices(
             [
                 cost.input,
-                cost.cache_write,
+                cost.cache_write_5m,
+                cost.cache_write_1h,
                 cost.cache_read,
                 cost.output,
-                cost.total(),
             ],
             [
                 input / 100.0,
-                (five_minutes + one_hour) / 100.0,
+                five_minutes / 100.0,
+                one_hour / 100.0,
                 read / 100.0,
                 output / 100.0,
-                prices.iter().sum::<f64>() / 100.0,
             ],
             id,
+        );
+        assert!(
+            (cost.total() - prices.iter().sum::<f64>() / 100.0).abs() < 1e-9,
+            "{id}: the total is the sum of its parts"
         );
     }
 }

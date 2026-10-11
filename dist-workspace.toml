@@ -48,7 +48,7 @@ aarch64-unknown-linux-musl = "ubuntu-24.04-arm"
 
 # Every action in the workflow is pinned to a commit; the comment names the release it points at.
 # dist writes only the commit into the workflow. Dependabot skips these four actions (see .github/dependabot.yml),
-# so update them here when upgrading dist; .github/workflows/ci.yml uses the same actions/checkout commit.
+# so update them here when upgrading dist; .github/workflows/ci.yml uses the same commits of these.
 [dist.github-action-commits]
 "actions/checkout" = "3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
 "actions/upload-artifact" = "cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2

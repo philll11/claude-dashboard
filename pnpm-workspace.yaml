@@ -1,0 +1,6 @@
+packages:
+  - web/*
+  - apps/*
+
+# Install only versions published at least two weeks ago, dependencies of dependencies included.
+minimumReleaseAge: 20160

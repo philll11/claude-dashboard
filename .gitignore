@@ -1,1 +1,10 @@
 /target/
+node_modules/
+.pnpm-store/
+dist/
+/web/app/test-results/
+/web/app/playwright-report/
+*.tsbuildinfo
+# Screenshot baselines come from the Playwright container that CI runs in; other systems' are local.
+/web/app/tests/browser/*-snapshots/*-win32.png
+/web/app/tests/browser/*-snapshots/*-darwin.png

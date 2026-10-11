@@ -2,23 +2,22 @@
 
 use serde_json::Value;
 
-use crate::limits::{FIVE_HOUR, LimitSnapshot, SEVEN_DAY, Source};
+use crate::limits::{self, FIVE_HOUR, LimitSnapshot, SEVEN_DAY, Source};
 
 /// The plan limits in the endpoint's answer, as read at `observed_ms`; none when it holds nothing
 /// this version can read.
 ///
 /// The answer lists the limits in a `limits` array, each with its `kind`, the `percent` used and
-/// when it `resets_at`. Earlier answers kept each window under a key of its own, with its
-/// `utilization`; those are read too, and the array wins for a window both have. Limits for one
-/// model alone are left out, because the status line reports only the five-hour and weekly
-/// windows.
+/// when it `resets_at`; a weekly limit for one model names it in `scope.model.display_name`.
+/// Earlier answers kept the five-hour and weekly windows under keys of their own, with their
+/// `utilization`; those are read too, and the array wins for a window both have.
 #[must_use]
 pub fn plan_limits(json: &str, observed_ms: i64) -> Vec<LimitSnapshot> {
     let Ok(answer) = serde_json::from_str::<Value>(json) else {
         return Vec::new();
     };
     let mut snapshots: Vec<LimitSnapshot> = Vec::new();
-    let mut add = |window: &str, entry: &Value, used: Option<&Value>| {
+    let mut add = |window: String, entry: &Value, used: Option<&Value>| {
         if snapshots.iter().any(|snapshot| snapshot.window == window) {
             return;
         }
@@ -27,7 +26,7 @@ pub fn plan_limits(json: &str, observed_ms: i64) -> Vec<LimitSnapshot> {
             .filter(|used| used.is_finite() && *used >= 0.0)
         {
             snapshots.push(LimitSnapshot {
-                window: window.to_owned(),
+                window,
                 source: Source::UsageEndpoint,
                 observed_ms,
                 used_percentage: used,
@@ -42,15 +41,25 @@ pub fn plan_limits(json: &str, observed_ms: i64) -> Vec<LimitSnapshot> {
         .flatten()
     {
         let window = match limit.get("kind").and_then(Value::as_str) {
-            Some("session") => FIVE_HOUR,
-            Some("weekly_all") => SEVEN_DAY,
+            Some("session") => FIVE_HOUR.to_owned(),
+            Some("weekly_all") => SEVEN_DAY.to_owned(),
+            Some("weekly_scoped") => {
+                let Some(window) = limit
+                    .pointer("/scope/model/display_name")
+                    .and_then(Value::as_str)
+                    .and_then(limits::weekly_model_window)
+                else {
+                    continue;
+                };
+                window
+            }
             _ => continue,
         };
         add(window, limit, limit.get("percent"));
     }
     for window in [FIVE_HOUR, SEVEN_DAY] {
         if let Some(entry) = answer.get(window).filter(|entry| entry.is_object()) {
-            add(window, entry, entry.get("utilization"));
+            add(window.to_owned(), entry, entry.get("utilization"));
         }
     }
     snapshots
@@ -114,6 +123,7 @@ mod tests {
             [
                 (FIVE_HOUR.to_owned(), 42.0, Some(1_791_644_400_000)),
                 (SEVEN_DAY.to_owned(), 71.5, Some(1_792_054_800_000)),
+                ("seven_day:Opus".to_owned(), 12.0, Some(1_792_054_800_000)),
             ]
         );
     }

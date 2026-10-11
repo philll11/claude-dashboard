@@ -15,7 +15,7 @@ use crate::style::{Paint, palette};
 
 /// What turning the endpoint on means, in the design's words, and what Anthropic's terms say
 /// about it.
-const CONSENT: [&str; 5] = [
+pub const CONSENT: [&str; 5] = [
     "It reads the login Claude Code keeps on this computer and sends it only to api.anthropic.com.",
     "It never changes or refreshes that login.",
     "It asks at most once every 5 minutes, shared by every claude-dashboard window.",
@@ -108,6 +108,16 @@ pub fn login_note(state: &State) -> Option<&'static str> {
         Outcome::LoginRefused => Some(LOGIN_REFUSED),
         _ => None,
     }
+}
+
+/// What went wrong the last time the endpoint was asked, as a sentence; `None` when nothing did.
+pub fn problem(app: &App, state: &State) -> Option<String> {
+    if !state.enabled {
+        return None;
+    }
+    login_note(state)
+        .map(str::to_owned)
+        .or_else(|| trouble(app, state).map(|clause| sentence(&clause)))
 }
 
 /// What went wrong the last time the endpoint was asked, as a clause; `None` when nothing did.

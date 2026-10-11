@@ -1,0 +1,28 @@
+{
+  "name": "@claude-dashboard/app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --project .",
+    "test": "vitest run",
+    "browser": "vite build && playwright test"
+  },
+  "dependencies": {
+    "@claude-dashboard/protocol": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "vite": "8.3.1",
+    "vitest": "5.0.2",
+    "vscode-jsonrpc": "9.0.3"
+  }
+}

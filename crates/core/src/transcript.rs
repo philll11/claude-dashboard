@@ -133,6 +133,33 @@ fn classify(relative: &Path) -> Option<(String, String, Option<String>)> {
     }
 }
 
+/// The most of a subagent's metadata file that is read.
+const MAX_METADATA: u64 = 64 * 1024;
+
+/// The kind of agent a subagent is, such as `Explore`, from the metadata file Claude Code keeps
+/// beside its transcript: `agent-<id>.meta.json` next to `agent-<id>.jsonl`. Only the agent type
+/// is read; the file also describes the subagent's task, which the history never stores.
+#[must_use]
+pub fn agent_type(transcript: &Path) -> Option<String> {
+    use std::io::Read as _;
+
+    #[derive(serde::Deserialize)]
+    struct Metadata {
+        #[serde(rename = "agentType")]
+        agent_type: Option<String>,
+    }
+    let metadata = transcript.with_extension("meta.json");
+    let mut text = String::new();
+    open_shared(&metadata)
+        .ok()?
+        .take(MAX_METADATA)
+        .read_to_string(&mut text)
+        .ok()?;
+    let agent_type = serde_json::from_str::<Metadata>(&text).ok()?.agent_type?;
+    let agent_type = agent_type.trim();
+    (!agent_type.is_empty()).then(|| agent_type.to_owned())
+}
+
 /// What one read of a transcript found.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Read {

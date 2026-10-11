@@ -100,22 +100,28 @@ pub struct Cost {
     pub input: f64,
     pub output: f64,
     pub cache_read: f64,
-    /// Five-minute and one-hour cache writes together.
-    pub cache_write: f64,
+    pub cache_write_5m: f64,
+    pub cache_write_1h: f64,
     pub web_search: f64,
 }
 
 impl Cost {
     #[must_use]
     pub fn total(&self) -> f64 {
-        self.input + self.output + self.cache_read + self.cache_write + self.web_search
+        self.input
+            + self.output
+            + self.cache_read
+            + self.cache_write_5m
+            + self.cache_write_1h
+            + self.web_search
     }
 
     pub fn add(&mut self, other: Self) {
         self.input += other.input;
         self.output += other.output;
         self.cache_read += other.cache_read;
-        self.cache_write += other.cache_write;
+        self.cache_write_5m += other.cache_write_5m;
+        self.cache_write_1h += other.cache_write_1h;
         self.web_search += other.web_search;
     }
 }
@@ -225,16 +231,7 @@ impl PriceTable {
     /// The prices a request pays per million tokens; `None` for an unpriced model.
     #[must_use]
     pub fn rates(&self, request: &Request<'_>) -> Option<Rates> {
-        let model = self.model(request.model)?;
-        let day = Timestamp::from_millisecond(request.timestamp_ms)
-            .ok()?
-            .to_zoned(TimeZone::UTC)
-            .date();
-        let period = model
-            .periods
-            .iter()
-            .rev()
-            .find(|period| period.from.is_none_or(|from| from <= day))?;
+        let period = self.period(request.model, request.timestamp_ms)?;
 
         let mut rates = match period.long_prompt {
             Some(long) if request.tokens.prompt() > long.above => long.rates,
@@ -266,10 +263,32 @@ impl PriceTable {
             input: dollars(tokens.input, rates.input),
             output: dollars(tokens.output, rates.output),
             cache_read: dollars(tokens.cache_read, rates.cache_read),
-            cache_write: dollars(tokens.cache_write_5m, rates.cache_write_5m)
-                + dollars(tokens.cache_write_1h, rates.cache_write_1h),
+            cache_write_5m: dollars(tokens.cache_write_5m, rates.cache_write_5m),
+            cache_write_1h: dollars(tokens.cache_write_1h, rates.cache_write_1h),
             web_search: count(request.web_search_requests) * self.web_search_per_thousand / 1e3,
         })
+    }
+
+    /// A model's prices for prompts longer than a number of tokens, where it has such a tier: the
+    /// number of tokens, and the prices above it.
+    #[must_use]
+    pub fn long_prompt(&self, model_id: &str, timestamp_ms: i64) -> Option<(u64, Rates)> {
+        let long = self.period(model_id, timestamp_ms)?.long_prompt?;
+        Some((long.above, long.rates))
+    }
+
+    /// The prices a model has at a moment.
+    fn period(&self, model_id: &str, timestamp_ms: i64) -> Option<&Period> {
+        let model = self.model(model_id)?;
+        let day = Timestamp::from_millisecond(timestamp_ms)
+            .ok()?
+            .to_zoned(TimeZone::UTC)
+            .date();
+        model
+            .periods
+            .iter()
+            .rev()
+            .find(|period| period.from.is_none_or(|from| from <= day))
     }
 
     fn model(&self, model_id: &str) -> Option<&Model> {

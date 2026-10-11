@@ -8,6 +8,7 @@ mod import;
 mod limits;
 mod prompt;
 mod report;
+mod serve;
 mod statusline;
 mod style;
 
@@ -90,6 +91,12 @@ enum Command {
     Import {
         #[command(subcommand)]
         source: ImportSource,
+    },
+    /// Answer a client such as the VS Code extension in JSON-RPC, until its input closes.
+    Serve {
+        /// Talk over standard input and output, the only way there is.
+        #[arg(long, required = true)]
+        stdio: bool,
     },
     /// Choose where plan limits come from, besides Claude Code's status line.
     Limits {
@@ -177,7 +184,7 @@ impl Format {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let app = App::new();
+    let app = App::new().with_shared_settings();
     match cli.command {
         Command::Today { format } => report::today(&app, format.output()),
         Command::Daily {
@@ -206,6 +213,7 @@ fn main() -> ExitCode {
         Command::Limits {
             action: LimitsAction::Endpoint { switch, yes },
         } => limits::endpoint(&app, switch == Switch::On, yes),
+        Command::Serve { stdio: _ } => serve::run(&app),
     }
 }
 

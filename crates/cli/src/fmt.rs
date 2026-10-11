@@ -118,68 +118,69 @@ pub fn ago(then: Timestamp, now: Timestamp) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
+
+    /// The examples every surface's formatters are checked against.
+    fn examples() -> Value {
+        serde_json::from_str(include_str!("../../../design/formats.json")).unwrap()
+    }
+
+    fn pairs<'a>(examples: &'a Value, key: &str) -> &'a Vec<Value> {
+        examples[key].as_array().unwrap()
+    }
 
     #[test]
     fn counts_read_naturally() {
-        assert_eq!(grouped(0), "0");
-        assert_eq!(grouped(2_775), "2,775");
-        assert_eq!(grouped(1_234_567), "1,234,567");
+        for pair in pairs(&examples(), "grouped") {
+            assert_eq!(grouped(pair[0].as_u64().unwrap()), pair[1], "{pair}");
+        }
     }
 
     #[test]
     fn token_counts_are_compact_as_the_design_writes_them() {
-        for (count, text) in [
-            (640, "640"),
-            (3_200, "3K"),
-            (166_400, "166K"),
-            (999_499, "999K"),
-            (999_500, "1.0M"),
-            (1_040_000, "1.0M"),
-            (12_340_000, "12.3M"),
-            (150_000_000, "150M"),
-            (11_496_979_979, "11.5B"),
-        ] {
-            assert_eq!(compact(count), text, "{count}");
+        for pair in pairs(&examples(), "compact") {
+            assert_eq!(compact(pair[0].as_u64().unwrap()), pair[1], "{pair}");
         }
     }
 
     #[test]
     fn money_is_to_the_cent() {
-        assert_eq!(money(5.049), "$5.05");
-        assert_eq!(money(0.0), "$0.00");
-        assert_eq!(money(1_380.574), "$1,380.57");
+        for pair in pairs(&examples(), "money") {
+            assert_eq!(money(pair[0].as_f64().unwrap()), pair[1], "{pair}");
+        }
     }
 
     #[test]
     fn days_and_times_read_as_in_the_design() {
-        let now: Zoned = "2026-10-10T12:15:00+13:00[Pacific/Auckland]"
-            .parse()
-            .unwrap();
-        assert_eq!(long_day(now.date()), "Saturday 10 October");
-        assert_eq!(short_date(now.date()), "10 Oct 2026");
-        let at = |text: &str| text.parse::<Zoned>().unwrap();
-        assert_eq!(
-            when(&at("2026-10-10T14:20:00+13:00[Pacific/Auckland]"), &now),
-            "14:20"
-        );
-        assert_eq!(
-            when(&at("2026-10-15T09:00:00+13:00[Pacific/Auckland]"), &now),
-            "Thu 09:00"
-        );
-        assert_eq!(
-            when(&at("2026-10-20T09:00:00+13:00[Pacific/Auckland]"), &now),
-            "20 Oct 09:00"
-        );
+        let examples = examples();
+        let zone = |section: &Value| {
+            jiff::tz::TimeZone::get(section["timeZone"].as_str().unwrap()).unwrap()
+        };
+        let days = &examples["days"];
+        for example in days["examples"].as_array().unwrap() {
+            let day: Date = example["day"].as_str().unwrap().parse().unwrap();
+            assert_eq!(long_day(day), example["long"], "{example}");
+            assert_eq!(short_date(day), example["short"], "{example}");
+        }
+        let times = &examples["when"];
+        let at = |ms: &Value| {
+            Timestamp::from_millisecond(ms.as_i64().unwrap())
+                .unwrap()
+                .to_zoned(zone(times))
+        };
+        let now = at(&times["nowMs"]);
+        for pair in times["examples"].as_array().unwrap() {
+            assert_eq!(when(&at(&pair[0]), &now), pair[1], "{pair}");
+        }
     }
 
     #[test]
     fn ages_read_naturally() {
-        let now: Timestamp = "2026-10-10T12:00:00Z".parse().unwrap();
-        let before = |seconds: i64| Timestamp::from_second(now.as_second() - seconds).unwrap();
-        assert_eq!(ago(before(20), now), "just now");
-        assert_eq!(ago(before(120), now), "2 min ago");
-        assert_eq!(ago(before(3 * 3600 + 600), now), "3 h ago");
-        assert_eq!(ago(before(86_400), now), "1 day ago");
-        assert_eq!(ago(before(4 * 86_400), now), "4 days ago");
+        let ages = &examples()["ago"];
+        let now = Timestamp::from_millisecond(ages["nowMs"].as_i64().unwrap()).unwrap();
+        for pair in ages["examples"].as_array().unwrap() {
+            let then = Timestamp::from_second(now.as_second() - pair[0].as_i64().unwrap()).unwrap();
+            assert_eq!(ago(then, now), pair[1], "{pair}");
+        }
     }
 }

@@ -338,7 +338,10 @@ fn window_name(window: &str) -> String {
     match window {
         FIVE_HOUR => "five-hour".to_owned(),
         SEVEN_DAY => "weekly".to_owned(),
-        other => other.replace('_', " "),
+        other => claude_dashboard_core::limits::weekly_model(other).map_or_else(
+            || other.replace('_', " "),
+            |model| format!("weekly {model}"),
+        ),
     }
 }
 
