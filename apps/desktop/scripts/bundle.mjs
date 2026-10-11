@@ -59,6 +59,11 @@ const program = join(binaries, `claude-dashboard-${target}${extension}`);
 copyFileSync(resolve(values.program), program);
 chmodSync(program, 0o755);
 
+// Tauri adds to its bundle folder and never empties it, so earlier builds' installers and
+// signatures go first.
+const built = join(repository, "target", target, "release", "bundle");
+rmSync(built, { recursive: true, force: true });
+
 const tauri = createRequire(import.meta.url).resolve("@tauri-apps/cli/tauri.js");
 execFileSync(
   process.execPath,
@@ -94,7 +99,6 @@ const KINDS = [
   { pattern: "appimage/*.AppImage", suffix: ".AppImage" },
   { pattern: "deb/*.deb", suffix: ".deb" },
 ];
-const built = join(repository, "target", target, "release", "bundle");
 const out = join(root, "out", "bundles");
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
