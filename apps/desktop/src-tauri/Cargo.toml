@@ -13,6 +13,7 @@ tauri-build = { version = "2.7.0", features = [] }
 
 [dependencies]
 claude-dashboard-server = { path = "../../../crates/server" }
+jiff = "0.2.37"
 log = "0.4.34"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"

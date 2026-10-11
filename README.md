@@ -59,6 +59,7 @@ macOS asks once before the app opens: in **System Settings**, **Privacy & Securi
 - `claude-dashboard app` opens it from a terminal, and `claude-dashboard app limits` at a section.
 
 It comes with the `claude-dashboard` program, which Claude Code's status line runs a copy of once you connect it, so updating or removing the app never breaks the status line.
+If something goes wrong, the app's log is in `%LOCALAPPDATA%\io.github.philll11.claude-dashboard\logs` on Windows, `~/Library/Logs/io.github.philll11.claude-dashboard` on macOS and `~/.local/share/io.github.philll11.claude-dashboard/logs` on Linux.
 
 ## In the terminal
 

@@ -35,6 +35,15 @@ fn main() {
                 .target(Target::new(TargetKind::LogDir { file_name: None }))
                 .target(Target::new(TargetKind::Stderr))
                 .level(log::LevelFilter::Info)
+                // In the person's own time, with its offset from UTC.
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "{} {} {}: {message}",
+                        jiff::Zoned::now().strftime("%Y-%m-%d %H:%M:%S %:z"),
+                        record.level(),
+                        record.target(),
+                    ));
+                })
                 .max_file_size(LOG_SIZE)
                 .rotation_strategy(RotationStrategy::KeepOne)
                 .build(),
