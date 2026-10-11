@@ -27,3 +27,7 @@ tauri-plugin-window-state = "2.5.0"
 
 [lints]
 workspace = true
+
+# The desktop app's installers come from .github/workflows/desktop-release.yml, not from dist.
+[package.metadata.dist]
+dist = false

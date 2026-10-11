@@ -235,6 +235,8 @@ jobs:
     env:
       # The app needs a display, which xvfb-run gives it on Linux.
       WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a' || '' }}
+      # The program the tests read their synthetic Claude Code folder with.
+      CLAUDE_DASHBOARD_BIN: ${{ github.workspace }}/target/${{ matrix.target }}/release/claude-dashboard${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -263,7 +265,7 @@ jobs:
           BUNDLES: ${{ matrix.bundles }}
         run: >-
           node apps/desktop/scripts/bundle.mjs --target "$TARGET" --bundles "$BUNDLES"
-          --program "target/$TARGET/release/claude-dashboard${{ runner.os == 'Windows' && '.exe' || '' }}"
+          --program "target/$TARGET/release/claude-dashboard${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}"
       - name: Install Tauri's WebDriver
         if: matrix.check == 'e2e'
         run: cargo install tauri-driver --locked --version 2.1.0

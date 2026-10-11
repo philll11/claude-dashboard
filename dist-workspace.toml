@@ -18,9 +18,8 @@ targets = [
   "x86_64-unknown-linux-musl",
   "aarch64-unknown-linux-musl",
 ]
-# The crate sets publish = false, which hides it from dist unless dist = true.
-# Naming the package keeps any other binary crate out of the release.
-packages = ["claude-dashboard"]
+# The crates set publish = false, which hides them from dist unless dist = true. A binary crate
+# that dist leaves alone, as the desktop app's, sets dist = false in its own manifest.
 dist = true
 install-path = "CARGO_HOME"
 install-updater = false
