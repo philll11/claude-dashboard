@@ -132,22 +132,23 @@ To build the installers for your platform, name its target and a build of the pr
 
 ```sh
 cargo build --release -p claude-dashboard
-node apps/desktop/scripts/bundle.mjs --target x86_64-pc-windows-msvc --bundles nsis   --program target/release/claude-dashboard.exe
+node apps/desktop/scripts/bundle.mjs --target x86_64-pc-windows-msvc --bundles nsis --program target/release/claude-dashboard.exe
 ```
 
 They land in `apps/desktop/out/bundles`, named as the release names them.
 
 The tests:
 
-- The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, and uninstall it again, leaving a screenshot of each section in `apps/desktop/out/screenshots`.
-  Install the driver with `cargo install tauri-driver --locked --version 2.1.0`.
-  On Windows the tests download the Microsoft Edge WebDriver that matches your WebView2 runtime; on Linux they install the `.deb` package with `sudo` and need `webkit2gtk-driver`, and run under `xvfb-run -a`.
+- The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, and uninstall it again, leaving nothing behind but a screenshot of each section in `apps/desktop/out/screenshots`.
+  Install the driver with `cargo install tauri-driver --locked --version 2.1.0`, and close the app if you have it open, since a second copy hands over to the first.
+  On Windows the tests download the Microsoft Edge WebDriver that matches your WebView2 runtime.
+  On Linux they install the `.deb` package with `sudo` and need `webkit2gtk-driver`; without a desktop, run them under `xvfb-run -a dbus-run-session --`, which gives them a display and the D-Bus session bus a desktop has.
 
   ```sh
   node apps/desktop/scripts/e2e.mjs --installer apps/desktop/out/bundles/claude-dashboard-desktop-<version>-windows-x64-setup.exe
   ```
 
-- Tauri's driver has no macOS support, so there `node apps/desktop/scripts/start.mjs --target aarch64-apple-darwin` starts the built app on the generated folder and checks that it reads the transcripts.
+- Tauri's driver has no macOS support, so there `node apps/desktop/scripts/start.mjs --target aarch64-apple-darwin` starts the built app on the generated folder and checks that it reads the transcripts and shows its window once the dashboard has drawn.
 
 The icons come from the extension's (`apps/vscode/media/icon.svg`), and macOS's from `apps/desktop/icon-macos.svg`, which draws the same icon on Apple's icon grid.
 After changing either, from `apps/desktop`, run `pnpm exec tauri icon ../vscode/media/icon.svg -o src-tauri/icons` and remove what it writes for Android, iOS and the Microsoft Store; then run `pnpm exec tauri icon icon-macos.svg -o <a folder of your own>` and copy its `icon.icns` over `src-tauri/icons/icon.icns`.
