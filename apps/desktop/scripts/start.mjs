@@ -1,6 +1,7 @@
 // Starts the desktop app built for a target, where no WebDriver can drive it, on a synthetic Claude
-// Code folder and a history of its own that starts empty, and checks that the app keeps running and
-// reads the transcripts into the history. On macOS it keeps a screenshot of the screen as well.
+// Code folder and a history of its own that starts empty, and checks that the app keeps running,
+// reads the transcripts into the history, and shows its window once the dashboard has drawn rather
+// than through its fallback. On macOS it keeps a screenshot of the screen as well.
 //
 //   node scripts/start.mjs --target aarch64-apple-darwin
 
@@ -41,7 +42,12 @@ mkdirSync(dirname(history), { recursive: true });
 const screenshots = join(root, "out/screenshots");
 mkdirSync(screenshots, { recursive: true });
 
+/** Long enough for the app's fallback, which shows the window after five seconds if the dashboard
+ * has not drawn by then (`start.rs`), to have shown it. */
+const PAST_FALLBACK_MS = 7000;
+
 const created = newAppFolders();
+const started = Date.now();
 const child = spawn(app, [], {
   env: {
     ...prepared.env,
@@ -49,7 +55,13 @@ const child = spawn(app, [], {
     // WebView2 keeps the window's storage in a folder of the check's own.
     WEBVIEW2_USER_DATA_FOLDER: join(prepared.folder, "webview"),
   },
-  stdio: "inherit",
+  stdio: ["ignore", "inherit", "pipe"],
+});
+// The app's log, which says when the window showed only through the fallback.
+let log = "";
+child.stderr.on("data", (chunk) => {
+  process.stderr.write(chunk);
+  log += String(chunk);
 });
 let ended;
 child.on("exit", (code, signal) => {
@@ -78,9 +90,8 @@ while (Date.now() < deadline && ended === undefined && read === 0) {
   await sleep(1000);
   read = requests();
 }
-// The window has drawn by the time the transcripts are read; the screenshot shows it.
+while (ended === undefined && Date.now() - started < PAST_FALLBACK_MS) await sleep(500);
 if (process.platform === "darwin" && ended === undefined) {
-  await sleep(3000);
   execFileSync("screencapture", ["-x", join(screenshots, "started.png")]);
 }
 // Whether the app ended before this check stops it.
@@ -95,4 +106,9 @@ if (endedEarly !== undefined) {
   throw new Error(`The app ended by itself (${String(endedEarly)}).`);
 }
 if (read === 0) throw new Error("The app read no requests into the history within 2 minutes.");
+if (log.includes("did not draw in time")) {
+  throw new Error(
+    "The window showed only through its fallback: the dashboard never said it had drawn.",
+  );
+}
 console.log(`The app started and read ${String(read)} requests into its history.`);

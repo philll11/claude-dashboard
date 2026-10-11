@@ -127,6 +127,7 @@ function install() {
 const created = newAppFolders();
 let installed;
 let driver;
+let log = "";
 let failures = 1;
 try {
   installed = install();
@@ -141,9 +142,14 @@ try {
     ["--port", "4444", ...(nativeDriver ? ["--native-driver", nativeDriver] : [])],
     {
       env: { ...prepared.env, TEMP: temporary, TMP: temporary, TMPDIR: temporary },
-      stdio: "inherit",
+      stdio: ["ignore", "inherit", "pipe"],
     },
   );
+  // What the drivers and the app they start write, which on Linux includes the app's log.
+  driver.stderr.on("data", (chunk) => {
+    process.stderr.write(chunk);
+    log += String(chunk);
+  });
   await new Promise((resolve, reject) => {
     driver.on("error", reject);
     setTimeout(resolve, 1500);
@@ -157,6 +163,14 @@ try {
   const mocha = new Mocha({ ui: "bdd", timeout: 120_000, reporter: "spec" });
   for (const file of globSync(tests).sort()) mocha.addFile(file);
   failures = await new Promise((resolve) => mocha.run(resolve));
+  // The app shows its window once the dashboard has drawn, and only otherwise through the fallback
+  // that start.rs logs.
+  if (log.includes("did not draw in time")) {
+    console.error(
+      "The window showed only through its fallback: the dashboard never said it had drawn.",
+    );
+    failures += 1;
+  }
 } finally {
   driver?.kill();
   if (installed) {
