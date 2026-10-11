@@ -55,6 +55,10 @@ pub const TIME_ZONE_SETTING: &str = "time_zone";
 /// The shared setting that holds the first day of the week, such as `monday`.
 pub const WEEK_START_SETTING: &str = "week_start";
 
+/// The shared setting that holds where the desktop app last ran, which `claude-dashboard app`
+/// opens.
+pub const DESKTOP_APP_SETTING: &str = "desktop_app";
+
 #[derive(Clone)]
 pub struct App {
     pub history_path: Option<PathBuf>,

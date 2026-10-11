@@ -38,9 +38,10 @@ To cut a release:
 2. Once it is merged, tag the merge commit on `main` with `v` and the version, and push the tag.
 3. The release workflow builds and publishes the release, then:
    - installs it on every operating system and runs it (`.github/workflows/install-check.yml`);
-   - packages the VS Code extension for every platform with the release's programs and attaches the packages to the release (`.github/workflows/vscode-release.yml`).
+   - packages the VS Code extension for every platform with the release's programs and attaches the packages to the release (`.github/workflows/vscode-release.yml`);
+   - builds the desktop app for every platform around the release's programs, signs its update bundles, and attaches its installers, the update bundles and `latest.json`, which the app's updater reads (`.github/workflows/desktop-release.yml`).
 
-   To check an existing release again, run the install check by hand with its tag; to package its extension again, run the VS Code release workflow by hand from the tag.
+   To check an existing release again, run the install check by hand with its tag; to package its extension or build its desktop app again, run the VS Code release or the desktop release workflow by hand from the tag.
 
 ## Web dashboard
 
@@ -60,7 +61,7 @@ The preview runs the real server over a generated Claude Code folder, at a fixed
 Add `?theme=vscode-light` to the address for another theme (`vscode-dark`, `vscode-high-contrast`, `vscode-high-contrast-light`, `desktop-dark` or `desktop-light`), and `&scenario=stale-limits` for another state, named in `web/app/tests/bridge/scenarios.ts`.
 
 `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` and `pnpm check-licences` run the checks CI runs.
-The browser tests (`pnpm --filter @claude-dashboard/app browser`) compare every section and state with a screenshot, in each of VS Code's default themes, and check each for accessibility.
+The browser tests (`pnpm --filter @claude-dashboard/app browser`) compare every section and state with a screenshot, in each of VS Code's default themes and the desktop app's two, and check each for accessibility.
 Their screenshots are made in the Playwright container that CI runs them in, so that fonts and rendering match; after a change to how the dashboard looks, make them again there and look at each one before you commit it:
 
 ```sh
@@ -69,7 +70,7 @@ docker run --rm -v "$PWD":/work -w /work -e CARGO_TARGET_DIR=/work/target/linux 
 docker run --rm --ipc=host -v "$PWD":/work -w /work/web/app \
   -v claude-dashboard-modules:/work/node_modules \
   -v claude-dashboard-app-modules:/work/web/app/node_modules \
-  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules   -v claude-dashboard-vscode-modules:/work/apps/vscode/node_modules \
+  -v claude-dashboard-protocol-modules:/work/web/protocol/node_modules   -v claude-dashboard-vscode-modules:/work/apps/vscode/node_modules   -v claude-dashboard-desktop-modules:/work/apps/desktop/node_modules \
   -v claude-dashboard-pnpm-store:/pnpm-store \
   -e CLAUDE_DASHBOARD_BIN=/work/target/linux/debug/claude-dashboard \
   mcr.microsoft.com/playwright:v1.63.0-noble \
@@ -109,6 +110,45 @@ The tests:
   Name your platform's target, such as `linux-x64` or `darwin-arm64`, and its program.
 
 On Linux, run the integration and end-to-end tests under `xvfb-run -a`, which gives VS Code a display.
+
+## Desktop app
+
+`apps/desktop` is the desktop app: a Tauri 2 window with the dashboard from `web/app`, answered by the server library in the app's own process ([ADR 0008](docs/adr/0008-the-desktop-app-runs-the-server-in-process.md)).
+It brings the `claude-dashboard` program next to its own, and a status line connected from the app runs a copy of that program kept next to the history.
+On Linux it builds against WebKitGTK; on Debian and Ubuntu, install `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`.
+
+To try your changes, with the dashboard reloading as you change it:
+
+```sh
+pnpm install
+pnpm --filter @claude-dashboard/desktop tauri dev
+```
+
+It reads your own Claude Code folder and history, as an installed copy would; set `CLAUDE_DASHBOARD_HISTORY` to a file of its own to keep your history out of it.
+
+To build the installers for your platform, name its target and a build of the program the app brings:
+
+```sh
+cargo build --release -p claude-dashboard
+node apps/desktop/scripts/bundle.mjs --target x86_64-pc-windows-msvc --bundles nsis   --program target/release/claude-dashboard.exe
+```
+
+They land in `apps/desktop/out/bundles`, named as the release names them.
+
+The tests:
+
+- The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, and uninstall it again, leaving a screenshot of each section in `apps/desktop/out/screenshots`.
+  Install the driver with `cargo install tauri-driver --locked --version 2.1.0`.
+  On Windows the tests download the Microsoft Edge WebDriver that matches your WebView2 runtime; on Linux they install the `.deb` package with `sudo` and need `webkit2gtk-driver`, and run under `xvfb-run -a`.
+
+  ```sh
+  node apps/desktop/scripts/e2e.mjs --installer apps/desktop/out/bundles/claude-dashboard-desktop-<version>-windows-x64-setup.exe
+  ```
+
+- Tauri's driver has no macOS support, so there `node apps/desktop/scripts/start.mjs --target aarch64-apple-darwin` starts the built app on the generated folder and checks that it reads the transcripts.
+
+The icons come from the extension's (`apps/vscode/media/icon.svg`), and macOS's from `apps/desktop/icon-macos.svg`, which draws the same icon on Apple's icon grid.
+After changing either, from `apps/desktop`, run `pnpm exec tauri icon ../vscode/media/icon.svg -o src-tauri/icons` and remove what it writes for Android, iOS and the Microsoft Store; then run `pnpm exec tauri icon icon-macos.svg -o <a folder of your own>` and copy its `icon.icns` over `src-tauri/icons/icon.icns`.
 
 ## Price table
 

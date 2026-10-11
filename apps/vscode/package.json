@@ -2,7 +2,7 @@
   "name": "claude-dashboard",
   "displayName": "Dashboard for Claude Code",
   "description": "See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "philll11",
   "license": "MIT",
   "icon": "media/icon.png",

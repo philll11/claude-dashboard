@@ -1,9 +1,15 @@
-// Every section in VS Code's Dark Modern, Light Modern and High Contrast themes, against its
-// screenshot and an accessibility check.
+// Every section in VS Code's Dark Modern, Light Modern and High Contrast themes, and in the desktop
+// app's dark and light themes, against its screenshot and an accessibility check.
 
 import { expect, test } from "./fixtures.ts";
 
-const THEMES = ["vscode-dark", "vscode-light", "vscode-high-contrast"] as const;
+const THEMES = [
+  "vscode-dark",
+  "vscode-light",
+  "vscode-high-contrast",
+  "desktop-dark",
+  "desktop-light",
+] as const;
 
 for (const theme of THEMES) {
   test.describe(theme, () => {

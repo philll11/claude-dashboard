@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test as base } from "@playwright/test";
 
+import type { UpdateState } from "../../src/host.ts";
 import { NOW_MS } from "../bridge/moment.ts";
 import { applyTheme, type ThemeName, VSCODE_THEMES, type VsCodeTheme } from "../bridge/themes.ts";
 
@@ -16,12 +17,14 @@ export interface Open {
   scenario?: string;
   /** A folder the folder picker answers with. */
   pickedFolder?: string;
+  /** Where the desktop app's updates stand. */
+  update?: UpdateState;
 }
 
 export class Dashboard {
   constructor(readonly page: Page) {}
 
-  async open({ theme = "vscode-dark", scenario = "default", pickedFolder }: Open = {}) {
+  async open({ theme = "vscode-dark", scenario = "default", pickedFolder, update }: Open = {}) {
     const themes: Record<string, VsCodeTheme | undefined> = VSCODE_THEMES;
     await this.page.clock.setFixedTime(NOW_MS);
     await this.page.addInitScript(applyTheme, { theme, vscode: themes[theme] });
@@ -33,6 +36,7 @@ export class Dashboard {
         scenario,
         surface: theme.startsWith("desktop") ? "desktop" : "vscode",
         ...(pickedFolder === undefined ? {} : { pickedFolder }),
+        ...(update === undefined ? {} : { update }),
       },
     );
     await this.page.addInitScript({

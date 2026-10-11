@@ -51,4 +51,19 @@
     },
     pickFolder: () => Promise.resolve(settings.pickedFolder),
   };
+  if (window.claudeDashboardHost.surface === "desktop") {
+    // The desktop app's updates, standing where the test puts them.
+    const update = settings.update ?? { kind: "current" };
+    let automatic = true;
+    window.claudeDashboardHost.updates = {
+      state: () => update,
+      subscribe: () => () => undefined,
+      automatic: () => automatic,
+      setAutomatic: (on) => {
+        automatic = on;
+      },
+      check: () => undefined,
+      install: () => undefined,
+    };
+  }
 })();

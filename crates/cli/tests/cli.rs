@@ -596,3 +596,16 @@ fn without_a_claude_ai_login_the_usage_endpoint_says_so() {
             "Claude Code has no claude.ai login on this computer.",
         ));
 }
+
+#[test]
+fn app_says_where_to_get_the_desktop_app_until_it_has_run() {
+    let fixture = Fixture::new();
+    fixture
+        .cli(&["app", "limits"])
+        .assert()
+        .failure()
+        .stderr(contains(
+            "The desktop app has not run on this computer yet. Install it from https://github.com/philll11/claude-dashboard/releases/latest",
+        ));
+    assert!(!fixture.history().exists(), "asking creates no history");
+}

@@ -99,6 +99,119 @@ a:hover {
   background: var(--meter);
 }
 
+/* The desktop app's shell, from the desktop boards: the sections in a sidebar as tall as the page,
+   whose contents stay in the window while the body scrolls. */
+
+.shell.desktop {
+  display: flex;
+}
+
+.shell.desktop .sections {
+  display: block;
+  flex: 1 1 200px;
+  max-width: 232px;
+  padding: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+  background: var(--sidebar);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px 14px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand-for {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.shell.desktop .section-links {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.shell.desktop .section-links a {
+  gap: 10px;
+  border-radius: var(--ctl-radius);
+  color: var(--ink-2);
+}
+
+.shell.desktop .section-links a:hover {
+  background: color-mix(in srgb, var(--ink) 4%, var(--sidebar));
+  color: var(--ink);
+}
+
+.shell.desktop .section-links a[aria-current="page"] {
+  background: var(--sidebar-current);
+  box-shadow: none;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.shell.desktop .section-links a[aria-current="page"] svg {
+  color: var(--meter);
+}
+
+.sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sidebar-foot .history-line {
+  padding: 0;
+}
+
+.history-line.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.update-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.update-line .button.link {
+  min-height: 0;
+  padding: 0;
+  font-size: 12px;
+}
+
+.shell.desktop .body {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
 .body {
   padding: var(--pad);
 }
@@ -180,6 +293,11 @@ a:hover {
   padding: 0 10px;
   font-size: 12px;
   color: var(--ink-2);
+}
+
+/* An action in a row of settings or sources, as the Settings and Limits boards draw it. */
+.button.compact {
+  min-height: 32px;
 }
 
 .button.quiet {
@@ -1470,6 +1588,10 @@ a.project-link:hover .project-title {
   flex: 1 1 360px;
   flex-direction: column;
   gap: 2px;
+}
+
+.setting-actions {
+  margin-top: 8px;
 }
 
 .setting-name {

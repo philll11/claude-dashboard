@@ -4,7 +4,7 @@ See how you use Claude Code: what it would cost at API prices, where the usage g
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
 > **Status: early development.**
-> The command-line tool and the VS Code extension are ready to try; the desktop app and the terminal UI follow.
+> The command-line tool, the VS Code extension and the desktop app are ready to try; the terminal UI follows.
 > It is made for personal use, and installed from the [releases](https://github.com/philll11/claude-dashboard/releases) rather than a marketplace.
 > Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
 
@@ -39,6 +39,27 @@ To update, install the package from a newer release.
 In a window connected to WSL, over SSH or in a container, it reads the Claude Code folder of that machine.
 `claudeDashboard.server.path` runs another `claude-dashboard` instead of the one that comes with the extension, such as a build of your own.
 
+## On the desktop
+
+Install **Dashboard for Claude Code** from the [latest release](https://github.com/philll11/claude-dashboard/releases/latest) with the installer for your system, such as `claude-dashboard-desktop-<version>-windows-x64-setup.exe`:
+
+- Windows: the `-setup.exe`, which installs for you alone and needs no administrator rights.
+- macOS: the `.dmg`.
+- Linux: the `.AppImage`, or the `.deb` package.
+
+Each comes for x64 and arm64.
+It installs updates from later releases by itself, signed and checked before installing; Settings can leave that to you instead.
+
+The installers are not signed.
+Windows SmartScreen asks once before the downloaded installer runs: choose **More info**, then **Run anyway**.
+macOS asks once before the app opens: in **System Settings**, **Privacy & Security**, choose **Open Anyway**.
+
+- The sidebar holds the sections: Overview, Sessions, Projects, Models, Limits and Settings.
+- The window is light or dark as your system is, and remembers its size and place.
+- `claude-dashboard app` opens it from a terminal, and `claude-dashboard app limits` at a section.
+
+It comes with the `claude-dashboard` program, which Claude Code's status line runs a copy of once you connect it, so updating or removing the app never breaks the status line.
+
 ## In the terminal
 
 Install it with the installer for your system, and run the installer again to update.
@@ -71,6 +92,7 @@ cargo install --locked --git https://github.com/philll11/claude-dashboard claude
 | `claude-dashboard sessions` | Requests and cost by session |
 | `claude-dashboard projects` | Requests and cost by project |
 | `claude-dashboard doctor` | What claude-dashboard can find and read, and anything that needs your attention |
+| `claude-dashboard app` | Opens the desktop app, at a section when you name one |
 
 `daily`, `models` and `projects` cover the last 30 days and `sessions` the last 7, unless you give `--since` and `--until` with dates such as `2026-10-05`.
 Every report takes `--json` or `--csv` for scripts.

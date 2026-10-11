@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-take-show"
+description = "Enables the take_show command without any pre-configured scope."
+commands.allow = ["take_show"]
+
+[[permission]]
+identifier = "deny-take-show"
+description = "Denies the take_show command without any pre-configured scope."
+commands.deny = ["take_show"]

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dashboard for Claude Code",
+  "mainBinaryName": "claude-dashboard-desktop",
+  "identifier": "io.github.philll11.claude-dashboard",
+  "build": {
+    "frontendDist": "../../../web/app/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "pnpm --filter @claude-dashboard/app dev",
+    "beforeBuildCommand": "pnpm --filter @claude-dashboard/app build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Dashboard for Claude Code",
+        "width": 1296,
+        "height": 860,
+        "minWidth": 800,
+        "minHeight": 600,
+        "visible": false,
+        "zoomHotkeysEnabled": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost",
+        "script-src": "'self'",
+        "style-src": "'self'",
+        "font-src": "'self'",
+        "img-src": "'self' data:"
+      },
+      "freezePrototype": true,
+      "capabilities": ["main"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "Leonard Phillips",
+    "copyright": "Copyright (c) 2026 Leonard Phillips",
+    "license": "MIT",
+    "homepage": "https://github.com/philll11/claude-dashboard",
+    "category": "DeveloperTool",
+    "shortDescription": "See how you use Claude Code: plan limits, usage and API-equivalent cost.",
+    "longDescription": "See how you use Claude Code: how close you are to your plan limits, what your usage would cost at API prices, and where it goes.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "signingIdentity": "-"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBNzQyMUY5RDVGOTkwMzUKUldRMWtQblYrU0YwNnVycmxQcjZFbE13TVhEVmJnN0Nub3Frc3JOOXZsQ0ZQckgvZW1adlNGTEMK",
+      "endpoints": [
+        "https://github.com/philll11/claude-dashboard/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

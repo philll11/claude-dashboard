@@ -2,7 +2,7 @@
 // `?scenario=stale-limits&theme=vscode-light&surface=vscode` picks what it shows.
 
 import type { VsCodeTheme } from "../tests/bridge/themes";
-import type { Host } from "./host";
+import type { Host, UpdateState } from "./host";
 
 export async function previewHost(): Promise<Host | undefined> {
   const query = new URLSearchParams(window.location.search);
@@ -28,6 +28,8 @@ declare global {
       surface?: string;
       revealed?: string;
       pickedFolder?: string;
+      /** Where the desktop app's updates stand. */
+      update?: UpdateState;
       /** Requests on their way. */
       pending?: number;
     };

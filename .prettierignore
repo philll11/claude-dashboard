@@ -3,6 +3,8 @@ web/protocol/src/generated/
 target/
 dist/
 apps/vscode/out/
+apps/desktop/out/
+apps/desktop/src-tauri/gen/
 apps/vscode/.vscode-test/
 pnpm-lock.yaml
 *.md

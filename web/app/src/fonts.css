@@ -1,0 +1,10 @@
+/*
+ * The design's typeface, IBM Plex, for the desktop app (SIL Open Font Licence 1.1). Each weight
+ * loads only the character sets a page uses. In VS Code the dashboard uses VS Code's own fonts
+ * (theme.css), so these never load there.
+ */
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";

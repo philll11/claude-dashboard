@@ -18,6 +18,13 @@
   },
   "dependencies": {
     "@claude-dashboard/protocol": "workspace:*",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
+    "@tauri-apps/api": "2.12.0",
+    "@tauri-apps/plugin-dialog": "2.8.0",
+    "@tauri-apps/plugin-opener": "2.6.0",
+    "@tauri-apps/plugin-process": "2.4.0",
+    "@tauri-apps/plugin-updater": "2.13.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

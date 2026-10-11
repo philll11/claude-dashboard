@@ -48,6 +48,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The desktop app's crate builds against WebKitGTK on Linux.
+      - name: Install what Tauri builds with on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -182,5 +188,99 @@ jobs:
         with:
           name: vscode-screenshots-${{ matrix.target }}
           path: ${{ runner.temp }}/e2e/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+  desktop:
+    name: Desktop (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            check: e2e
+          - name: Windows arm64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            bundles: nsis
+            check: start
+          - name: macOS arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+            check: start
+          - name: macOS x64
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+            check: start
+          # The release builds Linux packages on Ubuntu 22.04 too, the oldest with WebKitGTK 4.1.
+          - name: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+            check: e2e
+          - name: Linux arm64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundles: appimage,deb
+            check: start
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      # The app needs a display, which xvfb-run gives it on Linux.
+      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install what Tauri builds and is tested with on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils webkit2gtk-driver xvfb
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: desktop-${{ matrix.target }}
+      - run: cargo build --release --locked -p claude-dashboard --target ${{ matrix.target }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Build the installers
+        env:
+          TARGET: ${{ matrix.target }}
+          BUNDLES: ${{ matrix.bundles }}
+        run: >-
+          node apps/desktop/scripts/bundle.mjs --target "$TARGET" --bundles "$BUNDLES"
+          --program "target/$TARGET/release/claude-dashboard${{ runner.os == 'Windows' && '.exe' || '' }}"
+      - name: Install Tauri's WebDriver
+        if: matrix.check == 'e2e'
+        run: cargo install tauri-driver --locked --version 2.1.0
+      - name: End-to-end tests on the installer
+        if: matrix.check == 'e2e'
+        run: >-
+          $WITH_DISPLAY node apps/desktop/scripts/e2e.mjs
+          --installer "$(ls apps/desktop/out/bundles/*${{ runner.os == 'Windows' && '-setup.exe' || '.deb' }})"
+      - name: Start the app and check that it reads the history
+        if: matrix.check == 'start'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: $WITH_DISPLAY node apps/desktop/scripts/start.mjs --target "$TARGET"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-screenshots-${{ matrix.target }}
+          path: apps/desktop/out/screenshots
           if-no-files-found: ignore
           retention-days: 7

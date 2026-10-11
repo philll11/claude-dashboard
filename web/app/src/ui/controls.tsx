@@ -67,7 +67,8 @@ export function Picker<T>({
   value: T;
   choices: readonly Choice<T>[];
   onChange: (value: T) => void;
-  /** Shows the choices in the monospace font, as names of folders are. */
+  /** Shows the choices after the first, such as "All projects", in the monospace font, as names
+   * of folders are. */
   mono?: boolean;
 }) {
   const [open, setOpen] = useState<"first" | "last" | "checked" | null>(null);
@@ -171,7 +172,7 @@ export function Picker<T>({
         onKeyDown={onButtonKey}
       >
         <Hidden>{label}: </Hidden>
-        <span className={mono ? "mono" : undefined}>{current?.label}</span>
+        <span className={mono && checked > 0 ? "mono" : undefined}>{current?.label}</span>
         <ChevronDown />
       </button>
       {open !== null && (

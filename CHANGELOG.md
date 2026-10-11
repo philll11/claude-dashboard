@@ -3,6 +3,30 @@
 Every release of claude-dashboard, newest first.
 A release's notes on GitHub come from its section here.
 
+## Version 0.2.0 (2026-10-12)
+
+The desktop app: the dashboard in a window of its own, on Windows, macOS and Linux.
+Every surface has the same version number.
+The binaries are not signed: Windows SmartScreen asks once before a downloaded installer runs, and macOS once before the app opens.
+
+### What is new
+
+- **Dashboard for Claude Code**, the desktop app, for Windows, macOS and Linux, on x64 and arm64:
+  - the dashboard's sections in a sidebar, with where the history stands at its foot, in IBM Plex, the design's typeface;
+  - a window that is light or dark as the system is, keeps its size and place, and comes forward when the app is opened again;
+  - updates from later releases, signed and checked before installing, either by themselves or when you choose;
+  - a per-user installer for Windows, a disk image for macOS, and an AppImage and a `.deb` package for Linux, attached to this release.
+- `claude-dashboard app` opens the desktop app, at a section when you name one.
+- A history that a newer version has upgraded says where that version is: in VS Code, the releases page; in the desktop app, its update.
+
+### Changed
+
+- The project filter shows "All projects" in the dashboard's own typeface, as the design does; project names stay in the monospace one.
+
+### Not in this release
+
+- The terminal UI, and the desktop app's tray and menu bar item.
+
 ## Version 0.1.1 (2026-10-11)
 
 The dashboard in VS Code, and the server behind it.

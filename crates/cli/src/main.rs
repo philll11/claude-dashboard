@@ -1,6 +1,7 @@
 //! The `claude-dashboard` command.
 
 mod breakdown;
+mod desktop;
 mod doctor;
 mod import;
 mod limits;
@@ -107,6 +108,36 @@ enum Command {
         #[command(subcommand)]
         action: LimitsAction,
     },
+    /// Open the desktop app, at a section when given.
+    App {
+        #[arg(value_enum)]
+        section: Option<Section>,
+    },
+}
+
+/// A section of the dashboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Section {
+    Overview,
+    Sessions,
+    Projects,
+    Models,
+    Limits,
+    Settings,
+}
+
+impl Section {
+    /// The section's name, as the desktop app takes it.
+    fn name(self) -> &'static str {
+        match self {
+            Self::Overview => "overview",
+            Self::Sessions => "sessions",
+            Self::Projects => "projects",
+            Self::Models => "models",
+            Self::Limits => "limits",
+            Self::Settings => "settings",
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -217,6 +248,7 @@ fn main() -> ExitCode {
         Command::Limits {
             action: LimitsAction::Endpoint { switch, yes },
         } => limits::endpoint(&app, switch == Switch::On, yes),
+        Command::App { section } => desktop::open(&app, section.map(Section::name)),
         Command::Serve {
             stdio: _,
             status_line_copy,

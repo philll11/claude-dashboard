@@ -1,13 +1,14 @@
 // What the person should know before the numbers: a first read under way, no history, a history
 // this version can only read, a folder that cannot be read, and prices that may be out of date.
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import type { Health, Prices, Status } from "@claude-dashboard/protocol";
 
-import { useStatus } from "../context";
+import { useHost, useStatus } from "../context";
 import { useReadingProgress, useRequest, useStore } from "../data";
 import { fullDate, grouped } from "../format";
+import { RELEASES, type Updates } from "../host";
 import { Download, EmptyFolder, ErrorCircle, Lock, Warning } from "../ui/icons";
 import { Notice } from "../ui/panels";
 import { useView } from "../view";
@@ -167,11 +168,54 @@ function dayMonth(day: string): string {
 }
 
 function ReadOnly() {
+  const host = useHost();
   return (
-    <Notice tone="caution" icon={<Lock size={18} />} title="Read-only until you update">
+    <Notice
+      tone="caution"
+      icon={<Lock size={18} />}
+      title="Read-only until you update"
+      actions={host.updates && <UpdateAction updates={host.updates} />}
+    >
       A newer version of claude-dashboard has upgraded your history. This version can show it but
       not add to it.
+      {!host.updates && (
+        <>
+          {" "}
+          Install the newer version from the <a href={RELEASES}>releases page</a>.
+        </>
+      )}
     </Notice>
+  );
+}
+
+/** Updating the desktop app: to the version that is ready, or else a check for one. */
+function UpdateAction({ updates }: { updates: Updates }) {
+  const state = useSyncExternalStore(updates.subscribe, updates.state);
+  if (state.kind === "ready" || state.kind === "installing") {
+    return (
+      <button
+        type="button"
+        className="button primary"
+        disabled={state.kind === "installing"}
+        onClick={() => {
+          updates.install();
+        }}
+      >
+        {state.kind === "ready" ? `Update to ${state.version}` : `Updating to ${state.version}…`}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="button quiet"
+      disabled={state.kind === "checking"}
+      onClick={() => {
+        updates.check();
+      }}
+    >
+      Check for updates
+    </button>
   );
 }
 

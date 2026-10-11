@@ -16,3 +16,7 @@ dist/
 # Copied from the repository's root when the extension is packaged.
 /apps/vscode/LICENSE
 /apps/vscode/CHANGELOG.md
+# The desktop app's build: the claude-dashboard program it bundles, and the schemas Tauri writes.
+/apps/desktop/src-tauri/binaries/
+/apps/desktop/src-tauri/gen/
+/apps/desktop/out/
