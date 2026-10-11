@@ -137,4 +137,10 @@ describe("the desktop app", () => {
     });
     assert.equal(await Promise.race([ended, running]), 0);
   });
+
+  it("opens from the command line, where it last ran, at the section asked for", async () => {
+    await open("Overview");
+    execFileSync(program, ["app", "sessions"], { env, stdio: "ignore" });
+    await driver.wait(async () => (await heading()) === "Sessions", 20_000);
+  });
 });
