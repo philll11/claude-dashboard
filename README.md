@@ -4,7 +4,8 @@ See how you use Claude Code: what it would cost at API prices, where the usage g
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
 > **Status: early development.**
-> The command-line tool and the VS Code extension are in pre-release; the desktop app and the terminal UI follow.
+> The command-line tool and the VS Code extension are ready to try; the desktop app and the terminal UI follow.
+> It is made for personal use, and installed from the [releases](https://github.com/philll11/claude-dashboard/releases) rather than a marketplace.
 > Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
 
 ## What it is for
@@ -25,9 +26,10 @@ It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS 
 
 ## In VS Code
 
-Install **Dashboard for Claude Code** (`philll11.claude-dashboard`) from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=philll11.claude-dashboard), or from [Open VSX](https://open-vsx.org/extension/philll11/claude-dashboard) in Cursor, Windsurf and VSCodium.
-While it is a pre-release, choose **Install Pre-Release Version**.
+Install **Dashboard for Claude Code** from the [latest release](https://github.com/philll11/claude-dashboard/releases/latest): download the package for your platform, such as `claude-dashboard-win32-x64-<version>.vsix` on Windows, and install it with **Extensions: Install from VSIX…** or `code --install-extension <package>`.
+The platforms are `win32`, `darwin`, `linux` and `alpine`, each `x64` or `arm64`; Cursor, Windsurf and VSCodium install the same packages.
 It comes with the `claude-dashboard` program for your platform, so nothing else needs installing.
+To update, install the package from a newer release.
 
 - The status bar shows the five-hour window and when it resets, or today's API-equivalent cost before plan limits are recorded.
 - Its sidebar lists plan limits, today by model, this week and the week's top projects.
@@ -39,20 +41,20 @@ In a window connected to WSL, over SSH or in a container, it reads the Claude Co
 
 ## In the terminal
 
-Install the pre-release with the installer for your system.
+Install it with the installer for your system, and run the installer again to update.
 On macOS and Linux:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/philll11/claude-dashboard/releases/download/v0.1.1/claude-dashboard-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/philll11/claude-dashboard/releases/latest/download/claude-dashboard-installer.sh | sh
 ```
 
 On Windows:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/download/v0.1.1/claude-dashboard-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/latest/download/claude-dashboard-installer.ps1 | iex"
 ```
 
-The binaries are not signed yet.
+The binaries are not signed.
 Installed this way they carry no browser download mark, so Windows SmartScreen and macOS Gatekeeper do not warn about them; Windows Smart App Control, where it is on, blocks unsigned programs however they arrive.
 [Releases](https://github.com/philll11/claude-dashboard/releases) lists every version with its notes and checksums.
 To build from source instead, with Rust 1.99 or later:

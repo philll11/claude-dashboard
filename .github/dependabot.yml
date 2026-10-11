@@ -18,6 +18,16 @@ updates:
     groups:
       npm:
         patterns: ["*"]
+    ignore:
+      # typescript-eslint supports TypeScript below 6.1; raise this once it supports more.
+      - dependency-name: typescript
+        versions: [">=6.1.0"]
+      # vsce refuses typings newer than engines.vscode in apps/vscode/package.json; raise both together.
+      - dependency-name: "@types/vscode"
+        versions: [">=1.127.0"]
+      # The typings follow Node 24, which the scripts and tests run on.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

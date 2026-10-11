@@ -20,8 +20,7 @@ const TOOLS_ALSO = [
 const TOOL_EXCEPTIONS = [
   {
     name: /^@vscode\/vsce-sign(-.+)?$/,
-    reason:
-      "Microsoft's signing tool, which vsce runs when it packages and publishes the extension",
+    reason: "Microsoft's signing tool, which comes with vsce, the extension's packager",
   },
 ];
 

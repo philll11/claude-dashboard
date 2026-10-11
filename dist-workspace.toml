@@ -31,10 +31,9 @@ github-attestations = true
 github-attestations-phase = "host"
 github-release = "host"
 # Once a release is published: install it on every operating system and run it (.github/workflows/install-check.yml),
-# mark it a pre-release when its minor version is odd (.github/workflows/release-channel.yml), and package and
-# publish the VS Code extension with its programs (.github/workflows/vscode-release.yml).
-post-announce-jobs = ["./install-check", "./release-channel", "./vscode-release"]
-github-custom-job-permissions = { "release-channel" = { contents = "write" }, "vscode-release" = { attestations = "read", contents = "write", id-token = "write" } }
+# and package the VS Code extension with its programs and attach the packages (.github/workflows/vscode-release.yml).
+post-announce-jobs = ["./install-check", "./vscode-release"]
+github-custom-job-permissions = { "vscode-release" = { attestations = "read", contents = "write" } }
 # Release builds start from a clean target directory.
 cache-builds = false
 

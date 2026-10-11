@@ -5,18 +5,18 @@ A release's notes on GitHub come from its section here.
 
 ## Version 0.1.1 (2026-10-11)
 
-The second pre-release: the dashboard in VS Code, and the server behind it.
-Every surface has the same version number, in plain `major.minor.patch` as the Visual Studio Marketplace requires: an odd minor version, such as this one, is a pre-release, and an even one is a release.
-The binaries are not signed yet.
+The dashboard in VS Code, and the server behind it.
+Every surface has the same version number.
+The binaries are not signed.
 
 ### What is new
 
-- **Dashboard for Claude Code**, the VS Code extension, for VS Code 1.126 or later, Cursor, Windsurf and VSCodium, on the Visual Studio Marketplace and Open VSX:
+- **Dashboard for Claude Code**, the VS Code extension, for VS Code 1.126 or later, Cursor, Windsurf and VSCodium:
   - the five-hour window and when it resets in the status bar, or today's API-equivalent cost before plan limits are recorded, with every window in its tooltip;
   - plan limits, today by model, this week and the week's top projects in its sidebar, each opening its section of the dashboard;
   - the dashboard in an editor tab: Overview, Sessions with each session's detail, Projects, Models, Limits and Settings, in your colour theme, high contrast included;
   - a walkthrough to record plan limits, bring in claude-usage history and choose data folders;
-  - a package for each platform with its `claude-dashboard` program: Windows, macOS, Linux and Alpine, on x64 and arm64, also attached to this release.
+  - a package for each platform with its `claude-dashboard` program, attached to this release: Windows, macOS, Linux and Alpine, on x64 and arm64; install one with **Extensions: Install from VSIX…** or `code --install-extension`.
 - `claude-dashboard serve --stdio`, which the extension runs to read Claude Code's transcripts and answer the dashboard.
 - Settings that every surface shares, kept in the history: the data folders you add, your time zone and the first day of the week.
 - Each subagent's agent type, such as `Explore`, read from what Claude Code records beside its transcript.
