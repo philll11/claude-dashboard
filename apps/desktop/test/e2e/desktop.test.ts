@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { strict as assert } from "node:assert";
 
-import { Builder, By, until, type WebDriver, type WebElement } from "selenium-webdriver";
+import { Builder, By, error, until, type WebDriver, type WebElement } from "selenium-webdriver";
 
 const app = process.env.E2E_APP ?? "";
 const program = process.env.E2E_PROGRAM ?? "";
@@ -37,9 +37,17 @@ function nav(): Promise<WebElement> {
   );
 }
 
+/** The section's heading. The dashboard replaces it when the section changes, so a heading
+ * replaced while it is read is read again. */
 async function heading(): Promise<string> {
-  const h1 = await session().wait(until.elementLocated(By.css("main h1")), 30_000);
-  return h1.getText();
+  for (;;) {
+    const h1 = await session().wait(until.elementLocated(By.css("main h1")), 30_000);
+    try {
+      return await h1.getText();
+    } catch (problem) {
+      if (!(problem instanceof error.StaleElementReferenceError)) throw problem;
+    }
+  }
 }
 
 async function open(section: string) {
