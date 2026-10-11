@@ -83,8 +83,6 @@ async function edgeDriver() {
 }
 
 const nativeDriver = values["native-driver"] ?? (windows ? await edgeDriver() : undefined);
-// Each WebDriver session starts the app with a profile of its own, so the window's storage, such as
-// the remembered section, never mixes with an installed copy's.
 const prepared = prepare();
 const screenshots = join(root, "out/screenshots");
 rmSync(screenshots, { recursive: true, force: true });
@@ -132,9 +130,9 @@ let failures = 1;
 try {
   installed = install();
   if (!existsSync(installed.app)) throw new Error(`The installer put no app at ${installed.app}.`);
-  // tauri-driver starts the app for each session, in its own environment. The drivers keep their
-  // temporary files, such as each session's web view profile, in the test's folder, which goes
-  // with it.
+  // tauri-driver starts the app for each session, in its own environment; on Windows, Microsoft
+  // Edge WebDriver gives each session a WebView2 profile of its own. The drivers keep their
+  // temporary files, such as those profiles, in the test's folder, which goes with it.
   const temporary = join(prepared.folder, "temp");
   mkdirSync(temporary);
   driver = spawn(
