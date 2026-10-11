@@ -3,7 +3,7 @@
 
 import { createContext, useContext } from "react";
 
-import type { Days, Status } from "@claude-dashboard/protocol";
+import type { Days, Show, Status } from "@claude-dashboard/protocol";
 
 import { addDays } from "./format";
 
@@ -78,6 +78,20 @@ export function rememberedView(state: unknown): View {
       typeof saved.offset === "number" && Number.isInteger(saved.offset) && saved.offset >= 0
         ? saved.offset
         : 0,
+  };
+}
+
+/** The view showing what the surface asked for: its section from the top, with the days and
+ * filters it names. */
+export function shown(view: View, show: Show): View {
+  return {
+    ...view,
+    section: show.section,
+    session: null,
+    offset: 0,
+    range: show.range ?? view.range,
+    project: show.project === undefined ? view.project : show.project,
+    model: show.model === undefined ? view.model : show.model,
   };
 }
 

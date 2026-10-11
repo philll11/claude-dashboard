@@ -21,7 +21,8 @@ import { Panel, Pill } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { costText, SectionHead } from "./common";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
-import { inOrder, LEVEL_TEXT, LevelIcon, meterName, Provenance, windowName } from "./windows";
+import { inOrder, LEVEL_TEXT, meterName, windowName } from "../windows";
+import { LevelIcon, Provenance } from "./provenance";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;

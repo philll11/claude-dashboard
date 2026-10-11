@@ -1,0 +1,246 @@
+{
+  "name": "claude-dashboard",
+  "displayName": "Dashboard for Claude Code",
+  "description": "See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.",
+  "version": "0.1.1",
+  "publisher": "philll11",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0d0f12",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/philll11/claude-dashboard.git",
+    "directory": "apps/vscode"
+  },
+  "homepage": "https://github.com/philll11/claude-dashboard#readme",
+  "bugs": {
+    "url": "https://github.com/philll11/claude-dashboard/issues"
+  },
+  "categories": [
+    "AI",
+    "Visualization"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "usage",
+    "cost",
+    "tokens",
+    "plan limits",
+    "dashboard"
+  ],
+  "pricing": "Free",
+  "private": true,
+  "engines": {
+    "vscode": "^1.126.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onWebviewPanel:claudeDashboard.dashboard"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeDashboard.open",
+        "title": "Open Dashboard",
+        "category": "Dashboard for Claude Code",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "claudeDashboard.refresh",
+        "title": "Read New Activity",
+        "category": "Dashboard for Claude Code",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeDashboard.connectLimits",
+        "title": "Connect Plan Limits",
+        "category": "Dashboard for Claude Code"
+      },
+      {
+        "command": "claudeDashboard.importHistory",
+        "title": "Bring In History from claude-usage",
+        "category": "Dashboard for Claude Code"
+      },
+      {
+        "command": "claudeDashboard.chooseFolders",
+        "title": "Choose Data Folders",
+        "category": "Dashboard for Claude Code"
+      },
+      {
+        "command": "claudeDashboard.showLog",
+        "title": "Show Log",
+        "category": "Dashboard for Claude Code"
+      },
+      {
+        "command": "claudeDashboard.restart",
+        "title": "Restart claude-dashboard",
+        "category": "Dashboard for Claude Code"
+      },
+      {
+        "command": "claudeDashboard.show",
+        "title": "Show Section",
+        "category": "Dashboard for Claude Code"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "claudeDashboard.show",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudeDashboard.refresh",
+          "when": "view == claudeDashboard.summary",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claudeDashboard.open",
+          "when": "view == claudeDashboard.summary",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeDashboard",
+          "title": "Dashboard for Claude Code",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeDashboard": [
+        {
+          "id": "claudeDashboard.summary",
+          "name": "Dashboard for Claude Code",
+          "contextualTitle": "Dashboard for Claude Code",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "claudeDashboard.summary",
+        "contents": "Reading your Claude Code history…",
+        "when": "claudeDashboard.state == starting"
+      },
+      {
+        "view": "claudeDashboard.summary",
+        "contents": "claude-dashboard has stopped, so the dashboard cannot show your usage.\n[Restart claude-dashboard](command:claudeDashboard.restart)\n[Show the log](command:claudeDashboard.showLog)",
+        "when": "claudeDashboard.state == stopped"
+      },
+      {
+        "view": "claudeDashboard.summary",
+        "contents": "The extension has no claude-dashboard program for this platform. Set claudeDashboard.server.path to one, such as a build from the GitHub release.\n[Open the setting](command:workbench.action.openSettings?%22claudeDashboard.server.path%22)",
+        "when": "claudeDashboard.state == noProgram"
+      }
+    ],
+    "configuration": {
+      "title": "Dashboard for Claude Code",
+      "properties": {
+        "claudeDashboard.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "The `claude-dashboard` program to run instead of the one that comes with the extension, such as a build of your own. Leave it empty to use the one that comes with the extension."
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "start",
+        "title": "Get started with Dashboard for Claude Code",
+        "description": "Record your plan limits, bring in older history, and choose where Claude Code keeps its data.",
+        "steps": [
+          {
+            "id": "connectLimits",
+            "title": "Record your plan limits",
+            "description": "Claude Code passes your plan limits to its status line. Connect claude-dashboard's status line to record them; the dashboard shows the change to Claude Code's settings before making it, and you can undo it.\n[Connect plan limits](command:claudeDashboard.connectLimits)",
+            "media": {
+              "markdown": "media/walkthrough/limits.md"
+            },
+            "completionEvents": [
+              "onContext:claudeDashboard.limitsConnected"
+            ]
+          },
+          {
+            "id": "importHistory",
+            "title": "Bring in your claude-usage history",
+            "description": "If you used the claude-usage dashboard, it kept requests that Claude Code has since deleted. Bring them into your history once.\n[Bring in history](command:claudeDashboard.importHistory)",
+            "media": {
+              "markdown": "media/walkthrough/import.md"
+            },
+            "when": "claudeDashboard.importOffered",
+            "completionEvents": [
+              "onCommand:claudeDashboard.importHistory"
+            ]
+          },
+          {
+            "id": "chooseFolders",
+            "title": "Choose your data folders",
+            "description": "claude-dashboard reads the folder where Claude Code keeps its data. Add any other, such as Claude Code's folder in WSL.\n[Choose data folders](command:claudeDashboard.chooseFolders)",
+            "media": {
+              "markdown": "media/walkthrough/folders.md"
+            },
+            "completionEvents": [
+              "onCommand:claudeDashboard.chooseFolders"
+            ]
+          },
+          {
+            "id": "openDashboard",
+            "title": "Open the dashboard",
+            "description": "See where your usage goes: sessions, projects, models and limits.\n[Open the dashboard](command:claudeDashboard.open)",
+            "media": {
+              "markdown": "media/walkthrough/dashboard.md"
+            },
+            "completionEvents": [
+              "onCommand:claudeDashboard.open"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --project .",
+    "test": "vitest run",
+    "test:integration": "node scripts/build.mjs --tests && vscode-test",
+    "test:e2e": "node scripts/e2e.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "dependencies": {
+    "@claude-dashboard/app": "workspace:*",
+    "@claude-dashboard/protocol": "workspace:*",
+    "vscode-jsonrpc": "9.0.3"
+  },
+  "devDependencies": {
+    "@types/mocha": "10.0.10",
+    "@types/node": "24.19.0",
+    "@types/vscode": "1.125.0",
+    "@vscode/test-cli": "0.0.15",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "ovsx": "1.2.0",
+    "vitest": "5.0.2",
+    "vscode-extension-tester": "8.27.0"
+  }
+}

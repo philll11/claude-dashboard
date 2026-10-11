@@ -77,6 +77,9 @@ pub struct App {
     pub week_start: Weekday,
     pub now: Timestamp,
     pub prices: &'static PriceTable,
+    /// Whether a status line connected from here runs a copy of this program kept next to the
+    /// history, because an update moves this one (`serve --status-line-copy`).
+    pub status_line_copy: bool,
 }
 
 impl App {
@@ -98,6 +101,7 @@ impl App {
             week_start: Weekday::Monday,
             now: now(),
             prices: PriceTable::bundled(),
+            status_line_copy: false,
         }
     }
 

@@ -8,3 +8,11 @@ dist/
 # Screenshot baselines come from the Playwright container that CI runs in; other systems' are local.
 /web/app/tests/browser/*-snapshots/*-win32.png
 /web/app/tests/browser/*-snapshots/*-darwin.png
+# The VS Code extension's build, packages and test runs.
+/apps/vscode/server/
+/apps/vscode/out/
+/apps/vscode/.vscode-test/
+/apps/vscode/*.vsix
+# Copied from the repository's root when the extension is packaged.
+/apps/vscode/LICENSE
+/apps/vscode/CHANGELOG.md

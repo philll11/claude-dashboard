@@ -11,6 +11,8 @@ export default tseslint.config(
       "web/protocol/src/generated/",
       "**/test-results/",
       "**/playwright-report/",
+      "apps/vscode/out/",
+      "apps/vscode/.vscode-test/",
     ],
   },
   js.configs.recommended,

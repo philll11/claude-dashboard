@@ -16,6 +16,7 @@ use serde_json::{Map, Value};
 
 use crate::app::App;
 use crate::fmt::money;
+use crate::program;
 use crate::prompt;
 use crate::report::model_name;
 use crate::style::{Paint, palette};
@@ -305,35 +306,16 @@ pub fn connection(app: &App) -> Connection {
     }
 }
 
-/// How settings refer to this program: by name when that name on the `PATH` is this program,
-/// and otherwise by its full path.
-fn our_program() -> Result<String, String> {
-    let exe = std::env::current_exe()
-        .and_then(fs::canonicalize)
-        .map_err(|error| format!("cannot tell where claude-dashboard is: {error}"))?;
-    let name = if cfg!(windows) {
-        "claude-dashboard.exe"
-    } else {
-        "claude-dashboard"
-    };
-    let on_path = std::env::var_os("PATH").is_some_and(|path| {
-        std::env::split_paths(&path)
-            .any(|folder| fs::canonicalize(folder.join(name)).is_ok_and(|found| found == exe))
-    });
-    if on_path {
-        return Ok("claude-dashboard".to_owned());
+/// The program a status line command runs, and the copy to keep there when that program is the
+/// copy `serve --status-line-copy` asks for.
+fn status_line_program(app: &App) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if !app.status_line_copy {
+        return Ok((program::this()?, None));
     }
-    let path = exe.display().to_string();
-    let path = path
-        .strip_prefix(r"\\?\")
-        .unwrap_or(&path)
-        .replace('\\', "/");
-    if path.contains(char::is_whitespace) {
-        return Err(format!(
-            "claude-dashboard is at {path}, and a path with spaces cannot be written into a status line command; put claude-dashboard on your PATH and try again"
-        ));
-    }
-    Ok(path)
+    let copy = program::copy_path(app).ok_or(
+        "there is no folder for local app data on this system to keep claude-dashboard in",
+    )?;
+    Ok((copy.clone(), Some(copy)))
 }
 
 /// The fields of a status line, as one line of JSON members.
@@ -403,6 +385,8 @@ pub struct Change {
     pub effect: &'static str,
     /// The settings as the change leaves them.
     settings: Map<String, Value>,
+    /// Where a copy of this program goes for the new status line to run.
+    copy: Option<PathBuf>,
 }
 
 impl Change {
@@ -425,8 +409,11 @@ impl Change {
     ///
     /// # Errors
     ///
-    /// Why the settings could not be saved.
+    /// Why the program could not be copied or the settings saved.
     pub fn make(&self) -> Result<(), String> {
+        if let Some(copy) = &self.copy {
+            program::keep_copy(copy)?;
+        }
         save(&self.path, &self.settings)
     }
 }
@@ -451,8 +438,10 @@ pub fn plan_connect(app: &App) -> Plan {
         Ok(current) => current.map(str::to_owned),
         Err(reason) => return Plan::Refused(format!("Cannot connect: {reason}.")),
     };
-    let program = match our_program() {
-        Ok(program) => program,
+    let (program, copy) = match status_line_program(app)
+        .and_then(|(path, copy)| Ok((program::command_name(&path)?, copy)))
+    {
+        Ok(named) => named,
         Err(reason) => return Plan::Refused(format!("Cannot connect: {reason}.")),
     };
     let new_command = match &current {
@@ -489,6 +478,7 @@ pub fn plan_connect(app: &App) -> Plan {
         new: Some(status_line),
         effect,
         settings,
+        copy,
     }))
 }
 
@@ -533,6 +523,7 @@ pub fn plan_disconnect(app: &App) -> Plan {
         new: restored,
         effect,
         settings,
+        copy: None,
     }))
 }
 
