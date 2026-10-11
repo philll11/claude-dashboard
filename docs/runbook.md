@@ -37,15 +37,14 @@ Microsoft documents managed-identity publishing for Azure Pipelines; the GitHub 
 4. In the identity, open **Federated credentials**, select **Add credential** and choose **GitHub Actions deploying Azure resources**.
    Organisation `philll11`, repository `claude-dashboard`, entity **Environment**, environment `vscode-marketplace`, name `github-vscode-marketplace`.
 5. In this repository, open **Settings**, **Environments**, **New environment**, and create `vscode-marketplace`.
-   Add the environment secrets `AZURE_CLIENT_ID` (the Client ID) and `AZURE_TENANT_ID` (the Tenant ID).
-6. Tell me when this is done.
-   I push a temporary branch whose only workflow signs in as the identity and runs
-   `az rest -u https://app.vssps.visualstudio.com/_apis/profile/profiles/me --resource 499b84ac-1321-427f-aa17-267ca6975798`,
-   then give you the `id` it prints and delete the branch.
-7. On your publisher page, open **Members**, select **Add**, paste that `id` and give it the **Contributor** role, which can publish but cannot change publisher settings or access.
-8. Back in the `vscode-marketplace` environment, set **Deployment branches and tags** to **Selected branches and tags** with the tag pattern `v*`, so only release tags can publish.
+   Add the environment variables (not secrets; they identify the identity but grant nothing) `AZURE_CLIENT_ID` (the Client ID) and `AZURE_TENANT_ID` (the Tenant ID).
+   Set **Deployment branches and tags** to **Selected branches and tags** with the tag pattern `v*`, so only release tags can publish.
+6. The Marketplace knows the identity by an id of its own.
+   The **Visual Studio Marketplace** job of the first release's **VS Code release** workflow prints it in its step **Show the identity that publishes**, and then fails to publish, because the identity is not a member of the publisher yet.
+7. On your publisher page, open **Members**, select **Add**, paste that id and give it the **Contributor** role, which can publish but cannot change publisher settings or access.
+   Then re-run the failed job.
 
-The release workflow then signs in with `azure/login` (OpenID Connect, `allow-no-subscriptions: true`) and runs `vsce publish --azure-credential`.
+The workflow signs in with `azure/login` (OpenID Connect, `allow-no-subscriptions: true`) and runs `vsce publish --azure-credential`.
 
 ## Open VSX
 
@@ -59,11 +58,13 @@ Claim the namespace before the first publish: Open VSX blocks publishing into a 
 4. Create the namespace: `npx ovsx create-namespace philll11 -p <token>`.
 5. Open an issue in <https://github.com/EclipseFdn/open-vsx.org/issues/new/choose> with the **Claim namespace ownership** template for `philll11`.
    It asks for a GitHub account with at least 12 months of public history, and for evidence that the extension's repository belongs to that account.
-6. In this repository, create the environment `open-vsx` and add the secret `OVSX_PAT` with the token.
+6. In this repository, create the environment `open-vsx`, add the secret `OVSX_PAT` with the token, and limit its **Deployment branches and tags** to the tag pattern `v*`, as for the Marketplace.
    The first release publishes with it.
 7. After the first version is on Open VSX, switch to trusted publishing at <https://open-vsx.org/user-settings/trusted-publishers>.
    Choose the `philll11` namespace and the provider **GitHub Actions**, with owner `philll11`, repository `claude-dashboard`, workflow `release.yml` and environment `open-vsx`.
-8. Delete the `OVSX_PAT` secret and revoke the token on Open VSX; releases then publish with `ovsx publish --trusted-publishing`.
+   A release tag starts `release.yml`, which runs the publishing job from `vscode-release.yml`; if Open VSX refuses the token and names `vscode-release.yml`, register that workflow instead.
+8. Delete the `OVSX_PAT` secret and revoke the token on Open VSX.
+   Without the secret, the **Open VSX** job publishes through trusted publishing, exchanging GitHub's OpenID Connect token for a short-lived one.
 
 ## Desktop update signing key
 

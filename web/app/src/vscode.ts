@@ -1,22 +1,17 @@
 // The dashboard in a VS Code webview: requests and notifications travel as messages to and from
 // the extension, which passes them on to `claude-dashboard serve`.
 
-import type { Backend, Method, Notifications, Params, Result } from "@claude-dashboard/protocol";
+import type {
+  Backend,
+  FromExtension,
+  Method,
+  Params,
+  Result,
+  Show,
+  ToExtension,
+} from "@claude-dashboard/protocol";
 
 import type { Host } from "./host";
-
-/** What the webview sends the extension. */
-export type ToExtension =
-  | { type: "ready" }
-  | { type: "request"; id: number; method: Method; params: unknown }
-  | { type: "reveal"; path: string }
-  | { type: "pickFolder"; id: number };
-
-/** What the extension sends the webview. */
-export type FromExtension =
-  | { type: "response"; id: number; result?: unknown; error?: { code: number; message: string } }
-  | { type: "notification"; method: keyof Notifications; params: unknown }
-  | { type: "picked"; id: number; path?: string };
 
 interface VsCodeApi {
   postMessage(message: ToExtension): void;
@@ -51,6 +46,9 @@ export function vscodeHost(): Host | undefined {
   >();
   const listeners = new Map<string, Set<(params: unknown) => void>>();
   const picking = new Map<number, (path: string | undefined) => void>();
+  const showing = new Set<(show: Show) => void>();
+  // A section the extension asks for before the dashboard listens is shown once it does.
+  let waitingShow: Show | undefined;
   window.addEventListener("message", (event: MessageEvent<FromExtension>) => {
     const message = event.data;
     if (message.type === "response") {
@@ -64,6 +62,9 @@ export function vscodeHost(): Host | undefined {
     } else if (message.type === "picked") {
       picking.get(message.id)?.(message.path);
       picking.delete(message.id);
+    } else if (message.type === "show") {
+      if (showing.size === 0) waitingShow = message.show;
+      for (const listener of showing) listener(message.show);
     } else {
       for (const listener of listeners.get(message.method) ?? []) listener(message.params);
     }
@@ -110,6 +111,14 @@ export function vscodeHost(): Host | undefined {
         picking.set(id, resolve);
         api.postMessage({ type: "pickFolder", id });
       });
+    },
+    onShow: (listener) => {
+      showing.add(listener);
+      if (waitingShow) listener(waitingShow);
+      waitingShow = undefined;
+      return () => {
+        showing.delete(listener);
+      };
     },
   };
 }

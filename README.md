@@ -4,7 +4,7 @@ See how you use Claude Code: what it would cost at API prices, where the usage g
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
 > **Status: early development.**
-> The command-line tool is in pre-release; the VS Code extension, the desktop app and the terminal UI follow.
+> The command-line tool and the VS Code extension are in pre-release; the desktop app and the terminal UI follow.
 > Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
 
 ## What it is for
@@ -23,19 +23,33 @@ It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS 
 | Desktop | The full dashboard in its own window on Windows, macOS and Linux. |
 | Terminal | An interactive terminal UI, plus reports with `--json` and `--csv` output. |
 
+## In VS Code
+
+Install **Dashboard for Claude Code** (`philll11.claude-dashboard`) from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=philll11.claude-dashboard), or from [Open VSX](https://open-vsx.org/extension/philll11/claude-dashboard) in Cursor, Windsurf and VSCodium.
+While it is a pre-release, choose **Install Pre-Release Version**.
+It comes with the `claude-dashboard` program for your platform, so nothing else needs installing.
+
+- The status bar shows the five-hour window and when it resets, or today's API-equivalent cost before plan limits are recorded.
+- Its sidebar lists plan limits, today by model, this week and the week's top projects.
+- The dashboard opens in an editor tab, in your colour theme: Overview, Sessions, Projects, Models, Limits and Settings.
+- Its walkthrough records your plan limits, brings in claude-usage history and chooses data folders.
+
+In a window connected to WSL, over SSH or in a container, it reads the Claude Code folder of that machine.
+`claudeDashboard.server.path` runs another `claude-dashboard` instead of the one that comes with the extension, such as a build of your own.
+
 ## In the terminal
 
 Install the pre-release with the installer for your system.
 On macOS and Linux:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/philll11/claude-dashboard/releases/download/v0.1.0-alpha.1/claude-dashboard-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/philll11/claude-dashboard/releases/download/v0.1.1/claude-dashboard-installer.sh | sh
 ```
 
 On Windows:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/download/v0.1.0-alpha.1/claude-dashboard-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/download/v0.1.1/claude-dashboard-installer.ps1 | iex"
 ```
 
 The binaries are not signed yet.

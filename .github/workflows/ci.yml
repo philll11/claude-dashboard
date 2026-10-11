@@ -128,3 +128,59 @@ jobs:
             web/app/playwright-report
             web/app/test-results
           retention-days: 7
+
+  extension:
+    name: VS Code (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x64, os: ubuntu-24.04, target: linux-x64 }
+          - { name: Windows x64, os: windows-latest, target: win32-x64 }
+          - { name: macOS arm64, os: macos-latest, target: darwin-arm64 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      # VS Code needs a display, which xvfb-run gives it on Linux.
+      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo build --locked -p claude-dashboard
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Integration tests on the oldest VS Code the extension supports
+        run: $WITH_DISPLAY pnpm --filter claude-dashboard test:integration
+        env:
+          VSCODE_VERSION: 1.126.0
+      - name: Integration tests on the latest VS Code
+        run: $WITH_DISPLAY pnpm --filter claude-dashboard test:integration
+        env:
+          VSCODE_VERSION: stable
+      - name: Package for this platform
+        run: >-
+          node apps/vscode/scripts/package.mjs --target ${{ matrix.target }}
+          --program target/debug/claude-dashboard${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
+          --out apps/vscode/claude-dashboard.vsix
+      - name: End-to-end tests on the package
+        run: $WITH_DISPLAY node apps/vscode/scripts/e2e.mjs --vsix apps/vscode/claude-dashboard.vsix
+        env:
+          E2E_STORAGE: ${{ runner.temp }}/e2e
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vscode-screenshots-${{ matrix.target }}
+          path: ${{ runner.temp }}/e2e/screenshots
+          if-no-files-found: ignore
+          retention-days: 7

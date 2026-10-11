@@ -4,3 +4,10 @@ packages:
 
 # Install only versions published at least two weeks ago, dependencies of dependencies included.
 minimumReleaseAge: 20160
+
+# No dependency runs install scripts. esbuild's API works from its platform package without one;
+# keytar and vsce-sign serve vsce's token storage and signing, which publishing does not use.
+allowBuilds:
+  "@vscode/vsce-sign": false
+  esbuild: false
+  keytar: false

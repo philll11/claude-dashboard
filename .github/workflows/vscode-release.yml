@@ -1,0 +1,188 @@
+name: VS Code release
+
+# Packages the VS Code extension for each platform with the programs of a published release,
+# attaches the packages to the release, and publishes them to the Visual Studio Marketplace and
+# Open VSX. The release workflow calls this once the release is published (dist's
+# post-announce-jobs); run by hand for a tag, it publishes only when asked to.
+#
+# Publishing needs what docs/runbook.md sets up: the environments vscode-marketplace, with the
+# variables AZURE_CLIENT_ID and AZURE_TENANT_ID of the identity that publishes, and open-vsx, with
+# the secret OVSX_PAT.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan for the release, as JSON.
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to package, such as v0.1.1.
+        required: true
+        type: string
+      publish:
+        description: Publish the packages to the Visual Studio Marketplace and Open VSX.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-24.04
+    permissions:
+      attestations: read
+      contents: write
+    steps:
+      # The tag reaches the shell only through the environment, never inside a script.
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Check the extension's version and choose its channel
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          test "$(jq -r .version apps/vscode/package.json)" = "$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          # The Marketplace's convention: odd minor versions are pre-releases.
+          minor="$(echo "$version" | cut -d. -f2)"
+          if [ $((minor % 2)) -eq 1 ]; then echo "PRE_RELEASE=--pre-release" >> "$GITHUB_ENV"; fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Download the release's programs, as the release built and attested them
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          cd release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'claude-dashboard-*.zip' --pattern 'claude-dashboard-*.tar.xz' --pattern sha256.sum
+          sha256sum --check --ignore-missing sha256.sum
+          for archive in claude-dashboard-*.zip claude-dashboard-*.tar.xz; do
+            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY"
+          done
+      - name: Package for each platform, and for the rest
+        run: |
+          set -euo pipefail
+          package() {
+            local target="$1" rust="$2" program
+            mkdir -p "programs/$rust"
+            if [ -f "release/claude-dashboard-$rust.zip" ]; then
+              unzip -o -q "release/claude-dashboard-$rust.zip" claude-dashboard.exe -d "programs/$rust"
+              program="programs/$rust/claude-dashboard.exe"
+            else
+              tar -xJf "release/claude-dashboard-$rust.tar.xz" -C "programs/$rust" --strip-components 1 \
+                "claude-dashboard-$rust/claude-dashboard"
+              program="programs/$rust/claude-dashboard"
+            fi
+            node apps/vscode/scripts/package.mjs --target "$target" --program "$program" ${PRE_RELEASE:-} \
+              --out "packages/claude-dashboard-$target-$VERSION.vsix"
+          }
+          mkdir packages
+          package win32-x64 x86_64-pc-windows-msvc
+          package win32-arm64 aarch64-pc-windows-msvc
+          package darwin-x64 x86_64-apple-darwin
+          package darwin-arm64 aarch64-apple-darwin
+          # The static musl programs run on glibc Linux and on Alpine alike.
+          package linux-x64 x86_64-unknown-linux-musl
+          package linux-arm64 aarch64-unknown-linux-musl
+          package alpine-x64 x86_64-unknown-linux-musl
+          package alpine-arm64 aarch64-unknown-linux-musl
+          node apps/vscode/scripts/package.mjs ${PRE_RELEASE:-} --out "packages/claude-dashboard-$VERSION.vsix"
+      - name: Attach the packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" packages/*.vsix --repo "$GITHUB_REPOSITORY" --clobber
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vscode-packages
+          path: packages/
+          retention-days: 7
+
+  marketplace:
+    name: Visual Studio Marketplace
+    needs: package
+    if: inputs.plan != '' || inputs.publish
+    runs-on: ubuntu-24.04
+    environment: vscode-marketplace
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vscode-packages
+          path: packages
+      # Signs in as the identity that publishes, through GitHub's OpenID Connect token, so no secret
+      # is stored. The identity holds no role in any Azure subscription, only its place among the
+      # publisher's members, so the sign-in looks for no subscription.
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      # The Marketplace knows the identity by this id, which a publisher's member list takes.
+      - name: Show the identity that publishes
+        run: |
+          az rest --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798 --query id --output tsv
+      # vsce prefers a VSCE_PAT variable to the identity, so this job never sets one.
+      - run: pnpm --filter claude-dashboard exec vsce publish --azure-credential --packagePath "$GITHUB_WORKSPACE"/packages/*.vsix
+
+  open-vsx:
+    name: Open VSX
+    needs: package
+    if: inputs.plan != '' || inputs.publish
+    runs-on: ubuntu-24.04
+    environment: open-vsx
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: vscode-packages
+          path: packages
+      # The packages carry their platform and pre-release mark; ovsx publishes them as they are.
+      # With the OVSX_PAT secret it publishes with that token, and without it through trusted
+      # publishing, exchanging GitHub's OpenID Connect token (docs/runbook.md).
+      - run: |
+          if [ -n "$TOKEN" ]; then export OVSX_PAT="$TOKEN"; fi
+          pnpm --filter claude-dashboard exec ovsx publish --packagePath "$GITHUB_WORKSPACE"/packages/*.vsix
+        env:
+          TOKEN: ${{ secrets.OVSX_PAT }}

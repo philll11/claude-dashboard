@@ -8,10 +8,12 @@ mod workers;
 
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, PoisonError};
+use std::thread;
 
 use lsp_server::{Connection, Message};
 
 use crate::app::App;
+use crate::program;
 
 /// What the background work knows that answers need.
 #[derive(Debug, Default)]
@@ -30,6 +32,7 @@ fn lock(shared: &Mutex<Shared>) -> std::sync::MutexGuard<'_, Shared> {
 }
 
 pub fn run(app: &App) -> ExitCode {
+    update_status_line_copy(app);
     let (connection, io_threads) = Connection::stdio();
     let shared = Arc::new(Mutex::new(Shared::default()));
     let workers = workers::start(app, &connection.sender, &shared);
@@ -53,4 +56,17 @@ pub fn run(app: &App) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Brings the status line's copy of this program up to date after an update, when there is one.
+fn update_status_line_copy(app: &App) {
+    let Some(copy) = program::copy_path(app).filter(|copy| app.status_line_copy && copy.is_file())
+    else {
+        return;
+    };
+    thread::spawn(move || {
+        if let Err(reason) = program::keep_copy(&copy) {
+            eprintln!("Cannot update the status line's copy of claude-dashboard: {reason}.");
+        }
+    });
 }

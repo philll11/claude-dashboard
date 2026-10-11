@@ -1,0 +1,11 @@
+{
+  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.startupEditor": "none",
+  "workbench.welcomePage.walkthroughs.openOnInstall": false,
+  "workbench.tips.enabled": false,
+  "security.workspace.trust.enabled": false,
+  "extensions.autoCheckUpdates": false,
+  "update.mode": "none",
+  "telemetry.telemetryLevel": "off",
+  "chat.disableAIFeatures": true
+}
