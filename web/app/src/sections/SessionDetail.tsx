@@ -16,7 +16,7 @@ import { Panel, Problem, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import { cacheShare, costText, tokensOf, useSeries } from "./common";
-import { OwnFigure, unpriced } from "./Sessions";
+import { OwnFigure, RUNNING_MS, unpriced } from "./Sessions";
 
 /** How Claude Code was started, as the session's heading says it. */
 const ENTRYPOINTS: Record<string, string> = {
@@ -27,8 +27,6 @@ const ENTRYPOINTS: Record<string, string> = {
   "sdk-ts": "Agent SDK",
   "sdk-py": "Agent SDK",
 };
-
-const RUNNING_MS = 15 * 60_000;
 
 export function SessionDetail({ id }: { id: string }) {
   const { change } = useView();
@@ -66,8 +64,7 @@ function Body({ detail }: { detail: Detail }) {
   const subagents = new Set(detail.who.flatMap((row) => (row.subagent ? [row.subagent] : [])));
   const subagentRequests = detail.totals.requests - detail.own.requests;
   const running =
-    (detail.reportedUsd === null || detail.reportedUsd === undefined) &&
-    now - detail.lastMs < RUNNING_MS;
+    (detail.drift === null || detail.drift === undefined) && now - detail.lastMs < RUNNING_MS;
   const unpricedModels = new Set(
     detail.who.filter((row) => unpriced(row.model)).map((row) => row.model.id),
   ).size;
@@ -89,8 +86,8 @@ function Body({ detail }: { detail: Detail }) {
           }
           note={
             <OwnFigure
-              totals={detail.totals}
               reported={detail.reportedUsd}
+              drift={detail.drift}
               running={running}
               unpricedModels={unpricedModels}
               long

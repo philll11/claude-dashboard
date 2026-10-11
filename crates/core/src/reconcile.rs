@@ -8,9 +8,11 @@
 //! it wrote its last cost before a session's last requests.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::hash::BuildHasher;
 
 use crate::history::{History, HistoryError, SessionKey};
 use crate::pricing::{self, PriceTable};
+use crate::report::ModelTotals;
 use crate::tokens::Tokens;
 
 /// How old a session's last request must be before the session is compared, so that Claude Code
@@ -88,13 +90,15 @@ fn relative(ours: f64, reported: f64) -> Option<f64> {
     (reported > 0.0).then(|| (ours - reported) / reported)
 }
 
-/// The tokens Claude Code reports, which do not tell five-minute and one-hour cache writes apart.
-#[derive(Clone, Copy, Default)]
-struct Reported {
-    cost: f64,
-    output: u64,
-    cache_read: u64,
-    cache_write: u64,
+/// What Claude Code reports for one model of a session, over the processes that have written
+/// their cost: what they cost, and the tokens they counted, which do not tell five-minute and
+/// one-hour cache writes apart.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Reported {
+    pub cost_usd: f64,
+    pub output: u64,
+    pub cache_read: u64,
+    pub cache_write: u64,
 }
 
 struct Ours {
@@ -122,6 +126,52 @@ fn without_variant(model: &str) -> &str {
     model.split_once('[').map_or(model, |(id, _)| id)
 }
 
+/// What Claude Code reports for each session, by model as the history's requests name it.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn reported(
+    history: &History,
+) -> Result<HashMap<SessionKey, HashMap<String, Reported>>, HistoryError> {
+    let mut reported: HashMap<SessionKey, HashMap<String, Reported>> = HashMap::new();
+    for cost in history.reported_costs()? {
+        let entry = reported
+            .entry(cost.session)
+            .or_default()
+            .entry(without_variant(&cost.model).to_owned())
+            .or_default();
+        entry.cost_usd += cost.cost_usd;
+        entry.output += cost.output;
+        entry.cache_read += cost.cache_read;
+        entry.cache_write += cost.cache_write;
+    }
+    Ok(reported)
+}
+
+/// How far a session's API-equivalent cost is from Claude Code's own figure for the same
+/// requests, as a fraction of that figure: `models` are the session's models as the history
+/// holds them, and `reported` what Claude Code reports for the session.
+///
+/// Claude Code writes its figure as each of its processes ends, so the figure counts other
+/// requests while a process of the session still runs, or where the transcripts miss some of its
+/// calls; then, as for an unpriced model, there is nothing to compare.
+pub fn session_drift<'a, S: BuildHasher>(
+    models: impl IntoIterator<Item = &'a ModelTotals>,
+    reported: &HashMap<String, Reported, S>,
+) -> Option<f64> {
+    let (mut ours, mut theirs) = (0.0, 0.0);
+    for model in models {
+        let figure = reported.get(&model.model)?;
+        if model.totals.unpriced_requests > 0 || !same_requests(&model.totals.tokens, figure) {
+            return None;
+        }
+        ours += model.totals.cost.total();
+        theirs += figure.cost_usd;
+    }
+    relative(ours, theirs)
+}
+
 /// Compares the history's API-equivalent costs with the costs Claude Code reports, as of
 /// `now_ms`.
 ///
@@ -133,16 +183,14 @@ pub fn reconcile(
     table: &PriceTable,
     now_ms: i64,
 ) -> Result<Reconciliation, HistoryError> {
-    let mut reported: HashMap<(SessionKey, String), Reported> = HashMap::new();
-    for cost in history.reported_costs()? {
-        let entry = reported
-            .entry((cost.session, without_variant(&cost.model).to_owned()))
-            .or_default();
-        entry.cost += cost.cost_usd;
-        entry.output += cost.output;
-        entry.cache_read += cost.cache_read;
-        entry.cache_write += cost.cache_write;
-    }
+    let reported: HashMap<(SessionKey, String), Reported> = reported(history)?
+        .into_iter()
+        .flat_map(|(session, models)| {
+            models
+                .into_iter()
+                .map(move |(model, figure)| ((session, model), figure))
+        })
+        .collect();
 
     let mut ours: HashMap<(SessionKey, String), Ours> = HashMap::new();
     let mut last_request: HashMap<SessionKey, i64> = HashMap::new();
@@ -204,7 +252,7 @@ pub fn reconcile(
             .api_equivalent_usd
             .zip(ours.cost)
             .map(|(total, cost)| total + cost);
-        entry.reported_usd += reported.cost;
+        entry.reported_usd += reported.cost_usd;
     }
 
     Ok(Reconciliation {

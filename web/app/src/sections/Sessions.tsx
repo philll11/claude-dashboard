@@ -3,7 +3,7 @@
 
 import type { MouseEvent } from "react";
 
-import type { Model, SessionRow, Totals } from "@claude-dashboard/protocol";
+import type { Model, SessionRow } from "@claude-dashboard/protocol";
 
 import { useStatus } from "../context";
 import { useRequest } from "../data";
@@ -31,8 +31,9 @@ import { SessionDetail } from "./SessionDetail";
 /** Sessions on one page. */
 const PAGE = 12;
 
-/** How recently a session without Claude Code's own figure made a request, to count as running. */
-const RUNNING_MS = 15 * 60_000;
+/** How recently a session that Claude Code's own figure does not cover made a request, to count
+ * as running. */
+export const RUNNING_MS = 15 * 60_000;
 
 /** How far the estimate may be from Claude Code's figure before prices may be out of date. */
 const DRIFT_LIMIT = 0.02;
@@ -150,7 +151,8 @@ function SessionList() {
       </section>
       <p className="footnote">
         "Claude Code's own figure" compares our estimate with the session cost Claude Code records
-        itself. A session gets one when it ends.
+        itself, which it writes as each of its processes ends. A figure that counts other requests
+        than the history holds is not compared.
       </p>
     </div>
   );
@@ -161,10 +163,7 @@ function Row({ row }: { row: SessionRow }) {
   const { change } = useView();
   const now = useNow(60_000);
   const series = useSeries();
-  const running =
-    row.reportedUsd === null || row.reportedUsd === undefined
-      ? now - row.lastMs < RUNNING_MS
-      : false;
+  const running = (row.drift === null || row.drift === undefined) && now - row.lastMs < RUNNING_MS;
   const open = (event: MouseEvent) => {
     event.preventDefault();
     change({ session: row.id });
@@ -210,8 +209,8 @@ function Row({ row }: { row: SessionRow }) {
       <td className="strong">{costText(row.totals)}</td>
       <td className="left nowrap">
         <OwnFigure
-          totals={row.totals}
           reported={row.reportedUsd}
+          drift={row.drift}
           running={running}
           unpricedModels={unpricedCount}
         />
@@ -227,14 +226,16 @@ export function unpriced(model: Model): boolean {
 
 /** How the estimate compares with the cost Claude Code recorded for the session. */
 export function OwnFigure({
-  totals,
   reported,
+  drift,
   running,
   unpricedModels,
   long = false,
 }: {
-  totals: Totals;
   reported: number | null | undefined;
+  /** How far the estimate is from Claude Code's figure for the same requests, when it counts
+   * them. */
+  drift: number | null | undefined;
   running: boolean;
   unpricedModels: number;
   /** Says `Matches within 0.1%` rather than `Within 0.1%`. */
@@ -248,12 +249,19 @@ export function OwnFigure({
       </span>
     );
   }
+  if (running) {
+    return <span className="figure-check muted">Not ended yet</span>;
+  }
   if (reported === null || reported === undefined || reported <= 0) {
+    return <span className="figure-check muted">None recorded</span>;
+  }
+  if (drift === null || drift === undefined) {
     return (
-      <span className="figure-check muted">{running ? "Not ended yet" : "None recorded"}</span>
+      <span className="figure-check muted">
+        {long ? "Counts other requests, so not compared" : "Not comparable"}
+      </span>
     );
   }
-  const drift = (totals.cost.total - reported) / reported;
   if (Math.abs(drift) <= DRIFT_LIMIT) {
     const within = Math.max(0.1, Math.abs(drift) * 100).toFixed(1);
     return (

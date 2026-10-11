@@ -6,6 +6,11 @@ use predicates::prelude::*;
 use predicates::str::contains;
 use serde_json::{Value, json};
 
+/// The moment every command the tests run sees, so that no test depends on when it runs: midday,
+/// in UTC, on the price table's date.
+const NOW: &str = "2026-10-10T12:00:00Z";
+const TODAY: &str = "2026-10-10";
+
 struct Fixture {
     dir: tempfile::TempDir,
 }
@@ -32,6 +37,7 @@ impl Fixture {
             .args(args)
             .env("CLAUDE_CONFIG_DIR", self.root())
             .env("CLAUDE_DASHBOARD_HISTORY", self.history())
+            .env("CLAUDE_DASHBOARD_NOW", NOW)
             .env("TZ", "UTC")
             .env("NO_COLOR", "1")
             .env_remove("COLORTERM")
@@ -77,12 +83,7 @@ fn request(id: &str, model: &str, timestamp: &str) -> Value {
 }
 
 fn today_at(time: &str) -> String {
-    format!(
-        "{}T{time}Z",
-        jiff::Timestamp::now()
-            .to_zoned(jiff::tz::TimeZone::UTC)
-            .date()
-    )
+    format!("{TODAY}T{time}Z")
 }
 
 #[test]

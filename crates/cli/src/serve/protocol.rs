@@ -298,6 +298,11 @@ pub struct SessionRow {
     /// The cost Claude Code reports for the session, once it has written one.
     #[ts(optional = nullable)]
     pub reported_usd: Option<f64>,
+    /// How far the API-equivalent cost is from Claude Code's own figure for the same requests, as
+    /// a fraction of that figure; absent when the figure counts other requests, as it does while
+    /// a process of the session still runs.
+    #[ts(optional = nullable)]
+    pub drift: Option<f64>,
 }
 
 /// `sessions`: one page of sessions, the one started last first.
@@ -378,8 +383,13 @@ pub struct SessionDetail {
     pub totals: Totals,
     /// The session's own requests, without its subagents'.
     pub own: Totals,
+    /// The cost Claude Code reports for the session, once it has written one.
     #[ts(optional = nullable)]
     pub reported_usd: Option<f64>,
+    /// How far the API-equivalent cost is from Claude Code's own figure for the same requests, as
+    /// a fraction of that figure; absent when the figure counts other requests.
+    #[ts(optional = nullable)]
+    pub drift: Option<f64>,
     pub cumulative_cost: Vec<CostPoint>,
     /// The session's own models first, then each subagent's, in the order they started.
     pub who: Vec<WhoRow>,

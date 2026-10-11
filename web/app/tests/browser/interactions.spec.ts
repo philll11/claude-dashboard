@@ -86,6 +86,15 @@ test("sessions can be searched, and one opened and left", async ({ dashboard, pa
   await expect(page.getByRole("searchbox", { name: "Search sessions" })).toHaveValue("gateway");
 });
 
+test("a figure that counts other requests is not compared", async ({ dashboard, page }) => {
+  await dashboard.open({ scenario: "other-requests" });
+  await dashboard.section("Sessions");
+  const row = page.getByRole("row", { name: /Rate limiter for the gateway/ });
+  await expect(row).toContainText("Not comparable");
+  await row.getByRole("link").click();
+  await expect(page.getByText("Counts other requests, so not compared")).toBeVisible();
+});
+
 test("connecting the status line shows the change first", async ({ dashboard, page }) => {
   await dashboard.open({ scenario: "change-status-line" });
   await page.getByRole("button", { name: "Connect the status line…" }).click();

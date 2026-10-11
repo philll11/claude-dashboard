@@ -505,6 +505,8 @@ pub struct SessionDetail {
     pub totals: Totals,
     /// The session's own requests, without its subagents'.
     pub own: Totals,
+    /// Every model of the session, its subagents' included, highest API-equivalent cost first.
+    pub models: Vec<ModelTotals>,
     /// The session's own models, highest API-equivalent cost first.
     pub own_models: Vec<ModelTotals>,
     /// Subagents in the order they started.
@@ -531,6 +533,7 @@ pub fn session_detail(
     session: SessionKey,
 ) -> Result<Option<SessionDetail>, HistoryError> {
     let mut detail: Option<SessionDetail> = None;
+    let mut models: HashMap<String, Totals> = HashMap::new();
     let mut own_models: HashMap<String, Totals> = HashMap::new();
     let mut subagents: HashMap<String, SubagentSoFar> = HashMap::new();
     let mut skills: HashMap<String, Totals> = HashMap::new();
@@ -543,6 +546,7 @@ pub fn session_detail(
             last_ms: request.timestamp_ms,
             totals: Totals::default(),
             own: Totals::default(),
+            models: Vec::new(),
             own_models: Vec::new(),
             subagents: Vec::new(),
             cumulative_cost: Vec::new(),
@@ -555,6 +559,10 @@ pub fn session_detail(
         detail.first_ms = detail.first_ms.min(request.timestamp_ms);
         detail.last_ms = detail.last_ms.max(request.timestamp_ms);
         detail.totals.add(request, cost);
+        models
+            .entry(request.model.to_owned())
+            .or_default()
+            .add(request, cost);
         if let Some(cost) = cost {
             running += cost.total();
             detail.cumulative_cost.push((request.timestamp_ms, running));
@@ -590,6 +598,7 @@ pub fn session_detail(
         }
     })?;
     Ok(detail.map(|mut detail| {
+        detail.models = by_cost(models);
         detail.own_models = by_cost(own_models);
         let mut subagents: Vec<SubagentTotals> = subagents
             .into_iter()

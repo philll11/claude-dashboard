@@ -345,7 +345,16 @@ entrypoint?: string | null, totals: Totals,
 /**
  * The session's own requests, without its subagents'.
  */
-own: Totals, reportedUsd?: number | null, cumulativeCost: Array<CostPoint>, 
+own: Totals, 
+/**
+ * The cost Claude Code reports for the session, once it has written one.
+ */
+reportedUsd?: number | null, 
+/**
+ * How far the API-equivalent cost is from Claude Code's own figure for the same requests, as
+ * a fraction of that figure; absent when the figure counts other requests.
+ */
+drift?: number | null, cumulativeCost: Array<CostPoint>, 
 /**
  * The session's own models first, then each subagent's, in the order they started.
  */
@@ -375,7 +384,13 @@ models: Array<Model>, subagents: number, totals: Totals,
 /**
  * The cost Claude Code reports for the session, once it has written one.
  */
-reportedUsd?: number | null, };
+reportedUsd?: number | null, 
+/**
+ * How far the API-equivalent cost is from Claude Code's own figure for the same requests, as
+ * a fraction of that figure; absent when the figure counts other requests, as it does while
+ * a process of the session still runs.
+ */
+drift?: number | null, };
 
 /**
  * `sessions`: one page of sessions, the one started last first.
