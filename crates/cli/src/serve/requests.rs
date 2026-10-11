@@ -274,7 +274,7 @@ impl Server {
             .into_iter()
             .map(|session| (session.key, (session.session_id, session.title)))
             .collect();
-        let reported = reported_costs(history)?;
+        let reported = reconcile::reported(history)?;
         let search = params
             .search
             .as_deref()
@@ -297,6 +297,8 @@ impl Server {
                         .flatten()
                         .any(|text| text.to_lowercase().contains(search))
                     });
+                    let (reported_usd, drift) =
+                        own_figure(reported.get(&session.session), &session.models);
                     found.then(|| SessionRow {
                         id,
                         title,
@@ -310,7 +312,8 @@ impl Server {
                             .collect(),
                         subagents: session.subagent_count,
                         totals: totals(&session.totals),
-                        reported_usd: reported.get(&session.session).copied(),
+                        reported_usd,
+                        drift,
                     })
                 })
                 .collect();
@@ -336,7 +339,10 @@ impl Server {
         let detail = report::session_detail(history, app.prices, stored.key)?
             .ok_or_else(|| Fault::invalid(format!("Session {} has no requests", params.id)))?;
         let names = project_names(history);
-        let reported = reported_costs(history)?;
+        let (reported_usd, drift) = own_figure(
+            reconcile::reported(history)?.get(&stored.key),
+            &detail.models,
+        );
         let agent_types = history.subagent_types(stored.key)?;
         let mut who: Vec<WhoRow> = detail
             .own_models
@@ -393,7 +399,8 @@ impl Server {
             entrypoint: detail.entrypoint.clone(),
             totals: totals(&detail.totals),
             own: totals(&detail.own),
-            reported_usd: reported.get(&stored.key).copied(),
+            reported_usd,
+            drift,
             cumulative_cost: detail
                 .cumulative_cost
                 .iter()
@@ -967,10 +974,16 @@ fn access(history: &History) -> Access {
     }
 }
 
-fn reported_costs(history: &History) -> Result<HashMap<history::SessionKey, f64>, Fault> {
-    let mut reported: HashMap<history::SessionKey, f64> = HashMap::new();
-    for cost in history.reported_costs()? {
-        *reported.entry(cost.session).or_default() += cost.cost_usd;
-    }
-    Ok(reported)
+/// Claude Code's own figure for a session, and how far `models` drift from it.
+fn own_figure<'a>(
+    reported: Option<&HashMap<String, reconcile::Reported>>,
+    models: impl IntoIterator<Item = &'a report::ModelTotals>,
+) -> (Option<f64>, Option<f64>) {
+    let Some(reported) = reported else {
+        return (None, None);
+    };
+    (
+        Some(reported.values().map(|figure| figure.cost_usd).sum()),
+        reconcile::session_drift(models, reported),
+    )
 }

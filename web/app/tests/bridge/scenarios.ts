@@ -15,6 +15,18 @@ function withStatus(
   };
 }
 
+/** The gateway session as though Claude Code's figure for it counted other requests, such as an
+ * earlier process's while a later one still runs. */
+const otherRequests: NonNullable<Scenario["patch"]> = (method, result) => {
+  const gateway = (row: Record<string, unknown>) =>
+    row.title === "Rate limiter for the gateway" ? { ...row, drift: null } : row;
+  if (result === null || typeof result !== "object") return result;
+  if (method === "session") return gateway(result as Record<string, unknown>);
+  if (method !== "sessions") return result;
+  const page = result as { rows: Record<string, unknown>[] };
+  return { ...page, rows: page.rows.map(gateway) };
+};
+
 export const SCENARIOS: Record<string, Scenario> = {
   /** Ten weeks of history, plan limits from the status line, the usage endpoint on. */
   default: {},
@@ -46,6 +58,8 @@ export const SCENARIOS: Record<string, Scenario> = {
   "change-endpoint": { options: { noLimits: true } },
   "change-folders": {},
   "change-settings": {},
+  /** Claude Code's figure for a session counts other requests than the history holds. */
+  "other-requests": { patch: otherRequests },
   /** New activity is being read. */
   reading: {
     patch: withStatus((status) => {

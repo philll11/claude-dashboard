@@ -12,6 +12,10 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 const WAIT: Duration = Duration::from_secs(20);
+/// The moment the server and the commands the tests run see, so that no test depends on when it
+/// runs: midday, in UTC, on the price table's date.
+const NOW: &str = "2026-10-10T12:00:00Z";
+const TODAY: &str = "2026-10-10";
 
 struct Server {
     _dir: tempfile::TempDir,
@@ -44,6 +48,7 @@ impl Server {
             .args(["serve", "--stdio"])
             .env("CLAUDE_CONFIG_DIR", &root)
             .env("CLAUDE_DASHBOARD_HISTORY", &history)
+            .env("CLAUDE_DASHBOARD_NOW", NOW)
             .env("TZ", "UTC")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -174,10 +179,7 @@ fn request(id: &str, model: &str, timestamp: &str) -> Value {
 }
 
 fn today() -> String {
-    jiff::Timestamp::now()
-        .to_zoned(jiff::tz::TimeZone::UTC)
-        .date()
-        .to_string()
+    TODAY.to_owned()
 }
 
 fn today_at(time: &str) -> String {
@@ -275,11 +277,12 @@ fn says_when_a_read_ends_even_with_nothing_new() {
 fn shows_the_plan_limits_a_status_line_records() {
     let mut server = Server::start();
     server.changed();
-    let resets_at = jiff::Timestamp::now().as_second() + 3_600;
+    let resets_at = NOW.parse::<jiff::Timestamp>().unwrap().as_second() + 3_600;
     let mut statusline = Command::new(env!("CARGO_BIN_EXE_claude-dashboard"))
         .arg("statusline")
         .env("CLAUDE_CONFIG_DIR", &server.root)
         .env("CLAUDE_DASHBOARD_HISTORY", &server.history)
+        .env("CLAUDE_DASHBOARD_NOW", NOW)
         .env("NO_COLOR", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
@@ -415,6 +418,54 @@ fn changes_claude_codes_settings_only_as_shown() {
             .join("settings.claude-dashboard-backup.json")
             .is_file()
     );
+}
+
+/// The cost Claude Code writes when a process of the session ends, counting what `request` counts.
+fn cost_state(cost_usd: f64, requests: u64) -> Value {
+    json!({
+        "type": "cost-state", "sessionId": "4f1c2a3b-0000-4000-8000-000000000001",
+        "startTime": 1_791_000_000_000_i64, "timestamp": today_at("00:00:03"),
+        "modelUsage": {"claude-opus-5-5": {"inputTokens": 3 * requests,
+            "outputTokens": 640 * requests, "cacheReadInputTokens": 42_000 * requests,
+            "cacheCreationInputTokens": 1_500 * requests, "costUSD": cost_usd}}
+    })
+}
+
+#[test]
+fn compares_a_session_with_claude_codes_figure_for_the_same_requests() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join(".claude");
+    let history = dir.path().join("history.sqlite");
+    write_transcript(
+        &root,
+        &[
+            request("1", "claude-opus-5-5", &today_at("00:00:01")),
+            cost_state(0.05, 1),
+        ],
+    );
+    let mut server = Server::start_with(dir, root, history);
+    server.changed();
+    let row = |server: &mut Server| {
+        server.result(
+            "sessions",
+            &json!({"days": {"first": today(), "last": today()}, "filters": {}, "limit": 10, "offset": 0}),
+        )["rows"][0]
+            .clone()
+    };
+
+    let compared = row(&mut server);
+    let ours = compared["totals"]["cost"]["total"].as_f64().unwrap();
+    assert_eq!(compared["reportedUsd"], 0.05);
+    let drift = compared["drift"].as_f64().unwrap();
+    assert!((drift - (ours - 0.05) / 0.05).abs() < 1e-9, "{compared}");
+
+    // The session goes on in a process that has not written its cost yet.
+    server.transcript(&[request("2", "claude-opus-5-5", &today_at("00:00:04"))]);
+    server.result("refresh", &Value::Null);
+    server.changed();
+    let running = row(&mut server);
+    assert_eq!(running["reportedUsd"], 0.05);
+    assert_eq!(running["drift"], Value::Null, "{running}");
 }
 
 #[test]
