@@ -129,6 +129,23 @@ impl Terminal {
         }
     }
 
+    /// Waits until the screen no longer shows `text`, failing with what it shows instead.
+    fn wait_until_gone(&mut self, text: &str) {
+        let deadline = Instant::now() + WAIT;
+        loop {
+            if !self.contents().contains(text) {
+                return;
+            }
+            let left = deadline.saturating_duration_since(Instant::now());
+            if let Ok(bytes) = self.output.recv_timeout(left) {
+                self.take(&bytes);
+            } else {
+                let _ = self.child.kill();
+                panic!("the screen still shows {text:?}:\n{}", self.contents());
+            }
+        }
+    }
+
     fn press(&mut self, keys: &str) {
         self.input
             .write_all(keys.as_bytes())
@@ -208,9 +225,11 @@ fn the_dashboard_opens_moves_between_screens_and_gives_the_terminal_back() {
 
     terminal.press("?");
     terminal.wait_for("read new transcripts now");
+    // Escape and a key right after it would reach the program together, as Alt and that key.
     terminal.press("\x1b");
-    terminal.wait_for("Session ");
+    terminal.wait_until_gone("read new transcripts now");
 
+    // A key that comes with a resize is read at once, not when the next key comes.
     terminal.resize((80, 24));
     terminal.press("1");
     terminal.wait_for("Cost, API-equivalent");

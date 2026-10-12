@@ -65,6 +65,12 @@ pub fn run(app: App) -> ExitCode {
     let mut state = State::new(theme, size, app::now());
     let mut failure = None;
     loop {
+        // Each frame is laid out for the terminal's size as it is, even when no event said so.
+        if let Ok(now) = terminal.size()
+            && (now.width, now.height) != (state.width, state.height)
+        {
+            state.update(Event::Resize(now.width, now.height));
+        }
         for ask in state.asks() {
             data.ask(ask);
         }
