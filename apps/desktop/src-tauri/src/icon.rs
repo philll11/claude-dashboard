@@ -3,6 +3,13 @@
 //! macOS it is the gauge as a template image, black on clear, which the menu bar tints. Everything
 //! is drawn on the design's grid and scaled, digits from a 5 by 7 bitmap font with crisp edges and
 //! shapes with smoothed ones, so the icon needs no font or image library.
+#![cfg_attr(
+    all(target_os = "macos", not(test)),
+    expect(
+        dead_code,
+        reason = "the macOS menu bar shows only the template image, not the coloured icon"
+    )
+)]
 
 use claude_dashboard_server::protocol::Level;
 
