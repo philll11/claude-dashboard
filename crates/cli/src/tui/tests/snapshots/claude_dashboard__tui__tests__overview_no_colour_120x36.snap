@@ -1,0 +1,81 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&mono)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits      30 days · all projects · all models │
+ 1 │                                                                                                                        │
+ 2 │┌─ Plan limits ────────────────────────────────────────────────────────────────── official · status line · 2 min ago ──┐│
+ 3 ││ Five-hour window     42%  █████████████░░░░░░░░░░░░░░░░░  resets 17:00, in 2 h 05 min                                ││
+ 4 ││ Weekly, all          71%  █████████████████████░░░░░░░░░  ▲ over 70% · resets Thu 15 Oct, 09:00                      ││
+ 5 ││ Weekly, Fable        18%  █████░░░░░░░░░░░░░░░░░░░░░░░░░  resets Thu 15 Oct, 09:00                                   ││
+ 6 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+ 7 │┌─ Today ──────────────────────────────┐┌─ This week ──────────────────────────┐┌─ This month ─────────────────────────┐│
+ 8 ││ $5.05  1.9M tokens                   ││ $64.82  24.2M tokens                 ││ $99.18  37.0M tokens                 ││
+ 9 ││ −60% on yesterday       ▅▇▅█▄▄▇▆▇█▇▄ ││ +7% on last week  █▆▇▄▄▇▄▆▅▇▄▄▆▆▆▇▇▃ ││ month to date  ▃█▇█▆▇▄▄▇▄▆▅▇▄▄▆▆▆▇▇▃ ││
+10 │└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘│
+11 │┌─ Cost per day by model · 30 days ──────────────────────────────────────────┐┌─ Top projects · 30 days ───────────────┐│
+12 ││  $20                                                                       ││ claude-dashboard  ████████████ $110.76 ││
+13 ││                                                                            ││ api-gateway       ███████░░░░░  $64.12 ││
+14 ││                          ▒   ▒                                             ││ website           █████░░░░░░░  $43.72 ││
+15 ││                          ▒ ░ ▓         ▒       ▒           ░               ││ infra             ████░░░░░░░░  $34.98 ││
+16 ││                ▒ ▒ ▓     ▓ ▒ ▓   ▓     ▓   ░   ▓     ▒   ▒ ▒ ▒             ││ notes             ██░░░░░░░░░░  $14.57 ││
+17 ││  $10       ▒   ▓ ▓ ▓     ▓ ▓ ▓ ▒ ▓     ▓   ▓   ▓     ▒ ▒ ▒ ▓ ▓             ││ Other projects    ███░░░░░░░░░  $23.32 ││
+18 ││      ▓     ▓ ▒ ▓ ▓ ▓     ▓ ▓ ▓ ▒ ▓     ▓ ▒ ▓ ▓ ▓     ▓ ▓ ▓ ▓ ▓             ││                                        ││
+19 ││      ▓ ░   ▓ ▓ ▓ ▓ ▓ ░ ▒ ▓ ▓ █ ▓ ▓ ▒ ▒ ▓ ▒ ▓ ▓ ▓ ▓ ▒ ▓ █ ▓ █ ▓ ░           ││                                        ││
+20 ││      ▓ ▓ ▓ ▓ █ █ ▓ █ ▓ ▓ █ ▓ █ █ ▓ ▓ ▓ █ ▓ ▓ ▓ █ ▓ ▓ █ █ █ █ ▓ ▓           ││                                        ││
+21 ││   $0 █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █           ││                                        ││
+22 ││      11        16        21        26        1         6       10          ││                                        ││
+23 ││ █ Fable 5.1  ▓ Opus 5.5  ▒ Sonnet 5.5  ░ Haiku 5.5                         ││                                        ││
+24 │└────────────────────────────────────────────────────────────────────────────┘└────────────────────────────────────────┘│
+25 │┌─ Models · 30 days ───────────────────────────────────────────────────────────────────────────────────────────────────┐│
+26 ││ Model                   Requests          Tokens       Cache reads     API-equivalent cost       Share               ││
+27 ││ ▓ Opus 5.5                 2,101           56.0M             43.5M                 $150.06         51%               ││
+28 ││ █ Fable 5.1                  781           32.4M             25.2M                  $86.87         30%               ││
+29 ││ ▒ Sonnet 5.5               1,121           17.5M             13.6M                  $46.80         16%               ││
+30 ││ ░ Haiku 5.5                  461            2.9M              2.2M                   $7.73          3%               ││
+31 ││   Total                                                                            $291.46        100%               ││
+32 ││                                                                                                                      ││
+33 ││ Prices of 10 Oct 2026 · within 0.4% of Claude Code's own session costs · 82% of input read from cache                ││
+34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb                                                                                 │
+ 1 │                                                                                                                        │
+ 2 │  aaaaaaaaaaaaa                                                                                                         │
+ 3 │                       aaa                                                                                              │
+ 4 │                       aaa                                  aa                                                          │
+ 5 │                       aaa                                                                                              │
+ 6 │                                                                                                                        │
+ 7 │  aaaaaaa                                 aaaaaaaaaaa                             aaaaaaaaaaaa                          │
+ 8 │  aaaaa                                   aaaaaa                                  aaaaaa                                │
+ 9 │                                                                                                                        │
+10 │                                                                                                                        │
+11 │  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa                                             aaaaaaaaaaaaaaaaaaaaaaaa                │
+12 │                                                                                                               aaaaaaa  │
+13 │                                                                                                                aaaaaa  │
+14 │                                                                                                                aaaaaa  │
+15 │                                                                                                                aaaaaa  │
+16 │                                                                                                                aaaaaa  │
+17 │                                                                                                                aaaaaa  │
+18 │                                                                                                                        │
+19 │                                                                                                                        │
+20 │                                                                                                                        │
+21 │                                                                                                                        │
+22 │                                                                                                                        │
+23 │                                                                                                                        │
+24 │                                                                                                                        │
+25 │  aaaaaaaaaaaaaaaaaa                                                                                                    │
+26 │                                                                                                                        │
+27 │                                                                                     aaaaaaa                            │
+28 │                                                                                      aaaaaa                            │
+29 │                                                                                      aaaaaa                            │
+30 │                                                                                       aaaaa                            │
+31 │    aaaaa                                                                            aaaaaaa                            │
+32 │                                                                                                                        │
+33 │                                                                                                                        │
+34 │                                                                                                                        │
+35 │ a        aa            a              a                                                                                │
+
+a = bold
+b = bold reverse

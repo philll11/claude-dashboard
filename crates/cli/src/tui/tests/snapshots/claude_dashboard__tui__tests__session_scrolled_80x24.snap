@@ -1,0 +1,61 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │ Sessions › Refactor ingest batching                                            │
+ 2 │└──────────────────────────────────────────────────────────────────────────────┘│
+ 3 │  ↓ tokens by type, skills and MCP tools                                        │
+ 4 │┌─ Tokens by type ─────────────────────────────────────────────────────────────┐│
+ 5 ││                                                       Tokens           Cost  ││
+ 6 ││ Input                                                    18K          $0.27  ││
+ 7 ││ Output                                                   96K          $7.20  ││
+ 8 ││ Cache writes, 5 minutes                                 210K          $3.94  ││
+ 9 ││ Cache writes, 1 hour                                     40K          $1.20  ││
+10 ││ Cache reads                                             1.4M          $2.18  ││
+11 ││ Web searches                                               3          $0.03  ││
+12 ││ Total                                                                $14.82  ││
+13 │└──────────────────────────────────────────────────────────────────────────────┘│
+14 │┌─ Skills ─────────────────────────────────────────────────────────────────────┐│
+15 ││                                                         Requests       Cost  ││
+16 ││ dataviz                                                        6      $0.92  ││
+17 ││ domain-modeling                                                2      $0.18  ││
+18 │└──────────────────────────────────────────────────────────────────────────────┘│
+19 │┌─ MCP tools ──────────────────────────────────────────────────────────────────┐│
+20 ││                                                         Requests       Cost  ││
+21 ││ github · get_file_contents                                     9      $0.41  ││
+22 ││ context7 · query-docs                                          3      $0.12  ││
+23 │ Esc back   ↑↓ scroll   t table view   ? help                     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb │
+ 1 │ bbbbbbbbbbbdddddddddddddddddddddddd                                            │
+ 2 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 3 │  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                        │
+ 4 │eeaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 5 │e                                                       bbbbbb           bbbb  e│
+ 6 │e ddddd                                                    ddd          aaaaa  e│
+ 7 │e dddddd                                                   ddd          aaaaa  e│
+ 8 │e ddddddddddddddddddddddd                                 dddd          aaaaa  e│
+ 9 │e dddddddddddddddddddd                                     ddd          aaaaa  e│
+10 │e ddddddddddd                                             dddd          aaaaa  e│
+11 │e dddddddddddd                                               d          aaaaa  e│
+12 │e aaaaa                                                                aaaaaa  e│
+13 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+14 │eeaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+15 │e                                                         bbbbbbbb       bbbb  e│
+16 │e ddddddd                                                        d      aaaaa  e│
+17 │e ddddddddddddddd                                                d      aaaaa  e│
+18 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+19 │eeaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+20 │e                                                         bbbbbbbb       bbbb  e│
+21 │e dddddddddddddddddddddddddd                                     d      aaaaa  e│
+22 │e ddddddddddddddddddddd                                          d      aaaaa  e│
+23 │ fff bbbb   ff bbbbbb   f bbbbbbbbbb   f bbbb                     bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #d7dae0
+e = #3a404a
+f = #5cc8e8 bold

@@ -1,0 +1,60 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Plan limits ────────────────────────── official · status line · 2 min ago ──┐│
+ 3 ││ Five-hour┌─ Keys ─────────────────────────────────────────────────┐          ││
+ 4 ││ Weekly, a│                                                        │          ││
+ 5 ││ Weekly, F│  ← →  Tab  1–5      sections                           │          ││
+ 6 │└──────────│  ↑ ↓  j k           move in a list                     │──────────┘│
+ 7 │┌─ Cost, AP│  PgUp PgDn          a page at a time                   │──────────┐│
+ 8 ││ Today $5.│  Home End           top, bottom                        │          ││
+ 9 │└──────────│  Enter              open                               │──────────┘│
+10 │┌─ Cost per│  Esc                back, close                        │0 days ───┐│
+11 ││  $20     │  /                  search the sessions                │█ $110.76 ││
+12 ││          │  r  p  m            range, project, model              │░  $64.12 ││
+13 ││          │  t                  charts or tables                   │░  $43.72 ││
+14 ││          │  R                  read new transcripts now           │░  $34.98 ││
+15 ││  $10     │  ?                  this help                          │░  $14.57 ││
+16 ││      █  █│  q  Ctrl-C          quit                               │░  $23.32 ││
+17 ││      █  █│                                                        │          ││
+18 ││      ████│                                                        │          ││
+19 ││   $0 ████│                                                        │          ││
+20 ││      11  └────────────────────────────────────────────────────────┘          ││
+21 ││ ■ Fable  ■ Opus  ■ Sonnet  ■ Haiku             ││                            ││
+22 │└────────────────────────────────────────────────┘└────────────────────────────┘│
+23 │ Esc close                                                        Read just now │
+
+styles
+ 0 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 1 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 2 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 3 │aaaaaaaaaaaaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 4 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+ 5 │aaaaaaaaaaaaccdddddddddddddcccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+ 6 │aaaaaaaaaaaaccddddddddccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+ 7 │aaaaaaaaaaaaccdddddddddcccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+ 8 │aaaaaaaaaaaaccddddddddccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+ 9 │aaaaaaaaaaaaccdddddcccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+10 │aaaaaaaaaaaaccdddcccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+11 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+12 │aaaaaaaaaaaaccdddddddcccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+13 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+14 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+15 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+16 │aaaaaaaaaaaaccdddddddddcccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+17 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+18 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+19 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+20 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+21 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+22 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+23 │cdddceeeeecccccccccccccccccccccccccccccccccccccccccccccccccccccccceeeeeeeeeeeeec│
+
+a = #3a404a
+b = #f0f2f5 bold
+c = #d7dae0
+d = #5cc8e8 bold
+e = #8a919c

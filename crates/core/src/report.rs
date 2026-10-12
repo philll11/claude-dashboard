@@ -5,9 +5,9 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use jiff::Timestamp;
-use jiff::civil::Date;
+use jiff::civil::{Date, Weekday};
 use jiff::tz::TimeZone;
+use jiff::{Timestamp, ToSpan};
 
 use crate::history::{History, HistoryError, ProjectKey, SessionKey, StoredRequest};
 use crate::pricing::{self, Cost, PriceTable};
@@ -176,6 +176,89 @@ pub fn by_day(
             }
         })
         .collect())
+}
+
+/// How finely days are added up: by day, by week, or by calendar month.
+///
+/// `design/buckets.json` holds the examples that this and the web dashboard's bucketing are both
+/// tested against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bucket {
+    Day,
+    Week,
+    Month,
+}
+
+impl Bucket {
+    /// The finest bucket a chart of `days` days shows: days up to about two months, weeks up to
+    /// about fourteen months, and months beyond.
+    #[must_use]
+    pub fn of(days: i64) -> Self {
+        if days <= 62 {
+            Self::Day
+        } else if days <= 434 {
+            Self::Week
+        } else {
+            Self::Month
+        }
+    }
+
+    /// The first day of the bucket `day` falls in, for weeks that start on `week_start`.
+    #[must_use]
+    pub fn start(self, day: Date, week_start: Weekday) -> Date {
+        match self {
+            Self::Day => day,
+            Self::Week => {
+                let back = (7 + day.weekday().to_monday_zero_offset()
+                    - week_start.to_monday_zero_offset())
+                    % 7;
+                day.checked_sub(i64::from(back).days()).unwrap_or(day)
+            }
+            Self::Month => day.first_of_month(),
+        }
+    }
+
+    /// The last day of the bucket that starts on `start`.
+    #[must_use]
+    pub fn end(self, start: Date) -> Date {
+        match self {
+            Self::Day => start,
+            Self::Week => start.checked_add(6.days()).unwrap_or(start),
+            Self::Month => start.last_of_month(),
+        }
+    }
+}
+
+/// Days added up by `bucket`: one total per bucket that has requests, keyed by the bucket's first
+/// day, oldest first, each with its models by API-equivalent cost.
+#[must_use]
+pub fn by_bucket(days: &[DayTotals], bucket: Bucket, week_start: Weekday) -> Vec<DayTotals> {
+    let mut buckets: BTreeMap<Date, HashMap<String, Totals>> = BTreeMap::new();
+    for day in days {
+        let models = buckets
+            .entry(bucket.start(day.day, week_start))
+            .or_default();
+        for model in &day.models {
+            models
+                .entry(model.model.clone())
+                .or_default()
+                .merge(&model.totals);
+        }
+    }
+    buckets
+        .into_iter()
+        .map(|(day, models)| {
+            let mut totals = Totals::default();
+            for model in models.values() {
+                totals.merge(model);
+            }
+            DayTotals {
+                day,
+                totals,
+                models: by_cost(models),
+            }
+        })
+        .collect()
 }
 
 /// One session's totals.

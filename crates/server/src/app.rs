@@ -6,11 +6,12 @@ use std::sync::LazyLock;
 
 use claude_dashboard_core::history::{self, History};
 use claude_dashboard_core::pricing::PriceTable;
+use claude_dashboard_core::report::Bucket;
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, DataRoot};
 use claude_dashboard_core::usage_endpoint::LoginSource;
 use jiff::civil::{Date, Weekday};
 use jiff::tz::TimeZone;
-use jiff::{Timestamp, ToSpan, Zoned};
+use jiff::{Timestamp, Zoned};
 
 /// The environment variable that moves the history to another file, for a portable setup or a
 /// test.
@@ -149,10 +150,7 @@ impl App {
     /// The first day of the week `day` falls in.
     #[must_use]
     pub fn start_of_week(&self, day: Date) -> Date {
-        let back = (7 + day.weekday().to_monday_zero_offset()
-            - self.week_start.to_monday_zero_offset())
-            % 7;
-        day.checked_sub(i64::from(back).days()).unwrap_or(day)
+        Bucket::Week.start(day, self.week_start)
     }
 
     #[must_use]

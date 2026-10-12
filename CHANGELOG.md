@@ -3,6 +3,34 @@
 Every release of claude-dashboard, newest first.
 A release's notes on GitHub come from its section here.
 
+## Version 0.3.0 (2026-10-12)
+
+The dashboard in the terminal, and reports by week, by month and of the plan limits.
+Every surface has the same version number.
+The binaries are not signed.
+
+### What is new
+
+- **The terminal UI**: `claude-dashboard` on its own, in a terminal, opens the dashboard there:
+  - Overview, Sessions with search and each session's detail, Projects, Models and Limits, with the same numbers as VS Code and the desktop app;
+  - the keyboard alone, from 80 by 24 up, on Windows, macOS and Linux and over SSH, with `?` listing the keys;
+  - the range, project and model filters, and every chart as a table;
+  - new transcripts read every minute, and at once with `R`, with the numbers updating in place;
+  - colours for a light or a dark terminal, which it asks the terminal about or `CLAUDE_DASHBOARD_THEME` chooses, and under `NO_COLOR` none at all, with the models told apart by pattern.
+- `claude-dashboard weekly` and `claude-dashboard monthly`: requests, tokens and API-equivalent cost per week and per calendar month, with `--json` and `--csv`.
+- `claude-dashboard limits`: each plan window's use, reset, source and age, and the recent five-hour windows, with `--json` and `--csv`.
+- The reports and `doctor` use colours made for a light background in a light terminal.
+- The Models section of the terminal UI lists each model's fast-mode prices.
+
+### Changed
+
+- On a first run, every surface shows the newest days within seconds, while older history is still read.
+- Quitting the desktop app or the terminal UI during a read takes a moment, and VS Code's server ends without being stopped by force; the next read carries on where the last one stopped.
+- A transcript whose read stopped partway is read on to its end the next time.
+- Projects whose folders end in the same names are told apart by as many folders before them as it takes, such as `smoke/app/workspace` and `matrix/app/workspace`.
+- On Windows, the reports and `doctor` write in 24-bit colour in every console, the console host included.
+- On Windows, a status line that wraps your own runs it in Git Bash, as Claude Code does, and never in WSL's `bash`.
+
 ## Version 0.2.0 (2026-10-12)
 
 The desktop app: the dashboard in a window of its own, on Windows, macOS and Linux.

@@ -1,0 +1,91 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits      30 days · all projects · all models │
+ 1 │                                                                                                                        │
+ 2 │┌─ Sessions · 30 days ─────────────────────────────────────────────────────────────────────────── 214 · newest first ──┐│
+ 3 ││ / searches titles and projects                                                                                       ││
+ 4 ││                                                                                                                      ││
+ 5 ││   Session                    Project           Started         Duration  Subagents  Requests       Cost  Claude Code ││
+ 6 ││   Refactor ingest batching   claude-dashboard  10 Oct 13:42      12 min          2        40      $0.60        $0.60 ││
+ 7 ││   Fix flaky serve tests      claude-dashboard  10 Oct 11:52      49 min                   93      $7.90        $7.90 ││
+ 8 ││ › Desktop updater signing    api-gateway       10 Oct 10:02  1 h 26 min                  146      $1.00        $1.00 ││
+ 9 ││   Add weekly and monthly r…  claude-dashboard  10 Oct 08:12      28 min          1       199      $8.30        $8.28 ││
+10 ││   Review pull request 47     website           10 Oct 06:22  1 h 05 min          2       252      $1.40              ││
+11 ││   Price table for Opus 5.5   claude-dashboard  10 Oct 04:32  1 h 42 min                   85      $8.70        $8.72 ││
+12 ││   Status line colours on l…  infra             10 Oct 02:42      44 min          1       138      $1.80      ▲ $1.67 ││
+13 ││   Investigate the WebView2…  notes             10 Oct 00:52  1 h 21 min                  191      $9.10        $9.10 ││
+14 ││   Session detail layout      claude-dashboard  9 Oct 23:02       23 min          2       244      $2.20        $2.20 ││
+15 ││   Explain the dist workflow  claude-dashboard  9 Oct 21:12   1 h 00 min          1        77      $9.50              ││
+16 ││   Sparkline widths at 80 c…  api-gateway       9 Oct 19:22   1 h 37 min                  130      $2.60        $2.60 ││
+17 ││   Limits pace estimate       claude-dashboard  9 Oct 17:32       39 min                  183      $9.90        $9.92 ││
+18 ││   Import the claude-usage …  website           9 Oct 15:42   1 h 16 min          2       236      $3.00        $2.99 ││
+19 ││   Untitled session           claude-dashboard  9 Oct 13:52       18 min                   69     $10.30       $10.30 ││
+20 ││   Windows key events         infra             9 Oct 12:02       55 min                  122      $3.40              ││
+21 ││   Projects trend column      notes             9 Oct 10:12   1 h 32 min          1       175     $10.70       $10.68 ││
+22 ││   Cache efficiency note      claude-dashboard  9 Oct 08:22       34 min          2       228      $3.80        $3.80 ││
+23 ││   Benchmark the first read   claude-dashboard  9 Oct 06:32   1 h 11 min                   61     $11.10       $11.12 ││
+24 ││   Doctor output for WSL      api-gateway       9 Oct 04:42       13 min          1       114      $4.20        $4.19 ││
+25 ││   D-Bus session in CI        claude-dashboard  9 Oct 02:52       50 min                  167     $11.50              ││
+26 ││   Light terminal palette     website           9 Oct 01:02   1 h 27 min          2       220      $4.60        $4.61 ││
+27 ││   Model picker               claude-dashboard  8 Oct 23:12       29 min          1        53     $11.90       $11.88 ││
+28 ││   Session search             infra             8 Oct 21:22   1 h 06 min                  106      $5.00        $5.00 ││
+29 ││   Rate limit back-off        notes             8 Oct 19:32   1 h 43 min                  159     $12.30       $12.32 ││
+30 ││   Time zone setting          claude-dashboard  8 Oct 17:42       45 min          2       212      $5.40              ││
+31 ││   Release notes for 0.2.0    claude-dashboard  8 Oct 15:52   1 h 22 min                   45     $12.70       $12.70 ││
+32 ││   Sidebar width              api-gateway       8 Oct 14:02       24 min                   98      $5.80        $5.81 ││
+33 ││ 1–27 of 214 · PgDn for more                                                                                          ││
+34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+35 │ q quit   ←→ sections   ↑↓ move   Enter open   / search   ? help     Read just now · costs are API-equivalent estimates │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+ 1 │                                                                                                                        │
+ 2 │ddaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddbbbbbbbbbbbbbbbbbbbbddd│
+ 3 │d e bbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                       d│
+ 4 │d                                                                                                                      d│
+ 5 │d   bbbbbbb                    bbbbbbb           bbbbbbb         bbbbbbbb  bbbbbbbbb  bbbbbbbb       bbbb  bbbbbbbbbbb d│
+ 6 │d   ffffffffffffffffffffffff   bbbbbbbbbbbbbbbb  bbbbbbbbbbbb      ffffff          f        ff      aaaaa        fffff d│
+ 7 │d   fffffffffffffffffffff      bbbbbbbbbbbbbbbb  bbbbbbbbbbbb      ffffff                   ff      aaaaa        fffff d│
+ 8 │dghgiiiiiiiiiiiiiiiiiiiiiiiggggjjjjjjjjjjjgggggggjjjjjjjjjjjjggiiiiiiiiiiggggggggggggggggggiiiggggggkkkkkggggggggiiiiigd│
+ 9 │d   fffffffffffffffffffffffff  bbbbbbbbbbbbbbbb  bbbbbbbbbbbb      ffffff          f       fff      aaaaa        fffff d│
+10 │d   ffffffffffffffffffffff     bbbbbbb           bbbbbbbbbbbb  ffffffffff          f       fff      aaaaa              d│
+11 │d   ffffffffffffffffffffffff   bbbbbbbbbbbbbbbb  bbbbbbbbbbbb  ffffffffff                   ff      aaaaa        fffff d│
+12 │d   fffffffffffffffffffffffff  bbbbb             bbbbbbbbbbbb      ffffff          f       fff      aaaaa      lllllll d│
+13 │d   fffffffffffffffffffffffff  bbbbb             bbbbbbbbbbbb  ffffffffff                  fff      aaaaa        fffff d│
+14 │d   fffffffffffffffffffff      bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff          f       fff      aaaaa        fffff d│
+15 │d   fffffffffffffffffffffffff  bbbbbbbbbbbbbbbb  bbbbbbbbbbb   ffffffffff          f        ff      aaaaa              d│
+16 │d   fffffffffffffffffffffffff  bbbbbbbbbbb       bbbbbbbbbbb   ffffffffff                  fff      aaaaa        fffff d│
+17 │d   ffffffffffffffffffff       bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff                  fff      aaaaa        fffff d│
+18 │d   fffffffffffffffffffffffff  bbbbbbb           bbbbbbbbbbb   ffffffffff          f       fff      aaaaa        fffff d│
+19 │d   bbbbbbbbbbbbbbbb           bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff                   ff     aaaaaa       ffffff d│
+20 │d   ffffffffffffffffff         bbbbb             bbbbbbbbbbb       ffffff                  fff      aaaaa              d│
+21 │d   fffffffffffffffffffff      bbbbb             bbbbbbbbbbb   ffffffffff          f       fff     aaaaaa       ffffff d│
+22 │d   fffffffffffffffffffff      bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff          f       fff      aaaaa        fffff d│
+23 │d   ffffffffffffffffffffffff   bbbbbbbbbbbbbbbb  bbbbbbbbbbb   ffffffffff                   ff     aaaaaa       ffffff d│
+24 │d   fffffffffffffffffffff      bbbbbbbbbbb       bbbbbbbbbbb       ffffff          f       fff      aaaaa        fffff d│
+25 │d   fffffffffffffffffff        bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff                  fff     aaaaaa              d│
+26 │d   ffffffffffffffffffffff     bbbbbbb           bbbbbbbbbbb   ffffffffff          f       fff      aaaaa        fffff d│
+27 │d   ffffffffffff               bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff          f        ff     aaaaaa       ffffff d│
+28 │d   ffffffffffffff             bbbbb             bbbbbbbbbbb   ffffffffff                  fff      aaaaa        fffff d│
+29 │d   fffffffffffffffffff        bbbbb             bbbbbbbbbbb   ffffffffff                  fff     aaaaaa       ffffff d│
+30 │d   fffffffffffffffff          bbbbbbbbbbbbbbbb  bbbbbbbbbbb       ffffff          f       fff      aaaaa              d│
+31 │d   fffffffffffffffffffffff    bbbbbbbbbbbbbbbb  bbbbbbbbbbb   ffffffffff                   ff     aaaaaa       ffffff d│
+32 │d   fffffffffffff              bbbbbbbbbbb       bbbbbbbbbbb       ffffff                   ff      aaaaa        fffff d│
+33 │d bbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                          d│
+34 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+35 │ e bbbb   ee bbbbbbbb   ee bbbb   eeeee bbbb   e bbbbbb   e bbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = #5cc8e8 bold
+f = #d7dae0
+g = on #1c2128
+h = #5cc8e8 on #1c2128 bold
+i = #d7dae0 on #1c2128
+j = #8a919c on #1c2128
+k = #f0f2f5 on #1c2128 bold
+l = #fab219

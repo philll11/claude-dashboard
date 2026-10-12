@@ -1,90 +1,15 @@
+mod common;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use assert_cmd::Command;
 use predicates::prelude::*;
 use predicates::str::contains;
 use serde_json::{Value, json};
 
-/// The moment every command the tests run sees, so that no test depends on when it runs: midday,
-/// in UTC, on the price table's date.
-const NOW: &str = "2026-10-10T12:00:00Z";
-const TODAY: &str = "2026-10-10";
+use common::{Fixture, NOW, request, today_at};
 
-struct Fixture {
-    dir: tempfile::TempDir,
-}
-
-impl Fixture {
-    fn new() -> Self {
-        Self {
-            dir: tempfile::tempdir().unwrap(),
-        }
-    }
-
-    fn root(&self) -> PathBuf {
-        self.dir.path().join(".claude")
-    }
-
-    fn history(&self) -> PathBuf {
-        self.dir.path().join("history.sqlite")
-    }
-
-    /// The command, kept to this fixture's data root and history, in UTC and without colour.
-    fn cli(&self, args: &[&str]) -> Command {
-        let mut command = Command::cargo_bin("claude-dashboard").unwrap();
-        command
-            .args(args)
-            .env("CLAUDE_CONFIG_DIR", self.root())
-            .env("CLAUDE_DASHBOARD_HISTORY", self.history())
-            .env("CLAUDE_DASHBOARD_NOW", NOW)
-            .env("TZ", "UTC")
-            .env("NO_COLOR", "1")
-            .env_remove("COLORTERM")
-            .env_remove("WT_SESSION");
-        command
-    }
-
-    fn transcript(&self, session: &str, records: &[Value]) {
-        let path = self
-            .root()
-            .join("projects")
-            .join("C--code-app")
-            .join(format!("{session}.jsonl"));
-        fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let lines: Vec<String> = records.iter().map(Value::to_string).collect();
-        fs::write(path, lines.join("\n") + "\n").unwrap();
-    }
-
-    /// The command with nothing on the `PATH`, so that `connect` names claude-dashboard by its
-    /// full path on every platform.
-    fn cli_without_path(&self, args: &[&str]) -> Command {
-        let mut command = self.cli(args);
-        command.env("PATH", self.dir.path().join("empty"));
-        command
-    }
-
-    fn settings(&self) -> Value {
-        serde_json::from_str(&fs::read_to_string(self.root().join("settings.json")).unwrap())
-            .unwrap()
-    }
-}
-
-/// An assistant record of `model` made at `timestamp`, costing $0.031712 on Claude Opus 5.5.
-fn request(id: &str, model: &str, timestamp: &str) -> Value {
-    json!({
-        "type": "assistant", "uuid": format!("rec-{id}"), "requestId": format!("req_{id}"),
-        "timestamp": timestamp, "cwd": "C:\\code\\app",
-        "message": {"id": format!("msg_{id}"), "model": model, "content": [],
-            "usage": {"input_tokens": 3, "output_tokens": 640, "cache_read_input_tokens": 42000,
-                "cache_creation_input_tokens": 1500,
-                "cache_creation": {"ephemeral_5m_input_tokens": 500, "ephemeral_1h_input_tokens": 1000}}}
-    })
-}
-
-fn today_at(time: &str) -> String {
-    format!("{TODAY}T{time}Z")
-}
+const TODAY_NOON: &str = "2026-10-10T12:00:00Z";
 
 #[test]
 fn doctor_reports_the_data_folder_history_prices_and_limits() {
@@ -608,4 +533,145 @@ fn app_says_where_to_get_the_desktop_app_until_it_has_run() {
             "The desktop app has not run on this computer yet. Install it from https://github.com/philll11/claude-dashboard/releases/latest",
         ));
     assert!(!fixture.history().exists(), "asking creates no history");
+}
+
+#[test]
+fn without_a_command_or_a_terminal_it_prints_its_help() {
+    let fixture = Fixture::new();
+    fixture
+        .cli(&[])
+        .assert()
+        .code(2)
+        .stderr(contains("Usage: claude-dashboard"))
+        .stderr(contains("weekly"));
+}
+
+#[test]
+fn weekly_and_monthly_add_whole_weeks_and_months_up() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[
+            request("1", "claude-opus-5-5", "2026-09-30T10:00:00Z"),
+            request("2", "claude-opus-5-5", "2026-10-05T10:00:00Z"),
+            request("3", "claude-sonnet-5-5", "2026-10-07T10:00:00Z"),
+            request("4", "claude-opus-5-5", TODAY_NOON),
+        ],
+    );
+
+    let weeks = fixture.cli(&["weekly", "--json"]).assert().success();
+    let weeks: Value = serde_json::from_slice(&weeks.get_output().stdout).unwrap();
+    let firsts: Vec<&str> = weeks
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|week| week["first_day"].as_str().unwrap())
+        .collect();
+    assert_eq!(firsts, ["2026-09-28", "2026-10-05"]);
+    assert_eq!(weeks[1]["last_day"], "2026-10-11");
+    assert_eq!(weeks[1]["requests"], 3);
+    assert_eq!(
+        weeks[1]["models"],
+        json!(["claude-opus-5-5", "claude-sonnet-5-5"])
+    );
+
+    // A day in a week brings in the whole week.
+    fixture
+        .cli(&[
+            "weekly",
+            "--since",
+            "2026-10-07",
+            "--until",
+            "2026-10-07",
+            "--csv",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("first_day,last_day,requests"))
+        .stdout(contains("2026-10-05,2026-10-11,3,"));
+
+    fixture
+        .cli(&["weekly"])
+        .assert()
+        .success()
+        .stdout(contains("Weeks from Monday · API-equivalent estimate"))
+        .stdout(contains("Week of"))
+        .stdout(contains("5 Oct 2026"));
+
+    let months = fixture.cli(&["monthly", "--json"]).assert().success();
+    let months: Value = serde_json::from_slice(&months.get_output().stdout).unwrap();
+    assert_eq!(months.as_array().unwrap().len(), 2);
+    assert_eq!(months[0]["first_day"], "2026-09-01");
+    assert_eq!(months[0]["last_day"], "2026-09-30");
+    assert_eq!(months[1]["requests"], 3);
+    fixture
+        .cli(&["monthly"])
+        .assert()
+        .success()
+        .stdout(contains("September 2026"))
+        .stdout(contains("October 2026"));
+}
+
+#[test]
+fn limits_shows_each_window_and_the_recent_five_hour_windows() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("10:30:00"))],
+    );
+    fixture.cli(&["limits"]).assert().success().stdout(contains(
+        "Plan limits: not recorded yet. To record them, run claude-dashboard statusline connect",
+    ));
+
+    let resets = NOW.parse::<jiff::Timestamp>().unwrap().as_second() + 2 * 3600;
+    fixture
+        .cli(&["statusline"])
+        .write_stdin(
+            json!({"model": {"id": "claude-opus-5-5", "display_name": "Opus"},
+                   "rate_limits": {"five_hour": {"used_percentage": 42.0, "resets_at": resets},
+                                   "seven_day": {"used_percentage": 92.0, "resets_at": resets + 86_400}}})
+            .to_string(),
+        )
+        .assert()
+        .success();
+
+    fixture
+        .cli(&["limits"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "Window               Used     Resets                 Source     Reading",
+        ))
+        .stdout(contains(
+            "Five-hour window      42%     14:00, in 2 h 00 min   official   just now",
+        ))
+        .stdout(contains(
+            "Weekly, all models    92% ▲   Sun 11 Oct, 14:00      official   just now",
+        ))
+        .stdout(contains(
+            "Sat 10 Oct 09:00–14:00, in progress       42%                 $0.03",
+        ));
+
+    let limits = fixture.cli(&["limits", "--json"]).assert().success();
+    let limits: Value = serde_json::from_slice(&limits.get_output().stdout).unwrap();
+    assert_eq!(limits["windows"][0]["window"], "five_hour");
+    assert_eq!(limits["windows"][0]["used_percentage"], 42.0);
+    assert_eq!(limits["windows"][0]["provenance"], "official");
+    assert_eq!(limits["windows"][1]["window"], "seven_day");
+    assert_eq!(limits["recent_five_hour_windows"][0]["requests"], 1);
+    assert_eq!(limits["recent_five_hour_windows"][0]["cost"]["usd"], 0.03);
+
+    fixture
+        .cli(&["limits", "--csv"])
+        .assert()
+        .success()
+        .stdout(contains("window,model,used_percentage,resets_at"))
+        .stdout(contains("five_hour,,42,"));
+
+    // The usage endpoint's switch still works beside the report.
+    fixture
+        .cli(&["limits", "endpoint", "off"])
+        .assert()
+        .success()
+        .stdout(contains("The usage endpoint is already off."));
 }

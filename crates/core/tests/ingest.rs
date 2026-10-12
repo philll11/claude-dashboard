@@ -1,5 +1,6 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 
 use claude_dashboard_core::history::{History, HistoryError};
@@ -398,48 +399,49 @@ fn only_the_sessions_own_transcript_names_the_projects_working_folder() {
 #[test]
 fn many_transcripts_are_read_at_once_and_progress_counts_each() {
     let mut fixture = Fixture::new();
-    for n in 0..40 {
-        write(
-            &fixture
-                .project()
-                .join(format!("{n:08x}-0000-4000-8000-000000000000.jsonl")),
-            &lines(&[assistant(
-                &format!("rec-{n}"),
-                &format!("msg_{n}"),
-                &format!("req_{n}"),
-                10,
-            )]),
-        );
-    }
+    forty_sessions(&fixture);
     let mut seen = Vec::new();
 
     let report = ingest::ingest_with_progress(
         &mut fixture.history,
         std::slice::from_ref(&fixture.root),
-        |progress| seen.push(progress),
+        |progress| {
+            seen.push(progress);
+            ControlFlow::Continue(())
+        },
     )
     .unwrap()
     .unwrap();
 
     assert_eq!(report.transcripts_read, 40);
     assert_eq!(report.request_records, 40);
+    assert!(!report.stopped);
     assert_eq!(
         fixture.query::<i64>("SELECT count(DISTINCT session) FROM requests"),
         [40]
     );
     assert!(seen.windows(2).all(|pair| pair[0].done < pair[1].done));
+    assert!(
+        seen.windows(2)
+            .all(|pair| pair[0].request_records < pair[1].request_records)
+    );
+    let at = "2026-10-10T06:16:27.123Z"
+        .parse::<jiff::Timestamp>()
+        .unwrap()
+        .as_millisecond();
     assert_eq!(
         seen.last(),
         Some(&Progress {
             done: 40,
-            total: 40
+            total: 40,
+            request_records: 40,
+            requests_between: Some((at, at)),
         })
     );
 }
 
-#[test]
-fn an_ingest_that_cannot_write_stops_reading_and_says_why() {
-    let mut fixture = Fixture::new();
+/// Forty transcripts of one request each, every one changed at its own moment.
+fn forty_sessions(fixture: &Fixture) {
     for n in 0..40 {
         write(
             &fixture
@@ -453,6 +455,77 @@ fn an_ingest_that_cannot_write_stops_reading_and_says_why() {
             )]),
         );
     }
+}
+
+#[test]
+fn an_ingest_stops_when_asked_and_the_next_carries_on() {
+    let mut fixture = Fixture::new();
+    // Enough records for a transcript read in more than one part.
+    let records: Vec<Value> = (0..20_000)
+        .map(|n| {
+            assistant(
+                &format!("rec-{n}"),
+                &format!("msg_{n}"),
+                &format!("req_{n}"),
+                10,
+            )
+        })
+        .collect();
+    let path = fixture.project().join(format!("{SESSION}.jsonl"));
+    write(&path, &lines(&records));
+
+    let stopped = ingest::ingest_with_progress(
+        &mut fixture.history,
+        std::slice::from_ref(&fixture.root),
+        |progress| {
+            if progress.request_records > 0 {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        },
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(stopped.stopped);
+    let kept = fixture.query::<i64>("SELECT count(*) FROM requests")[0];
+    assert!((1..20_000).contains(&kept), "{kept} requests kept");
+    assert_eq!(stopped.request_records, u64::try_from(kept).unwrap());
+    let read_to = fixture.query::<i64>("SELECT read_to FROM transcripts")[0];
+    assert!(read_to < i64::try_from(fs::metadata(&path).unwrap().len()).unwrap());
+
+    let rest = fixture.ingest();
+    assert!(!rest.stopped);
+    assert_eq!(rest.request_records, 20_000 - stopped.request_records);
+    assert_eq!(
+        fixture.query::<i64>("SELECT count(*) FROM requests"),
+        [20_000]
+    );
+}
+
+#[test]
+fn an_ingest_asked_to_stop_at_once_reads_nothing() {
+    let mut fixture = Fixture::new();
+    forty_sessions(&fixture);
+
+    let report = ingest::ingest_with_progress(
+        &mut fixture.history,
+        std::slice::from_ref(&fixture.root),
+        |_| ControlFlow::Break(()),
+    )
+    .unwrap()
+    .unwrap();
+
+    assert!(report.stopped);
+    assert_eq!(fixture.query::<i64>("SELECT count(*) FROM requests"), [0]);
+    assert_eq!(fixture.ingest().request_records, 40);
+}
+
+#[test]
+fn an_ingest_that_cannot_write_stops_reading_and_says_why() {
+    let mut fixture = Fixture::new();
+    forty_sessions(&fixture);
     // A newer claude-dashboard upgrades the history while this one has it open.
     let conn = Connection::open(fixture.history.path()).unwrap();
     conn.pragma_update(None, "user_version", 999).unwrap();

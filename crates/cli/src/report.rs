@@ -1,23 +1,26 @@
-//! `today` and `daily`: requests, tokens and API-equivalent cost, as tables, JSON or CSV.
+//! `today`, `daily`, `weekly` and `monthly`: requests, tokens and API-equivalent cost, as tables,
+//! JSON or CSV.
 
 use std::fmt::Write as _;
 use std::process::ExitCode;
 
 use claude_dashboard_core::history::History;
 use claude_dashboard_core::limits::{FIVE_HOUR, Level, LimitSnapshot, SEVEN_DAY, Source};
-use claude_dashboard_core::report::{self, DayTotals, ModelTotals, Range, Totals};
-use jiff::Timestamp;
+use claude_dashboard_core::report::{self, Bucket, DayTotals, ModelTotals, Range, Totals};
 use jiff::civil::Date;
+use jiff::{Timestamp, ToSpan};
 use serde::Serialize;
 
 use claude_dashboard_server::app::App;
-use claude_dashboard_server::fmt::{ago, compact, grouped, long_day, money, short_date, when};
+use claude_dashboard_server::fmt::{
+    ago, compact, grouped, long_day, money, month_year, short_date, weekday_name, when,
+};
 use claude_dashboard_server::limits::login_note;
 use claude_dashboard_server::names::model_name;
 
 use crate::limits;
 use crate::progress;
-use crate::style::{Paint, Rgb, palette};
+use crate::style::Paint;
 
 /// How a report is written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,21 +28,6 @@ pub enum Output {
     Table,
     Json,
     Csv,
-}
-
-/// The colour of a model's series, by its family.
-pub fn series_colour(model: &str) -> Rgb {
-    if model.contains("opus") {
-        palette::OPUS
-    } else if model.contains("sonnet") {
-        palette::SONNET
-    } else if model.contains("haiku") {
-        palette::HAIKU
-    } else if model.contains("fable") || model.contains("mythos") {
-        palette::FABLE
-    } else {
-        palette::MUTED
-    }
 }
 
 /// Opens and ingests the history, printing why when it cannot.
@@ -93,7 +81,7 @@ pub fn today(app: &App, output: Output) -> ExitCode {
             let _ = writeln!(out, "{}", limits_line(app, paint, &limits));
             let endpoint = history.usage_endpoint().unwrap_or_default();
             if let Some(note) = login_note(&endpoint) {
-                let _ = writeln!(out, "{}", paint.paint(note, palette::WARNING, false));
+                let _ = writeln!(out, "{}", paint.paint(note, paint.palette().warning, false));
             }
             print!("{out}");
         }
@@ -160,6 +148,142 @@ pub fn daily(app: &App, since: Option<Date>, until: Option<Date>, output: Output
         Output::Csv => print!("{}", days_csv(app, &days)),
     }
     ExitCode::SUCCESS
+}
+
+/// `weekly` and `monthly`: requests, tokens and API-equivalent cost per week or per calendar
+/// month. Weeks start on the day the shared settings name. Without days given, the last 12 weeks
+/// or months; with them, every week or month they touch, whole.
+pub fn periods(
+    app: &App,
+    bucket: Bucket,
+    since: Option<Date>,
+    until: Option<Date>,
+    output: Output,
+) -> ExitCode {
+    let history = match ready_history(app) {
+        Ok(history) => history,
+        Err(code) => return code,
+    };
+    let last_start = bucket.start(
+        until.unwrap_or_else(|| app.now_zoned().date()),
+        app.week_start,
+    );
+    let first = since.map_or_else(
+        || {
+            let back = match bucket {
+                Bucket::Month => 11.months(),
+                Bucket::Week | Bucket::Day => 77.days(),
+            };
+            last_start.checked_sub(back).unwrap_or(last_start)
+        },
+        |since| bucket.start(since, app.week_start),
+    );
+    let last = bucket.end(last_start);
+    let days = match report::by_day(
+        &history,
+        app.prices,
+        Range::days(first, last, &app.zone),
+        &app.zone,
+    ) {
+        Ok(days) => days,
+        Err(error) => {
+            eprintln!("Cannot read the history: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let periods = report::by_bucket(&days, bucket, app.week_start);
+    match output {
+        Output::Table => print!(
+            "{}",
+            periods_table(app, Paint::for_stdout(), bucket, &periods)
+        ),
+        Output::Json => print_json(
+            &periods
+                .iter()
+                .map(|period| period_json(app, bucket, period))
+                .collect::<Vec<_>>(),
+        ),
+        Output::Csv => print!("{}", periods_csv(app, bucket, &periods)),
+    }
+    ExitCode::SUCCESS
+}
+
+fn periods_table(app: &App, paint: Paint, bucket: Bucket, periods: &[DayTotals]) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{}",
+        paint.muted(&format!(
+            "{}API-equivalent estimate · prices of {}",
+            if bucket == Bucket::Week {
+                format!("Weeks from {} · ", weekday_name(app.week_start))
+            } else {
+                String::new()
+            },
+            short_date(app.prices.checked())
+        ))
+    );
+    out.push('\n');
+    if periods.is_empty() {
+        let _ = writeln!(out, "{}", paint.muted("No requests on these days."));
+        return out;
+    }
+    let mut total = Totals::default();
+    let rows: Vec<Row> = periods
+        .iter()
+        .map(|period| {
+            total.requests += period.totals.requests;
+            total.tokens.add(period.totals.tokens);
+            total.cost.add(period.totals.cost);
+            total.unpriced_requests += period.totals.unpriced_requests;
+            let label = match bucket {
+                Bucket::Month => month_year(period.day),
+                Bucket::Week | Bucket::Day => short_date(period.day),
+            };
+            Row {
+                label_len: label.chars().count(),
+                label,
+                values: cells(&period.totals),
+            }
+        })
+        .collect();
+    let heading = match bucket {
+        Bucket::Month => "Month",
+        Bucket::Week | Bucket::Day => "Week of",
+    };
+    out.push_str(&table(paint, heading, &rows, &total_row(&total)));
+    out
+}
+
+fn periods_csv(app: &App, bucket: Bucket, periods: &[DayTotals]) -> String {
+    let mut out = String::from(
+        "first_day,last_day,requests,input_tokens,output_tokens,cache_write_5m_tokens,cache_write_1h_tokens,cache_read_tokens,cost_usd,unpriced_requests,price_table,models\n",
+    );
+    for period in periods {
+        let tokens = period.totals.tokens;
+        let models: Vec<&str> = period
+            .models
+            .iter()
+            .map(|model| model.model.as_str())
+            .collect();
+        let _ = writeln!(
+            out,
+            "{},{},{},{},{},{},{},{},{:.2},{},{},{}",
+            period.day,
+            bucket.end(period.day),
+            period.totals.requests,
+            tokens.input,
+            tokens.output,
+            tokens.cache_write_5m,
+            tokens.cache_write_1h,
+            tokens.cache_read,
+            period.totals.cost.total(),
+            period.totals.unpriced_requests,
+            app.prices.checked(),
+            models.join(";")
+        );
+    }
+    out
 }
 
 pub fn sum(models: &[ModelTotals]) -> Totals {
@@ -263,7 +387,7 @@ fn model_table(app: &App, paint: Paint, models: &[ModelTotals]) -> String {
             Row {
                 label: format!(
                     "{} {name}",
-                    paint.paint("■", series_colour(&model.model), false)
+                    paint.paint("■", paint.palette().series(&model.model), false)
                 ),
                 label_len: name.chars().count() + 2,
                 values: cells(&model.totals),
@@ -373,7 +497,7 @@ pub fn limits_line(app: &App, paint: Paint, limits: &[LimitSnapshot]) -> String 
     );
     let stale = current.iter().any(|limit| limit.stale(now_ms));
     let age = if stale {
-        paint.paint(&age, palette::WARNING, false)
+        paint.paint(&age, paint.palette().warning, false)
     } else {
         paint.muted(&age)
     };
@@ -384,12 +508,14 @@ pub fn limits_line(app: &App, paint: Paint, limits: &[LimitSnapshot]) -> String 
             let percent = format!("{:.0}%", limit.used_percentage);
             let figure = match limit.level() {
                 Level::Normal => paint.strong(&percent),
-                Level::Warning => paint.paint(&format!("{percent} ▲"), palette::WARNING, true),
+                Level::Warning => {
+                    paint.paint(&format!("{percent} ▲"), paint.palette().warning, true)
+                }
                 // Red passes WCAG AA only for marks, so the figure stays in strong ink.
                 Level::Critical => format!(
                     "{} {}",
                     paint.strong(&percent),
-                    paint.paint("▲", palette::CRITICAL, true)
+                    paint.paint("▲", paint.palette().critical, true)
                 ),
             };
             let resets = limit
@@ -422,6 +548,32 @@ struct DayJson {
     tokens: TokensJson,
     cost: CostJson,
     models: Vec<String>,
+}
+
+/// A week or a month, for JSON.
+#[derive(Serialize)]
+struct PeriodJson {
+    first_day: String,
+    last_day: String,
+    requests: u64,
+    tokens: TokensJson,
+    cost: CostJson,
+    models: Vec<String>,
+}
+
+fn period_json(app: &App, bucket: Bucket, period: &DayTotals) -> PeriodJson {
+    PeriodJson {
+        first_day: period.day.to_string(),
+        last_day: bucket.end(period.day).to_string(),
+        requests: period.totals.requests,
+        tokens: tokens_json(&period.totals),
+        cost: cost_json(app, &period.totals),
+        models: period
+            .models
+            .iter()
+            .map(|model| model.model.clone())
+            .collect(),
+    }
 }
 
 #[derive(Serialize)]
@@ -464,11 +616,19 @@ pub fn tokens_json(totals: &Totals) -> TokensJson {
 
 /// The API-equivalent cost of a total, for JSON.
 pub fn cost_json(app: &App, totals: &Totals) -> CostJson {
-    CostJson {
-        usd: cents(totals.cost.total()),
-        provenance: "estimate",
-        price_table: app.prices.checked().to_string(),
-        unpriced_requests: totals.unpriced_requests,
+    CostJson::of(app, totals.cost.total(), totals.unpriced_requests)
+}
+
+impl CostJson {
+    /// An API-equivalent cost in US dollars, leaving out `unpriced_requests` whose cost is
+    /// unknown.
+    pub fn of(app: &App, usd: f64, unpriced_requests: u64) -> Self {
+        Self {
+            usd: cents(usd),
+            provenance: "estimate",
+            price_table: app.prices.checked().to_string(),
+            unpriced_requests,
+        }
     }
 }
 
@@ -568,9 +728,9 @@ fn colour_json(text: &str, paint: Paint) -> String {
         let string = &text[start..end];
         let is_key = text[end..].trim_start().starts_with(':');
         let colour = if is_key {
-            palette::ACCENT
+            paint.palette().accent
         } else {
-            palette::STRING
+            paint.palette().string
         };
         out.push_str(&paint.paint(string, colour, false));
     }

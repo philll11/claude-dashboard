@@ -1,0 +1,61 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │ Sessions › Refactor ingest batching                                            │
+ 2 │┌─ Refactor ingest batching ─────────────────────────────── claude-dashboard ──┐│
+ 3 ││ Sat 10 Oct 13:42–14:54 · 1 h 12 min · Claude Code 2.4.1                      ││
+ 4 ││ Estimate $14.82   Claude Code $14.80   within 0.1%                           ││
+ 5 │└──────────────────────────────────────────────────────────────────────────────┘│
+ 6 │┌─ Requests and their cost ────────────────────────────────────────────────────┐│
+ 7 ││ Time                                                   Request       So far  ││
+ 8 ││ 13:43                                                    $0.08        $0.08  ││
+ 9 ││ 13:44                                                    $0.33        $0.41  ││
+10 ││ 13:45                                                    $0.47        $0.88  ││
+11 ││ 13:46                                                    $0.42        $1.30  ││
+12 ││ 13:48                                                    $0.21        $1.51  ││
+13 ││ 13:49                                                    $0.22        $1.73  ││
+14 ││ 13:50                                                    $0.15        $1.87  ││
+15 ││ 13:51                                                    $0.15        $2.03  ││
+16 ││ 13:52                                                    $0.13        $2.15  ││
+17 ││ 13:54                                                    $0.08        $2.24  ││
+18 ││ 13:55                                                    $0.34        $2.57  ││
+19 ││ 13:56                                                    $0.47        $3.05  ││
+20 ││ 13:57                                                    $0.42        $3.46  ││
+21 ││ 13:58                                                    $0.20        $3.67  ││
+22 ││ 14:00                                                    $0.22        $3.89  ││
+23 │ Esc back   ↑↓ scroll   t table view   ? help                     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb │
+ 1 │ bbbbbbbbbbbdddddddddddddddddddddddd                                            │
+ 2 │eeaaaaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbeee│
+ 3 │e bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                      e│
+ 4 │e bbbbbbbbbaaaaaabbbbbbbbbbbbbbbaaaaaa   bbbbbbbbbbb                           e│
+ 5 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 6 │eeaaaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 7 │e bbbb                                                   bbbbbbb       bbbbbb  e│
+ 8 │e ddddd                                                    ddddd        aaaaa  e│
+ 9 │e ddddd                                                    ddddd        aaaaa  e│
+10 │e ddddd                                                    ddddd        aaaaa  e│
+11 │e ddddd                                                    ddddd        aaaaa  e│
+12 │e ddddd                                                    ddddd        aaaaa  e│
+13 │e ddddd                                                    ddddd        aaaaa  e│
+14 │e ddddd                                                    ddddd        aaaaa  e│
+15 │e ddddd                                                    ddddd        aaaaa  e│
+16 │e ddddd                                                    ddddd        aaaaa  e│
+17 │e ddddd                                                    ddddd        aaaaa  e│
+18 │e ddddd                                                    ddddd        aaaaa  e│
+19 │e ddddd                                                    ddddd        aaaaa  e│
+20 │e ddddd                                                    ddddd        aaaaa  e│
+21 │e ddddd                                                    ddddd        aaaaa  e│
+22 │e ddddd                                                    ddddd        aaaaa  e│
+23 │ fff bbbb   ff bbbbbb   f bbbbbbbbbb   f bbbb                     bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #d7dae0
+e = #3a404a
+f = #5cc8e8 bold

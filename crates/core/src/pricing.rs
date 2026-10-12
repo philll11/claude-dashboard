@@ -277,6 +277,13 @@ impl PriceTable {
         Some((long.above, long.rates))
     }
 
+    /// A model's fast-mode prices of input and output, where it has a fast mode.
+    #[must_use]
+    pub fn fast(&self, model_id: &str, timestamp_ms: i64) -> Option<(f64, f64)> {
+        let fast = self.period(model_id, timestamp_ms)?.fast?;
+        Some((fast.input, fast.output))
+    }
+
     /// The prices a model has at a moment.
     fn period(&self, model_id: &str, timestamp_ms: i64) -> Option<&Period> {
         let model = self.model(model_id)?;

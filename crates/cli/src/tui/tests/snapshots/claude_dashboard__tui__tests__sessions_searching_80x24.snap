@@ -1,0 +1,67 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Sessions · 30 days ────────────────────────────────────── 15 of 214 match ──┐│
+ 3 ││ Search ingest█                                                               ││
+ 4 ││                                                                              ││
+ 5 ││   Session                       Project           Started             Cost   ││
+ 6 ││ › Refactor ingest batching      claude-dashboard  10 Oct 13:42       $0.60   ││
+ 7 ││   Ingest lock on Windows        claude-dashboard  8 Oct 12:12       $13.10   ││
+ 8 ││   Refactor ingest batching      infra             8 Oct 06:42        $6.60   ││
+ 9 ││   Ingest lock on Windows        claude-dashboard  6 Oct 05:12        $4.90   ││
+10 ││   Refactor ingest batching      website           5 Oct 23:42       $12.60   ││
+11 ││   Ingest lock on Windows        notes             3 Oct 22:12       $10.90   ││
+12 ││   Refactor ingest batching      api-gateway       3 Oct 16:42        $4.40   ││
+13 ││   Ingest lock on Windows        claude-dashboard  1 Oct 15:12        $2.70   ││
+14 ││   Refactor ingest batching      claude-dashboard  1 Oct 09:42       $10.40   ││
+15 ││   Ingest lock on Windows        claude-dashboard  29 Sep 08:12       $8.70   ││
+16 ││   Refactor ingest batching      infra             29 Sep 02:42       $2.20   ││
+17 ││   Ingest lock on Windows        claude-dashboard  27 Sep 00:12      $14.70   ││
+18 ││   Refactor ingest batching      website           26 Sep 18:42       $8.20   ││
+19 ││   Ingest lock on Windows        notes             24 Sep 17:12       $6.50   ││
+20 ││   Refactor ingest batching      api-gateway       24 Sep 11:42      $14.20   ││
+21 ││ 1–15 of 15                                                                   ││
+22 │└──────────────────────────────────────────────────────────────────────────────┘│
+23 │ Enter open   ↑↓ move   Esc clear the search                      Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb │
+ 1 │                                                                                │
+ 2 │ddaaaaaaaaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddbbbbbbbbbbbbbbbbbddd│
+ 3 │d bbbbbbbaaaaaae                                                               d│
+ 4 │d                                                                              d│
+ 5 │d   bbbbbbb                       bbbbbbb           bbbbbbb             bbbb   d│
+ 6 │dfgfhhhhhhhhhhhhhhhhhhhhhhhhffffffiiiiiiiiiiiiiiiiffiiiiiiiiiiiifffffffjjjjjfffd│
+ 7 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbbbbbbbbbbbbb  bbbbbbbbbbb       aaaaaa   d│
+ 8 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbb             bbbbbbbbbbb        aaaaa   d│
+ 9 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbbbbbbbbbbbbb  bbbbbbbbbbb        aaaaa   d│
+10 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbbbb           bbbbbbbbbbb       aaaaaa   d│
+11 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbb             bbbbbbbbbbb       aaaaaa   d│
+12 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbbbbbbbb       bbbbbbbbbbb        aaaaa   d│
+13 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbbbbbbbbbbbbb  bbbbbbbbbbb        aaaaa   d│
+14 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbbbbbbbbbbbbb  bbbbbbbbbbb       aaaaaa   d│
+15 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbbbbbbbbbbbbb  bbbbbbbbbbbb       aaaaa   d│
+16 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbb             bbbbbbbbbbbb       aaaaa   d│
+17 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbbbbbbbbbbbbb  bbbbbbbbbbbb      aaaaaa   d│
+18 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbbbb           bbbbbbbbbbbb       aaaaa   d│
+19 │d   kkkkkkkkkkkkkkkkkkkkkk        bbbbb             bbbbbbbbbbbb       aaaaa   d│
+20 │d   kkkkkkkkkkkkkkkkkkkkkkkk      bbbbbbbbbbb       bbbbbbbbbbbb      aaaaaa   d│
+21 │d bbbbbbbbbb                                                                   d│
+22 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+23 │ lllll bbbb   ll bbbb   lll bbbbbbbbbbbbbbbb                      bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = #5cc8e8
+f = on #1c2128
+g = #5cc8e8 on #1c2128 bold
+h = #d7dae0 on #1c2128
+i = #8a919c on #1c2128
+j = #f0f2f5 on #1c2128 bold
+k = #d7dae0
+l = #5cc8e8 bold

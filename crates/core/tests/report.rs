@@ -1,9 +1,10 @@
 use claude_dashboard_core::history::{Attribution, History, Identity, Request, SessionKey};
 use claude_dashboard_core::pricing::PriceTable;
-use claude_dashboard_core::report::{self, Filter, Range};
+use claude_dashboard_core::report::{self, Bucket, Filter, Range};
 use claude_dashboard_core::tokens::Tokens;
-use jiff::civil::date;
+use jiff::civil::{Date, Weekday, date};
 use jiff::tz::TimeZone;
+use serde_json::Value;
 
 /// 2026-10-09T23:30:00Z, half an hour before a day ends in UTC.
 const EVENING: i64 = 1_791_588_600_000;
@@ -392,4 +393,114 @@ fn a_session_without_requests_has_no_detail() {
         report::session_detail(&fixture.history, Fixture::table(), fixture.site).unwrap(),
         None
     );
+}
+
+fn weekday(name: &str) -> Weekday {
+    match name {
+        "monday" => Weekday::Monday,
+        "tuesday" => Weekday::Tuesday,
+        "wednesday" => Weekday::Wednesday,
+        "thursday" => Weekday::Thursday,
+        "friday" => Weekday::Friday,
+        "saturday" => Weekday::Saturday,
+        "sunday" => Weekday::Sunday,
+        other => panic!("{other} is not a day of the week"),
+    }
+}
+
+fn day(value: &Value) -> Date {
+    value.as_str().unwrap().parse().unwrap()
+}
+
+#[test]
+fn days_fall_into_weeks_and_months_as_on_every_surface() {
+    let examples: Value =
+        serde_json::from_str(include_str!("../../../design/buckets.json")).unwrap();
+    for pair in examples["bucketOf"].as_array().unwrap() {
+        let bucket = match pair[1].as_str().unwrap() {
+            "day" => Bucket::Day,
+            "week" => Bucket::Week,
+            _ => Bucket::Month,
+        };
+        assert_eq!(Bucket::of(pair[0].as_i64().unwrap()), bucket, "{pair}");
+    }
+    for example in examples["weekStarts"].as_array().unwrap() {
+        let start = Bucket::Week.start(day(&example[0]), weekday(example[1].as_str().unwrap()));
+        assert_eq!(start, day(&example[2]), "{example}");
+    }
+    for example in examples["monthStarts"].as_array().unwrap() {
+        let start = Bucket::Month.start(day(&example[0]), Weekday::Monday);
+        assert_eq!(start, day(&example[1]), "{example}");
+    }
+    assert_eq!(Bucket::Week.end(date(2026, 10, 5)), date(2026, 10, 11));
+    assert_eq!(Bucket::Month.end(date(2026, 2, 1)), date(2026, 2, 28));
+    assert_eq!(Bucket::Day.end(date(2026, 2, 1)), date(2026, 2, 1));
+}
+
+#[test]
+fn days_add_up_by_week_and_by_month() {
+    let mut fixture = Fixture::new();
+    let app = fixture.app;
+    let at = |day: Date| {
+        day.to_zoned(TimeZone::UTC)
+            .unwrap()
+            .timestamp()
+            .as_millisecond()
+            + 12 * 60 * MINUTE
+    };
+    for (id, model, day) in [
+        ("1", "claude-opus-5-5", date(2026, 9, 30)),
+        ("2", "claude-opus-5-5", date(2026, 10, 9)),
+        ("3", "claude-sonnet-5-5", date(2026, 10, 10)),
+        ("4", "claude-opus-5-5", date(2026, 10, 12)),
+    ] {
+        fixture.request(app, id, model, at(day), Extra::default());
+    }
+    let days = report::by_day(
+        &fixture.history,
+        Fixture::table(),
+        Fixture::everything(),
+        &TimeZone::UTC,
+    )
+    .unwrap();
+    let summed = |bucket| {
+        report::by_bucket(&days, bucket, Weekday::Monday)
+            .iter()
+            .map(|total| {
+                (
+                    total.day,
+                    total.totals.requests,
+                    total
+                        .models
+                        .iter()
+                        .map(|model| model.model.clone())
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    let opus = || "claude-opus-5-5".to_owned();
+    let sonnet = || "claude-sonnet-5-5".to_owned();
+    assert_eq!(
+        summed(Bucket::Week),
+        [
+            (date(2026, 9, 28), 1, vec![opus()]),
+            (date(2026, 10, 5), 2, vec![opus(), sonnet()]),
+            (date(2026, 10, 12), 1, vec![opus()]),
+        ]
+    );
+    assert_eq!(
+        summed(Bucket::Month),
+        [
+            (date(2026, 9, 1), 1, vec![opus()]),
+            (date(2026, 10, 1), 3, vec![opus(), sonnet()]),
+        ]
+    );
+    assert_eq!(summed(Bucket::Day).len(), 4);
+    let weeks = report::by_bucket(&days, Bucket::Week, Weekday::Monday);
+    assert!(close(
+        weeks[1].totals.cost.total(),
+        cost_of("claude-opus-5-5", false) + cost_of("claude-sonnet-5-5", false)
+    ));
 }

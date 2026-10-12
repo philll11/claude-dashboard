@@ -4,7 +4,7 @@ See how you use Claude Code: what it would cost at API prices, where the usage g
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
 > **Status: early development.**
-> The command-line tool, the VS Code extension and the desktop app are ready to try; the terminal UI follows.
+> The terminal UI and reports, the VS Code extension and the desktop app are ready to try.
 > It is made for personal use, and installed from the [releases](https://github.com/philll11/claude-dashboard/releases) rather than a marketplace.
 > Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
 
@@ -85,17 +85,48 @@ To build from source instead, with Rust 1.99 or later:
 cargo install --locked --git https://github.com/philll11/claude-dashboard claude-dashboard
 ```
 
+### The dashboard in the terminal
+
+`claude-dashboard` on its own opens the dashboard in the terminal: Overview, Sessions with each session's detail, Projects, Models and Limits.
+It works from the keyboard alone, in a terminal of 80 by 24 or larger:
+
+| Keys | What they do |
+|---|---|
+| `←` `→`, `Tab`, `1` to `5` | Change the section |
+| `↑` `↓` or `j` `k`, `PgUp` `PgDn`, `Home` `End` | Move in a list, or scroll a page |
+| `Enter` | Open a session, or filter the dashboard to a project |
+| `Esc` | Go back, or close |
+| `/` | Search the sessions |
+| `r`, `p`, `m` | Choose the range, the project and the model |
+| `t` | Show the charts as tables |
+| `R` | Read new transcripts now |
+| `?` | Show the keys |
+| `q`, `Ctrl-C` | Quit |
+
+It reads what Claude Code adds to its transcripts every minute and updates in place.
+Its colours suit your terminal's light or dark background, which it asks the terminal about; `CLAUDE_DASHBOARD_THEME=light` or `dark` chooses instead.
+`NO_COLOR` turns colour off, and the charts then tell the models apart by pattern.
+In Git Bash's own window, run it in Windows Terminal or through `winpty claude-dashboard`.
+In the Windows console host and the Linux console, whose fonts lack the finer block characters, sparklines step in half cells.
+For a screen reader, the reports below print plain lines.
+
+### Reports
+
 | Command | What it shows |
 |---|---|
 | `claude-dashboard today` | Today's requests and API-equivalent cost by model, and your plan limits |
 | `claude-dashboard daily` | Requests, tokens and cost per day |
+| `claude-dashboard weekly` | Requests, tokens and cost per week |
+| `claude-dashboard monthly` | Requests, tokens and cost per calendar month |
 | `claude-dashboard models` | Requests and cost by model |
 | `claude-dashboard sessions` | Requests and cost by session |
 | `claude-dashboard projects` | Requests and cost by project |
+| `claude-dashboard limits` | Each plan window's use, reset and source, and the recent five-hour windows |
 | `claude-dashboard doctor` | What claude-dashboard can find and read, and anything that needs your attention |
 | `claude-dashboard app` | Opens the desktop app, at a section when you name one |
 
 `daily`, `models` and `projects` cover the last 30 days and `sessions` the last 7, unless you give `--since` and `--until` with dates such as `2026-10-05`.
+`weekly` and `monthly` cover the last 12 weeks and months, and with `--since` and `--until` every week or month those days fall in, whole; weeks start on the day the dashboard's settings name, Monday unless you choose another.
 Every report takes `--json` or `--csv` for scripts.
 Each command first reads what Claude Code has added to its transcripts; the first time, that takes a few seconds.
 
@@ -120,7 +151,7 @@ If you used the [claude-usage](https://github.com/phuryn/claude-usage) dashboard
 
 claude-dashboard reads what Claude Code keeps in `~/.claude`, or in the folders that `CLAUDE_CONFIG_DIR` names, separated by commas.
 It keeps its own history in `history.sqlite`, in `%LOCALAPPDATA%\claude-dashboard` on Windows, `~/Library/Application Support/claude-dashboard` on macOS and `~/.local/share/claude-dashboard` on Linux.
-Set `CLAUDE_DASHBOARD_HISTORY` to keep it in another file, and `NO_COLOR` to turn colours off.
+Set `CLAUDE_DASHBOARD_HISTORY` to keep it in another file, `NO_COLOR` to turn colours off, and `CLAUDE_DASHBOARD_THEME` to `light` or `dark` to choose colours for your terminal's background.
 
 ## Privacy
 

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use claude_dashboard_core::history::{self, History, HistoryError, ProjectKey};
 use claude_dashboard_core::import;
-use claude_dashboard_core::limits::{self, FIVE_HOUR, FIVE_HOURS_MS, LimitSnapshot, Source};
+use claude_dashboard_core::limits::{self, LimitSnapshot, Source};
 use claude_dashboard_core::pricing;
 use claude_dashboard_core::reconcile;
 use claude_dashboard_core::report::{self, Filter, Range};
@@ -21,24 +21,17 @@ use serde_json::Value;
 use crate::app::{self, App};
 use crate::names::{model_name, project_names};
 use crate::protocol::{
-    Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, EndpointParams,
-    FiveHourWindow, Folder, FolderParams, FolderState, Health, HistoryFacts, ImportDone,
-    ImportOffer, Imported, Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams,
-    Pace, PriceDrift, PriceRow, Prices, PricesParams, Project, ProjectRow, Provenance,
-    SessionDetail, SessionParams, SessionRow, SessionsPage, SessionsParams, Settings,
-    SettingsChange, Status, StatusLine, StatusLineApply, StatusLineParams, StatusLinePlan, Tokens,
-    Totals, UsePoint, WhoRow, WindowReading, WindowView,
+    Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, EndpointParams, FastPrices,
+    Folder, FolderParams, FolderState, Health, HistoryFacts, ImportDone, ImportOffer, Imported,
+    Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams, PriceDrift, PriceRow,
+    Prices, PricesParams, Project, ProjectRow, Provenance, SessionDetail, SessionParams,
+    SessionRow, SessionsPage, SessionsParams, Settings, SettingsChange, Status, StatusLineApply,
+    StatusLineParams, StatusLinePlan, Tokens, Totals, WhoRow, WindowReading,
 };
-use crate::statusline::{self, Connection};
+use crate::statusline;
 use crate::workers::Triggers;
 use crate::{Shared, lock};
 
-/// How long a weekly window lasts.
-const WEEK_MS: i64 = 7 * 24 * 60 * 60 * 1000;
-/// How far back a weekly window's pace is measured.
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
-/// How far back the recent five-hour windows go.
-const RECENT_WINDOWS_MS: i64 = 7 * DAY_MS;
 /// The most sessions one page holds.
 const LONGEST_PAGE: u32 = 500;
 
@@ -162,6 +155,15 @@ impl Answers {
         match &self.history {
             Some(history) => self.app.with_shared(history),
             None => self.app.clone(),
+        }
+    }
+
+    /// The schema of the newer claude-dashboard that upgraded the history, when that is why it
+    /// cannot be opened.
+    fn too_new(&self) -> Option<u32> {
+        match History::open(self.app.history_path.as_ref()?) {
+            Err(HistoryError::TooNew { schema }) => Some(schema),
+            _ => None,
         }
     }
 
@@ -416,98 +418,7 @@ impl Answers {
     }
 
     fn limits(&mut self, app: &App) -> Result<crate::protocol::Limits, Fault> {
-        let now_ms = app.now.as_millisecond();
-        let history = self.history()?;
-        let mut windows = Vec::new();
-        for reading in history.latest_limits()? {
-            let length = if reading.window == FIVE_HOUR {
-                FIVE_HOURS_MS
-            } else {
-                WEEK_MS
-            };
-            let start_ms = reading.resets_at_ms.map(|resets| resets - length);
-            let series: Vec<UsePoint> = match (start_ms, reading.resets_at_ms) {
-                (Some(start_ms), Some(resets_at_ms)) => history
-                    .limit_snapshots(&reading.window, start_ms, now_ms.saturating_add(1))?
-                    .into_iter()
-                    .filter(|point| {
-                        point.resets_at_ms.is_some_and(|resets| {
-                            resets.div_euclid(60_000) == resets_at_ms.div_euclid(60_000)
-                        })
-                    })
-                    .map(|point| UsePoint {
-                        ms: point.observed_ms,
-                        used: point.used_percentage,
-                    })
-                    .collect(),
-                _ => Vec::new(),
-            };
-            let pace = match (start_ms, reading.resets_at_ms) {
-                (Some(start_ms), Some(resets_at_ms)) if !reading.expired(now_ms) => {
-                    let since = if reading.window == FIVE_HOUR {
-                        (start_ms, 0.0)
-                    } else {
-                        // The reading nearest to a day before, or the window's start.
-                        let target = reading.observed_ms - DAY_MS;
-                        series
-                            .iter()
-                            .rev()
-                            .find(|point| point.ms <= target)
-                            .map_or((start_ms.max(target), 0.0), |point| (point.ms, point.used))
-                    };
-                    limits::pace(
-                        since,
-                        (reading.observed_ms, reading.used_percentage),
-                        resets_at_ms,
-                    )
-                    .map(|pace| Pace {
-                        at_reset: pace.at_reset,
-                        limit_reached_ms: pace.limit_reached_ms,
-                        since_ms: since.0,
-                    })
-                }
-                _ => None,
-            };
-            windows.push(WindowView {
-                reading: window_reading(app, &reading),
-                start_ms,
-                series,
-                pace,
-            });
-        }
-        let recent = limits::recent_five_hour_windows(
-            history,
-            app.prices,
-            now_ms - RECENT_WINDOWS_MS,
-            now_ms,
-        )?
-        .into_iter()
-        .map(|(window, window_totals)| FiveHourWindow {
-            start_ms: window.start_ms,
-            resets_at_ms: window.resets_at_ms,
-            highest: window.highest,
-            totals: totals(&window_totals),
-        })
-        .collect();
-        let state = history.usage_endpoint()?;
-        Ok(crate::protocol::Limits {
-            windows,
-            recent,
-            status_line: match statusline::connection(app) {
-                Connection::Connected { wrapping } => StatusLine::Connected { wrapping },
-                Connection::NotConnected { .. } => StatusLine::NotConnected,
-                Connection::Unknown(reason) => StatusLine::Unknown { reason },
-            },
-            endpoint: Endpoint {
-                enabled: state.enabled,
-                asked_ms: state.asked_ms,
-                outcome: state.outcome.map(|outcome| outcome.as_str().to_owned()),
-                problem: crate::limits::problem(app, &state),
-                detail: state.detail,
-                next_ask_ms: state.next_ask_ms,
-                consent: crate::limits::CONSENT.map(str::to_owned).to_vec(),
-            },
-        })
+        Ok(crate::limits::view(app, self.history()?)?)
     }
 
     /// Turns the usage endpoint on or off; once on, it is asked as soon as its rules allow.
@@ -676,6 +587,10 @@ impl Answers {
                             cache_write_1h: long.cache_write_1h,
                             cache_read: long.cache_read,
                         });
+                let fast = app
+                    .prices
+                    .fast(model, app.now.as_millisecond())
+                    .map(|(input, output)| FastPrices { input, output });
                 Some(PriceRow {
                     model: model_of(app, model),
                     input: rates.input,
@@ -684,6 +599,7 @@ impl Answers {
                     cache_write_1h: rates.cache_write_1h,
                     cache_read: rates.cache_read,
                     long_prompt,
+                    fast,
                 })
             })
             .collect();
@@ -738,7 +654,7 @@ impl Answers {
                 history::Access::ReadWrite => (Access::ReadWrite, None),
                 history::Access::ReadOnly { schema } => (Access::ReadOnly, Some(schema)),
             },
-            Err(_) => (Access::ReadOnly, None),
+            Err(_) => (Access::ReadOnly, self.too_new()),
         };
         let mut problems = lock(&self.shared).problems.clone();
         if let Err(fault) = self.history() {
@@ -897,7 +813,7 @@ fn model_of(app: &App, id: &str) -> Model {
     }
 }
 
-fn totals(totals: &report::Totals) -> Totals {
+pub(crate) fn totals(totals: &report::Totals) -> Totals {
     let tokens::Tokens {
         input,
         output,
@@ -937,7 +853,7 @@ fn totals(totals: &report::Totals) -> Totals {
     }
 }
 
-fn window_reading(app: &App, reading: &LimitSnapshot) -> WindowReading {
+pub(crate) fn window_reading(app: &App, reading: &LimitSnapshot) -> WindowReading {
     let now_ms = app.now.as_millisecond();
     WindowReading {
         window: reading.window.clone(),

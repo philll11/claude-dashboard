@@ -72,6 +72,11 @@ consent: Array<string>, };
 export type EndpointParams = { enabled: boolean, };
 
 /**
+ * A model's fast-mode prices, in US dollars per million tokens.
+ */
+export type FastPrices = { input: number, output: number, };
+
+/**
  * Which requests to count, besides the days.
  */
 export type Filters = { 
@@ -125,7 +130,8 @@ history?: HistoryFacts | null,
  */
 cleanupDays: number, access: Access, 
 /**
- * The schema that made the history read-only.
+ * The schema of the newer claude-dashboard that upgraded the history: this one can only read
+ * it, or, without `history`, cannot read it at all.
  */
 newerSchema?: number | null, 
 /**
@@ -268,7 +274,11 @@ export type PriceRow = { model: Model, input: number, output: number, cacheWrite
  * The prices of prompts longer than a number of tokens, for a model that charges more for
  * them.
  */
-longPrompt?: LongPrompt | null, };
+longPrompt?: LongPrompt | null, 
+/**
+ * The prices of input and output in fast mode, for a model that has one.
+ */
+fast?: FastPrices | null, };
 
 /**
  * `prices`: the price table and how well it agrees with Claude Code's own costs.
@@ -308,7 +318,8 @@ export type Project = {
  */
 id: string, 
 /**
- * The last part of its working folder, or the last two when another project shares it.
+ * The last part of its working folder, with as many parts before it as tell it apart from
+ * every other project's.
  */
 name: string, 
 /**

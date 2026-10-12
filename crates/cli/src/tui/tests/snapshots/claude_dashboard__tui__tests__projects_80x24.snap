@@ -1,0 +1,71 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Projects · 30 days ─────────────────────────────────────────────────────────┐│
+ 3 ││   Project           Sessions       Cost   Daily cost                         ││
+ 4 ││ › claude-dashboard        96    $110.76   ▃▃▃▅▃▅▆▆▃▃█▇▆▄▆▄▃▄▄▆▅▄▃▄▆▄▅▇▇▃     ││
+ 5 ││   api-gateway             41     $64.12   ▃▃▃▃▅▅▄▆▃▃█▅▇▆▄▃▃▄▄▅▃▇▃▃▆▄▅▇▅▃     ││
+ 6 ││   website                 28     $43.72   ▃▃▂▆▃▇▅▆▃▃█▆█▄▇▃▄▄▅▄▅▅▄▃▆▅▆▇▆▃     ││
+ 7 ││   infra                   22     $34.98   ▃▄▂▅▅▄▇▅▃▃▆█▅▆▆▃▄▄▅▅▅█▃▄▅▆▇▅█▂     ││
+ 8 ││   notes                    9     $14.57   ▃▃▃▄▄▇▅▄▃▃▅▆█▅▄▄▃▄▄▆▄▅▄▃▄▅▆▄▆▃     ││
+ 9 ││   Other projects          18     $23.32   ▃▃▃▅▅▆▆▆▄▄█▇▇▆▇▄▃▄▄▆▅▇▄▃▆▇▇▇▆▃     ││
+10 ││   Total                  214    $291.46                                      ││
+11 ││                                                                              ││
+12 │└──────────────────────────────────────────────────────────────────────────────┘│
+13 │┌─ claude-dashboard · cost per day by model · 30 days ─────────────────────────┐│
+14 ││  $10                                                                         ││
+15 ││                                                                              ││
+16 ││                          █   █                                               ││
+17 ││   $5           █ █ █     █ █ █   █     █   █   █     █   █ █ █               ││
+18 ││      █     █ █ █ █ █     █ █ █ █ █     █ █ █ █ █     █ █ █ █ █               ││
+19 ││   $0 █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █             ││
+20 ││      11        16        21        26        1         6       10            ││
+21 ││ ■ Fable 5.1  ■ Opus 5.5  ■ Sonnet 5.5  ■ Haiku 5.5                           ││
+22 │└──────────────────────────────────────────────────────────────────────────────┘│
+23 │ q quit   ←→ sections   ↑↓ move   Enter filter   t table view     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb cccccccccc bbbbbbbb bbbbbbbb │
+ 1 │                                                                                │
+ 2 │ddaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+ 3 │d   bbbbbbb           bbbbbbbb       bbbb   bbbbbbbbbb                         d│
+ 4 │defeggggggggggggggggeeeeeeeeggeeeehhhhhhheeeiiiiiiiiiiiiiiiiiiiiiiiiiiiiiieeeeed│
+ 5 │d   jjjjjjjjjjj             jj     aaaaaa   kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk     d│
+ 6 │d   jjjjjjj                 jj     aaaaaa   kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk     d│
+ 7 │d   jjjjj                   jj     aaaaaa   kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk     d│
+ 8 │d   jjjjj                    j     aaaaaa   kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk     d│
+ 9 │d   bbbbbbbbbbbbbb          jj     aaaaaa   kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk     d│
+10 │d   aaaaa                  jjj    aaaaaaa                                      d│
+11 │d                                                                              d│
+12 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+13 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddd│
+14 │d  bbb                                                                         d│
+15 │d                                                                              d│
+16 │d                          l   m                                               d│
+17 │d   bb           l l n     n l n   n     n   m   n     l   l n l               d│
+18 │d      n     n l n n n     n n n n n     n l n n n     n n n n n               d│
+19 │d   bb n n n n o o o o n n o n o o o n n o n o n o o n o o o o n n             d│
+20 │d      bb        bb        bb        bb        b         b       bb            d│
+21 │d o jjjjjjjjj  n jjjjjjjj  l jjjjjjjjjj  m jjjjjjjjj                           d│
+22 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+23 │ p bbbb   pp bbbbbbbb   pp bbbb   ppppp bbbbbb   p bbbbbbbbbb     bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = on #1c2128
+f = #5cc8e8 on #1c2128 bold
+g = #d7dae0 on #1c2128
+h = #f0f2f5 on #1c2128 bold
+i = #5cc8e8 on #1c2128
+j = #d7dae0
+k = #5cc8e8
+l = #199e70
+m = #c98500
+n = #d95926
+o = #3987e5
+p = #5cc8e8 bold

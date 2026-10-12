@@ -18,7 +18,7 @@ use claude_dashboard_server::statusline::{self, Connection};
 
 use crate::limits;
 use crate::progress;
-use crate::style::{Paint, palette};
+use crate::style::Paint;
 
 /// How a check came out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -342,9 +342,9 @@ fn render(paint: Paint, lines: &[Line]) -> String {
     let mut out = String::new();
     for line in lines {
         let mark = match line.mark {
-            Mark::Good => paint.paint("✓", palette::GOOD, false),
-            Mark::Warning => paint.paint("!", palette::WARNING, false),
-            Mark::Failed => paint.paint("✗", palette::CRITICAL, false),
+            Mark::Good => paint.paint("✓", paint.palette().good, false),
+            Mark::Warning => paint.paint("!", paint.palette().warning, false),
+            Mark::Failed => paint.paint("✗", paint.palette().critical, false),
             Mark::Off => paint.muted("-"),
         };
         let mut text = format!("{mark} {:<LABEL_WIDTH$}", line.label);

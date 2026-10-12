@@ -1,0 +1,65 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Cost per day by model · 30 days ────────────────────────────────────────────┐│
+ 3 ││  $20                                                                         ││
+ 4 ││                                                                              ││
+ 5 ││                          █ █ █         █       █           █                 ││
+ 6 ││  $10           █ █ █     █ █ █ █ █     █   █   █     █ █ █ █ █               ││
+ 7 ││      █     █ █ █ █ █     █ █ █ █ █     █ █ █ █ █     █ █ █ █ █               ││
+ 8 ││      █ █   █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █             ││
+ 9 ││   $0 █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █ █             ││
+10 ││      11        16        21        26        1         6       10            ││
+11 ││ ■ Fable 5.1  ■ Opus 5.5  ■ Sonnet 5.5  ■ Haiku 5.5                           ││
+12 │└──────────────────────────────────────────────────────────────────────────────┘│
+13 │┌─ Tokens and cost · 30 days ──────────────────────────────────────────────────┐│
+14 ││   Model               Requests        Tokens            Cost         Share   ││
+15 ││ ■ Opus 5.5               2,101         56.0M         $150.06           51%   ││
+16 ││ ■ Fable 5.1                781         32.4M          $86.87           30%   ││
+17 ││ ■ Sonnet 5.5             1,121         17.5M          $46.80           16%   ││
+18 ││ ■ Haiku 5.5                461          2.9M           $7.73            3%   ││
+19 ││   Total                                              $291.46          100%   ││
+20 │└──────────────────────────────────────────────────────────────────────────────┘│
+21 │  ↓ prices used                                                                 │
+22 │                                                                                │
+23 │ q quit   ←→ sections   ↑↓ scroll   t table view   ? help         Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb │
+ 1 │                                                                                │
+ 2 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddd│
+ 3 │d  bbb                                                                         d│
+ 4 │d                                                                              d│
+ 5 │d                          e e f         e       e           e                 d│
+ 6 │d  bbb           f f f     f f f g f     f   e   f     e e e f e               d│
+ 7 │d      e     f e f f f     f f f e f     f e f e f     f f f f f               d│
+ 8 │d      f e   f f f f f f e h f h f f f e f f f f f f f f h h h f e             d│
+ 9 │d   bb f h f h h h h h h h h h h h h h h h h h h h h h h h h h h h             d│
+10 │d      bb        bb        bb        bb        b         b       bb            d│
+11 │d h iiiiiiiii  f iiiiiiii  e iiiiiiiiii  g iiiiiiiii                           d│
+12 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+13 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddd│
+14 │d   bbbbb               bbbbbbbb        bbbbbb            bbbb         bbbbb   d│
+15 │d f iiiiiiii               iiiii         iiiii         aaaaaaa           iii   d│
+16 │d h iiiiiiiii                iii         iiiii          aaaaaa           iii   d│
+17 │d e iiiiiiiiii             iiiii         iiiii          aaaaaa           iii   d│
+18 │d g iiiiiiiii                iii          iiii           aaaaa            ii   d│
+19 │d   aaaaa                                              aaaaaaa          iiii   d│
+20 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+21 │  bbbbbbbbbbbbb                                                                 │
+22 │                                                                                │
+23 │ j bbbb   jj bbbbbbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb         bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = #199e70
+f = #d95926
+g = #c98500
+h = #3987e5
+i = #d7dae0
+j = #5cc8e8 bold
