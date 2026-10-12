@@ -1,0 +1,64 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Plan limits ────────────────────────── official · status line · 2 min ago ──┐│
+ 3 ││ Five-hour window 42%  ███████░░░░░░░░░  17:00                                ││
+ 4 ││ Weekly, all     ┌─ Project ────────────────────────────────┐00               ││
+ 5 ││ Weekly, Fable   │ Filter █                                 │                 ││
+ 6 │└─────────────────│                                          │─────────────────┘│
+ 7 │┌─ Cost, API-equiv│   All projects                         ✓ │─────────────────┐│
+ 8 ││ Today $5.05   We│ › api-gateway                            │                 ││
+ 9 │└─────────────────│   claude-dashboard                       │─────────────────┘│
+10 │┌─ Cost per day by│   cv                                     │cts · 30 days ───┐│
+11 ││  $20            │   dotfiles                               │… ██████ $110.76 ││
+12 ││                 │   homelab                                │y ███░░░  $64.12 ││
+13 ││                █│   infra                                  │  ██░░░░  $43.72 ││
+14 ││           █    █│   misc                                   │  ██░░░░  $34.98 ││
+15 ││  $10      ███  █│                                          │  █░░░░░  $14.57 ││
+16 ││      █  █████  █│                                          │… █░░░░░  $23.32 ││
+17 ││      █  █████  █│ Typing filters the list                  │                 ││
+18 ││      ███████████└──────────────────────────────────────────┘                 ││
+19 ││   $0 ██████████████████████████████            ││                            ││
+20 ││      11   16   21   26   1    6   10           ││                            ││
+21 ││ ■ Fable  ■ Opus  ■ Sonnet  ■ Haiku             ││                            ││
+22 │└────────────────────────────────────────────────┘└────────────────────────────┘│
+23 │ ↑↓ choose   Enter apply   Esc close                              Read just now │
+
+styles
+ 0 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 1 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 2 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 3 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 4 │aaaaaaaaaaaaaaaaaaaabbbbbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 5 │aaaaaaaaaaaaaaaaaaacdddddddecccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+ 6 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+ 7 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccfcaaaaaaaaaaaaaaaaaaa│
+ 8 │aaaaaaaaaaaaaaaaaaaghggggggggggggggggggggggggggggggggggggggggaaaaaaaaaaaaaaaaaaa│
+ 9 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+10 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+11 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+12 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+13 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+14 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+15 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+16 │aaaaaaaaaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+17 │aaaaaaaaaaaaaaaaaaacdddddddddddddddddddddddccccccccccccccccccaaaaaaaaaaaaaaaaaaa│
+18 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+19 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+20 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+21 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+22 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+23 │ciicddddddccciiiiicdddddccciiicdddddccccccccccccccccccccccccccccccdddddddddddddc│
+
+a = #3a404a
+b = #f0f2f5 bold
+c = #d7dae0
+d = #8a919c
+e = #5cc8e8
+f = #3fbf6b
+g = #d7dae0 on #1c2128
+h = #5cc8e8 on #1c2128 bold
+i = #5cc8e8 bold

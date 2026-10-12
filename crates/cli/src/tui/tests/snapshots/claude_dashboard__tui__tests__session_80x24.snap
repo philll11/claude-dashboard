@@ -1,0 +1,65 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │ Sessions › Refactor ingest batching                                            │
+ 2 │┌─ Refactor ingest batching ─────────────────────────────── claude-dashboard ──┐│
+ 3 ││ Sat 10 Oct 13:42–14:54 · 1 h 12 min · Claude Code 2.4.1                      ││
+ 4 ││ Estimate $14.82   Claude Code $14.80   within 0.1%                           ││
+ 5 │└──────────────────────────────────────────────────────────────────────────────┘│
+ 6 │┌─ Cost over the session ──────────────────────────────────────── cumulative ──┐│
+ 7 ││  $20                                                                         ││
+ 8 ││                                                                       ▁▂▃▃▄  ││
+ 9 ││                                                    ▁▁▁▁▁▂▂▂▃▄▄▅▆▆▇▇▇▇██████  ││
+10 ││                                       ▁▂▂▃▃▄▄▄▅▅▅▆▇████████████████████████  ││
+11 ││                     ▁▁▁▂▂▂▂▃▃▅▆▆▇▇▇▇███████████████████████████████████████  ││
+12 ││   $0  ▁▁▂▃▄▄▄▄▅▅▅▆▇▇███████████████████████████████████████████████████████  ││
+13 ││      13:42                            14:18                           14:54  ││
+14 │└──────────────────────────────────────────────────────────────────────────────┘│
+15 │┌─ Models and subagents ───────────────────────────────────────────────────────┐│
+16 ││ Who                 Model                 Requests                    Cost   ││
+17 ││ The session         ■ Opus 5.5                 186                  $11.64   ││
+18 ││ Explore             ■ Haiku 5.5                 22                   $0.31   ││
+19 ││ general-purpose     ■ Sonnet 5.5                41                   $2.87   ││
+20 ││                                                                              ││
+21 │└──────────────────────────────────────────────────────────────────────────────┘│
+22 │  ↓ tokens by type, skills and MCP tools                                        │
+23 │ Esc back   ↑↓ scroll   t table view   ? help                     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb │
+ 1 │ bbbbbbbbbbbdddddddddddddddddddddddd                                            │
+ 2 │eeaaaaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbeee│
+ 3 │e bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                      e│
+ 4 │e bbbbbbbbbaaaaaabbbbbbbbbbbbbbbaaaaaa   bbbbbbbbbbb                           e│
+ 5 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 6 │eeaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbeee│
+ 7 │e  bbb                                                                         e│
+ 8 │e                                                                       fffff  e│
+ 9 │e                                                    ffffffffffffffffffffffff  e│
+10 │e                                       fffffffffffffffffffffffffffffffffffff  e│
+11 │e                     fffffffffffffffffffffffffffffffffffffffffffffffffffffff  e│
+12 │e   bb  fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  e│
+13 │e      bbbbb                            bbbbb                           bbbbb  e│
+14 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+15 │eeaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+16 │e bbb                 bbbbb                 bbbbbbbb                    bbbb   e│
+17 │e ddddddddddd         g dddddddd                 ddd                  aaaaaa   e│
+18 │e ddddddd             h ddddddddd                 dd                   aaaaa   e│
+19 │e ddddddddddddddd     i dddddddddd                dd                   aaaaa   e│
+20 │e                                                                              e│
+21 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+22 │  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                        │
+23 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                     bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #d7dae0
+e = #3a404a
+f = #5cc8e8
+g = #d95926
+h = #c98500
+i = #199e70
+j = #5cc8e8 bold

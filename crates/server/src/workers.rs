@@ -2,6 +2,7 @@
 //! reading new transcript content, and noticing what other processes change in the history, such
 //! as a status line's plan-limit readings.
 
+use std::ops::ControlFlow;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -9,7 +10,7 @@ use std::time::{Duration, Instant};
 use claude_dashboard_core::history::History;
 use claude_dashboard_core::ingest;
 use claude_dashboard_core::usage_endpoint::{self, Refresh};
-use crossbeam_channel::{Receiver, Sender, bounded, select, unbounded};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, select, unbounded};
 use jiff::Timestamp;
 use serde::Serialize;
 
@@ -25,6 +26,9 @@ const CHECK_EVERY: Duration = Duration::from_secs(3);
 const ENDPOINT_EVERY: Duration = Duration::from_secs(60);
 /// How often progress is reported while transcripts are read.
 const PROGRESS_EVERY: Duration = Duration::from_millis(250);
+/// How often, at most, a read that adds requests says so before it ends, so that a long first
+/// read shows the newest days while it goes on.
+const CHANGED_EVERY: Duration = Duration::from_secs(2);
 /// How far back the check for changed requests looks; requests are only added or completed
 /// near the present.
 const RECENT_MS: i64 = 2 * 60 * 60 * 1000;
@@ -112,7 +116,7 @@ fn read_transcripts(
         }
         if let Some(history) = history.as_mut() {
             let app = app.with_shared(history).at(app::now());
-            read_once(&app, history, client, shared);
+            read_once(&app, history, client, shared, stopped);
         }
         select! {
             recv(stopped) -> _ => return,
@@ -127,59 +131,105 @@ fn read_transcripts(
     }
 }
 
-fn read_once(app: &App, history: &mut History, client: &Notify, shared: &Mutex<Shared>) {
-    let mut reported = Instant::now()
-        .checked_sub(PROGRESS_EVERY)
-        .unwrap_or_else(Instant::now);
+/// Whether the workers have been asked to stop.
+fn stopping(stopped: &Receiver<()>) -> bool {
+    matches!(stopped.try_recv(), Err(TryRecvError::Disconnected))
+}
+
+/// Reads new transcript content once: reports its progress, says the history changed as it goes,
+/// and stops between parts once the workers are asked to stop. Notifications go out with the
+/// shared state unlocked, so that a client answering one never waits for the reader.
+fn read_once(
+    app: &App,
+    history: &mut History,
+    client: &Notify,
+    shared: &Mutex<Shared>,
+    stopped: &Receiver<()>,
+) {
+    let long_ago = |every| {
+        Instant::now()
+            .checked_sub(every)
+            .unwrap_or_else(Instant::now)
+    };
+    let mut reported = long_ago(PROGRESS_EVERY);
+    let mut changed = long_ago(CHANGED_EVERY);
+    // Request records that a `history/changed` notification has already covered.
+    let mut announced = 0;
     let mut total = 0;
     let result = ingest::ingest_with_progress(history, &app.root_paths(), |progress| {
-        let progress = Progress {
+        let shown = Progress {
             done: progress.done as u64,
             total: progress.total as u64,
         };
-        total = progress.total;
-        lock(shared).reading = Some(progress);
+        total = shown.total;
+        lock(shared).reading = Some(shown);
         if reported.elapsed() >= PROGRESS_EVERY {
             reported = Instant::now();
-            notify(client, "ingest/progress", progress);
+            notify(client, "ingest/progress", shown);
+        }
+        if progress.request_records > announced && changed.elapsed() >= CHANGED_EVERY {
+            changed = Instant::now();
+            announced = progress.request_records;
+            history_changed(app, client, progress.requests_between);
+        }
+        if stopping(stopped) {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
         }
     });
-    let mut state = lock(shared);
-    state.reading = None;
+    let report = {
+        let mut state = lock(shared);
+        state.reading = None;
+        match result {
+            Ok(Some(report)) if report.stopped => return,
+            Ok(Some(report)) => {
+                state.read_ms = Some(app::now().as_millisecond());
+                state.problems = report
+                    .failed
+                    .iter()
+                    .map(|(path, reason)| format!("{}: {reason}", path.display()))
+                    .collect();
+                Some(report)
+            }
+            // Another process is reading; the history watch notices what it adds.
+            Ok(None) => None,
+            Err(error) => {
+                state.problems = vec![error.to_string()];
+                None
+            }
+        }
+    };
     // Every read ends with its progress complete, so that the client knows when it last read,
     // even when nothing new was there.
     notify(client, "ingest/progress", Progress { done: total, total });
-    match result {
-        Ok(Some(report)) => {
-            state.read_ms = Some(app::now().as_millisecond());
-            state.problems = report
-                .failed
-                .iter()
-                .map(|(path, reason)| format!("{}: {reason}", path.display()))
-                .collect();
-            drop(state);
-            if let Some((first_ms, last_ms)) = report.requests_between {
-                let day = |ms: i64| {
-                    Timestamp::from_millisecond(ms)
-                        .map(|at| at.to_zoned(app.zone.clone()).date().to_string())
-                        .unwrap_or_default()
-                };
-                notify(
-                    client,
-                    "history/changed",
-                    HistoryChanged {
-                        days: Some(Days {
-                            first: day(first_ms),
-                            last: day(last_ms),
-                        }),
-                    },
-                );
-            }
-        }
-        // Another process is reading; the history watch notices what it adds.
-        Ok(None) => {}
-        Err(error) => state.problems = vec![error.to_string()],
+    if let Some(report) = report
+        && report.request_records > announced
+    {
+        history_changed(app, client, report.requests_between);
     }
+}
+
+/// Says that new requests arrived on the days between two moments.
+fn history_changed(app: &App, client: &Notify, between: Option<(i64, i64)>) {
+    let Some((first_ms, last_ms)) = between else {
+        return;
+    };
+    let day = |ms: i64| {
+        Timestamp::from_millisecond(ms)
+            .map(|at| at.to_zoned(app.zone.clone()).date().to_string())
+            .unwrap_or_default()
+    };
+    notify(
+        client,
+        "history/changed",
+        HistoryChanged {
+            days: Some(Days {
+                first: day(first_ms),
+                last: day(last_ms),
+            }),
+        },
+    );
 }
 
 /// What the watch compares to notice a change.

@@ -1,0 +1,89 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits      30 days · all projects · all models │
+ 1 │ Sessions › Refactor ingest batching                                                                                    │
+ 2 │┌─ Refactor ingest batching ─────────────────────────────────────────────────────────────────────── claude-dashboard ──┐│
+ 3 ││ Sat 10 Oct 13:42–14:54 · 1 h 12 min · Claude Code 2.4.1 · terminal · session 4f1c2a3b                                ││
+ 4 ││ Estimate $14.82   Claude Code's own figure $14.80   within 0.1%                                                      ││
+ 5 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+ 6 │┌─ Cost over the session ────────────────────── cumulative ──┐┌─ Tokens by type ───────────────────────────────────────┐│
+ 7 ││  $20                                                       ││                                 Tokens           Cost  ││
+ 8 ││                                                            ││ Input                              18K          $0.27  ││
+ 9 ││                                                  ▁▁▂▂▃▅▆▇  ││ Output                             96K          $7.20  ││
+10 ││                                        ▁▁▁▂▃▃▄▆▇█████████  ││ Cache writes, 5 minutes           210K          $3.94  ││
+11 ││                                ▁▂▂▃▃▄▅▇██████████████████  ││ Cache writes, 1 hour               40K          $1.20  ││
+12 ││                        ▁▃▃▄▄▅▅███████████████████████████  ││ Cache reads                       1.4M          $2.18  ││
+13 ││               ▁▂▃▄▅▅▆▆▇██████████████████████████████████  ││ Web searches                         3          $0.03  ││
+14 ││   $0 ▁▁▃▄▅▆▆▇▇███████████████████████████████████████████  ││                                                        ││
+15 ││      13:42                   14:18                  14:54  ││ Total                                          $14.82  ││
+16 │└────────────────────────────────────────────────────────────┘└────────────────────────────────────────────────────────┘│
+17 │┌─ Models and subagents ───────────────────────────────────────────────────────────────────────────────────────────────┐│
+18 ││ Who                   Type          Model           When              Requests      Tokens          Cost             ││
+19 ││ The session                         ■ Opus 5.5      13:42–14:54            186        4.3M        $11.64             ││
+20 ││ Explore               subagent      ■ Haiku 5.5     13:55–13:58             22        116K         $0.31             ││
+21 ││ general-purpose       subagent      ■ Sonnet 5.5    14:10–14:21             41        1.1M         $2.87             ││
+22 ││                                                                                                                      ││
+23 ││                                                                                                                      ││
+24 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+25 │┌─ Skills ─────────────────────────────────────────────────┐┌─ MCP tools ──────────────────────────────────────────────┐│
+26 ││                                     Requests       Cost  ││                                     Requests       Cost  ││
+27 ││ dataviz                                    6      $0.92  ││ github · get_file_contents                 9      $0.41  ││
+28 ││ domain-modeling                            2      $0.18  ││ context7 · query-docs                      3      $0.12  ││
+29 ││                                                          ││                                                          ││
+30 ││                                                          ││                                                          ││
+31 ││                                                          ││                                                          ││
+32 ││                                                          ││                                                          ││
+33 ││ Not credited to a skill or an MCP server: $13.19         ││                                                          ││
+34 │└──────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────┘│
+35 │ Esc back   ↑↓ scroll   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+ 1 │ bbbbbbbbbbbdddddddddddddddddddddddd                                                                                    │
+ 2 │eeaaaaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbbbbbbbeee│
+ 3 │e bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                e│
+ 4 │e bbbbbbbbbaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbaaaaaa   bbbbbbbbbbb                                                      e│
+ 5 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 6 │eeaaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeebbbbbbbbbbbbeeeeeaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+ 7 │e  bbb                                                       ee                                 bbbbbb           bbbb  e│
+ 8 │e                                                            ee ddddd                              ddd          aaaaa  e│
+ 9 │e                                                  ffffffff  ee dddddd                             ddd          aaaaa  e│
+10 │e                                        ffffffffffffffffff  ee ddddddddddddddddddddddd           dddd          aaaaa  e│
+11 │e                                ffffffffffffffffffffffffff  ee dddddddddddddddddddd               ddd          aaaaa  e│
+12 │e                        ffffffffffffffffffffffffffffffffff  ee ddddddddddd                       dddd          aaaaa  e│
+13 │e               fffffffffffffffffffffffffffffffffffffffffff  ee dddddddddddd                         d          aaaaa  e│
+14 │e   bb ffffffffffffffffffffffffffffffffffffffffffffffffffff  ee                                                        e│
+15 │e      bbbbb                   bbbbb                  bbbbb  ee aaaaa                                          aaaaaa  e│
+16 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+17 │eeaaaaaaaaaaaaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+18 │e bbb                   bbbb          bbbbb           bbbb              bbbbbbbb      bbbbbb          bbbb             e│
+19 │e ddddddddddd                         g dddddddd      bbbbbbbbbbb            ddd        dddd        aaaaaa             e│
+20 │e ddddddd               bbbbbbbb      h ddddddddd     bbbbbbbbbbb             dd        dddd         aaaaa             e│
+21 │e ddddddddddddddd       bbbbbbbb      i dddddddddd    bbbbbbbbbbb             dd        dddd         aaaaa             e│
+22 │e                                                                                                                      e│
+23 │e                                                                                                                      e│
+24 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+25 │eeaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeaaaaaaaaaaaeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+26 │e                                     bbbbbbbb       bbbb  ee                                     bbbbbbbb       bbbb  e│
+27 │e ddddddd                                    d      aaaaa  ee dddddddddddddddddddddddddd                 d      aaaaa  e│
+28 │e ddddddddddddddd                            d      aaaaa  ee ddddddddddddddddddddd                      d      aaaaa  e│
+29 │e                                                          ee                                                          e│
+30 │e                                                          ee                                                          e│
+31 │e                                                          ee                                                          e│
+32 │e                                                          ee                                                          e│
+33 │e bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaaaaaa         ee                                                          e│
+34 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
+35 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #d7dae0
+e = #3a404a
+f = #5cc8e8
+g = #d95926
+h = #c98500
+i = #199e70
+j = #5cc8e8 bold

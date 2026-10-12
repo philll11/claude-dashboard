@@ -1,0 +1,93 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits      30 days · all projects · all models │
+ 1 │                                                                                                                        │
+ 2 │┌─ Plan limits ────────────────────────────────────────────────────────────────── official · status line · 2 min ago ──┐│
+ 3 ││ Five-hour window     42%  █████████████░░░░░░░░░░░░░░░░░  resets 17:00, in 2 h 05 min                                ││
+ 4 ││ Weekly, all          71%  █████████████████████░░░░░░░░░  ▲ over 70% · resets Thu 15 Oct, 09:00                      ││
+ 5 ││ Weekly, Fable        18%  █████░░░░░░░░░░░░░░░░░░░░░░░░░  resets Thu 15 Oct, 09:00                                   ││
+ 6 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+ 7 │┌─ Today ──────────────────────────────┐┌─ This week ──────────────────────────┐┌─ This month ─────────────────────────┐│
+ 8 ││ $5.05  1.9M tokens                   ││ $64.82  24.2M tokens                 ││ $99.18  37.0M tokens                 ││
+ 9 ││ −60% on yesterday       ▅▇▅█▄▄▇▆▇█▇▄ ││ +7% on last week  █▆▇▄▄▇▄▆▅▇▄▄▆▆▆▇▇▃ ││ month to date  ▃█▇█▆▇▄▄▇▄▆▅▇▄▄▆▆▆▇▇▃ ││
+10 │└──────────────────────────────────────┘└──────────────────────────────────────┘└──────────────────────────────────────┘│
+11 │┌─ Cost per day by model · 30 days ──────────────── 1–11 of 30 · ↑↓ scroll ──┐┌─ Top projects · 30 days ───────────────┐│
+12 ││ Day                         Fable      Opus    Sonnet     Haiku      Total ││ claude-dashboard  ████████████ $110.76 ││
+13 ││ Sat 10 Oct                  $1.83     $1.99     $1.11     $0.12      $5.05 ││ api-gateway       ███████░░░░░  $64.12 ││
+14 ││ Fri 9 Oct                   $1.82     $7.91     $2.80     $0.22     $12.74 ││ website           █████░░░░░░░  $43.72 ││
+15 ││ Thu 8 Oct                   $5.09     $5.89     $1.92     $0.20     $13.11 ││ infra             ████░░░░░░░░  $34.98 ││
+16 ││ Wed 7 Oct                   $4.30     $4.64     $2.68     $0.26     $11.89 ││ notes             ██░░░░░░░░░░  $14.57 ││
+17 ││ Tue 6 Oct                   $5.22     $3.74     $1.08     $0.53     $10.58 ││ Other projects    ███░░░░░░░░░  $23.32 ││
+18 ││ Mon 5 Oct                   $3.64     $4.44     $3.01     $0.36     $11.45 ││                                        ││
+19 ││ Sun 4 Oct                   $2.01     $2.77     $0.76     $0.10      $5.64 ││                                        ││
+20 ││ Sat 3 Oct                   $2.23     $3.10     $0.82     $0.11      $6.26 ││                                        ││
+21 ││ Fri 2 Oct                   $3.71     $8.72     $0.94     $0.54     $13.91 ││                                        ││
+22 ││ Thu 1 Oct                   $1.85     $5.23     $1.12     $0.36      $8.55 ││                                        ││
+23 ││ Wed 30 Sep                  $2.87     $6.33     $1.60     $0.31     $11.12 ││                                        ││
+24 │└────────────────────────────────────────────────────────────────────────────┘└────────────────────────────────────────┘│
+25 │┌─ Models · 30 days ───────────────────────────────────────────────────────────────────────────────────────────────────┐│
+26 ││ Model                   Requests          Tokens       Cache reads     API-equivalent cost       Share               ││
+27 ││ ■ Opus 5.5                 2,101           56.0M             43.5M                 $150.06         51%               ││
+28 ││ ■ Fable 5.1                  781           32.4M             25.2M                  $86.87         30%               ││
+29 ││ ■ Sonnet 5.5               1,121           17.5M             13.6M                  $46.80         16%               ││
+30 ││ ■ Haiku 5.5                  461            2.9M              2.2M                   $7.73          3%               ││
+31 ││   Total                                                                            $291.46        100%               ││
+32 ││                                                                                                                      ││
+33 ││ Prices of 10 Oct 2026 · within 0.4% of Claude Code's own session costs · 82% of input read from cache                ││
+34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc cccccccccc cccccccc cccccccc     ccccccccccccccccccccccccccccccccccc │
+ 1 │                                                                                                                        │
+ 2 │ddaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddccccccccccccccccccccccccccccccccccccddd│
+ 3 │d eeeeeeeeeeeeeeee     aaa  fffffffffffffggggggggggggggggg  ccccccccccccccccccccccccccc                                d│
+ 4 │d eeeeeeeeeee          aaa  hhhhhhhhhhhhhhhhhhhhhggggggggg  iieeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee                      d│
+ 5 │d eeeeeeeeeeeee        aaa  fffffggggggggggggggggggggggggg  cccccccccccccccccccccccc                                   d│
+ 6 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+ 7 │ddaaaaaaadddddddddddddddddddddddddddddddddaaaaaaaaaaadddddddddddddddddddddddddddddaaaaaaaaaaaadddddddddddddddddddddddddd│
+ 8 │d aaaaa  ccccccccccc                   dd aaaaaa  cccccccccccc                 dd aaaaaa  cccccccccccc                 d│
+ 9 │d ccccccccccccccccc       ffffffffffff dd cccccccccccccccc  ffffffffffffffffff dd ccccccccccccc  fffffffffffffffffffff d│
+10 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+11 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddddccccccccccccccccccccccccdddddaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddd│
+12 │d ccc                         ccccc      cccc    cccccc     ccccc      ccccc dd eeeeeeeeeeeeeeee  cccccccccccc aaaaaaa d│
+13 │d eeeeeeeeee                  eeeee     eeeee     eeeee     eeeee      aaaaa dd eeeeeeeeeee       cccccccggggg  aaaaaa d│
+14 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd eeeeeee           cccccggggggg  aaaaaa d│
+15 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd eeeee             ccccgggggggg  aaaaaa d│
+16 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd eeeee             ccgggggggggg  aaaaaa d│
+17 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd cccccccccccccc    cccggggggggg  aaaaaa d│
+18 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd                                        d│
+19 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee      aaaaa dd                                        d│
+20 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee      aaaaa dd                                        d│
+21 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee     aaaaaa dd                                        d│
+22 │d eeeeeeeee                   eeeee     eeeee     eeeee     eeeee      aaaaa dd                                        d│
+23 │d eeeeeeeeee                  eeeee     eeeee     eeeee     eeeee     aaaaaa dd                                        d│
+24 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+25 │ddaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+26 │d ccccc                   cccccccc          cccccc       ccccccccccc     ccccccccccccccccccc       ccccc               d│
+27 │d j eeeeeeee                 eeeee           eeeee             eeeee                 aaaaaaa         eee               d│
+28 │d k eeeeeeeee                  eee           eeeee             eeeee                  aaaaaa         eee               d│
+29 │d l eeeeeeeeee               eeeee           eeeee             eeeee                  aaaaaa         eee               d│
+30 │d m eeeeeeeee                  eee            eeee              eeee                   aaaaa          ee               d│
+31 │d   aaaaa                                                                            aaaaaaa        eeee               d│
+32 │d                                                                                                                      d│
+33 │d ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                d│
+34 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+35 │ n cccc   nn cccccccc   n cccccccccc   n cccc                        cccccccccccccccccccccccccccccccccccccccccccccccccc │
+
+a = #f0f2f5 bold
+b = #0b0d10 on #5cc8e8 bold
+c = #8a919c
+d = #3a404a
+e = #d7dae0
+f = #5cc8e8
+g = #2a2f37
+h = #fab219
+i = #fab219 bold
+j = #d95926
+k = #3987e5
+l = #199e70
+m = #c98500
+n = #5cc8e8 bold

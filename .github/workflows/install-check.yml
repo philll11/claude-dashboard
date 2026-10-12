@@ -89,3 +89,17 @@ jobs:
           printf '%s' '{"model":{"id":"claude-opus-5-5","display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":1999999999}}}' \
             | "$bin" statusline | tee line.txt
           grep -q "5h 42%" line.txt
+
+          # The terminal UI of the build people install on Linux, the musl one, in a pseudo-terminal
+          # that script gives it: it draws the Overview with the request's model, q ends it, and it
+          # leaves the alternate screen. It writes only the cells that change, so the words of a
+          # line can arrive apart, and each is looked for on its own.
+          if [ "$RUNNER_OS" = Linux ]; then
+            export TERM=xterm-256color CLAUDE_DASHBOARD_THEME=dark
+            (sleep 5; printf q) \
+              | script --quiet --flush --return --command "stty cols 120 rows 36; exec \"$bin\"" /dev/null \
+              > interface.txt
+            grep -q "Overview" interface.txt
+            grep -q "Opus" interface.txt
+            grep -qF $'\e[?1049l' interface.txt
+          fi

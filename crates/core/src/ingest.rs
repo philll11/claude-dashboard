@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::num::NonZero;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
@@ -44,6 +45,9 @@ pub struct Report {
     pub failed: Vec<(PathBuf, String)>,
     /// When the earliest and the latest request records read were written.
     pub requests_between: Option<(i64, i64)>,
+    /// The ingest stopped before the end, as its progress callback asked; the next ingest carries
+    /// on from where it stopped.
+    pub stopped: bool,
 }
 
 /// Reads what the transcripts in `roots` added since the last ingest into the history, starting
@@ -57,7 +61,7 @@ pub struct Report {
 /// [`HistoryError`] when the history cannot be written. A transcript that cannot be read is
 /// listed in the report instead.
 pub fn ingest(history: &mut History, roots: &[PathBuf]) -> Result<Option<Report>, HistoryError> {
-    ingest_with_progress(history, roots, |_| {})
+    ingest_with_progress(history, roots, |_| ControlFlow::Continue(()))
 }
 
 /// How far an ingest has got.
@@ -66,10 +70,17 @@ pub struct Progress {
     /// Transcripts looked at so far, read or found unchanged.
     pub done: usize,
     pub total: usize,
+    /// Request records written so far.
+    pub request_records: u64,
+    /// When the earliest and the latest request records written so far were written.
+    pub requests_between: Option<(i64, i64)>,
 }
 
-/// [`ingest`], calling `progress` once it knows which transcripts changed, and again as each of
-/// those is read.
+/// [`ingest`], calling `progress` once it knows which transcripts changed, and again after each
+/// part of a transcript it writes.
+///
+/// When `progress` breaks, the ingest stops there: what it wrote stays in the history, the report
+/// says it stopped, and the next ingest carries on from there.
 ///
 /// # Errors
 ///
@@ -77,7 +88,7 @@ pub struct Progress {
 pub fn ingest_with_progress(
     history: &mut History,
     roots: &[PathBuf],
-    progress: impl FnMut(Progress),
+    progress: impl FnMut(Progress) -> ControlFlow<()>,
 ) -> Result<Option<Report>, HistoryError> {
     let Some(_lock) = history.try_lock_ingest()? else {
         return Ok(None);
@@ -93,6 +104,9 @@ pub fn ingest_with_progress(
     });
     let positions = history.read_positions()?;
     let mut report = read_transcripts(history, &transcripts, &positions, progress)?;
+    if report.stopped {
+        return Ok(Some(report));
+    }
     let gone = gone(roots, &transcripts, &positions);
     if !gone.is_empty() {
         history.write(|w| {
@@ -153,7 +167,10 @@ pub fn ingest_transcripts(
         .map(|transcript| path_key(&transcript.path))
         .collect();
     let positions = history.read_positions_of(&paths)?;
-    read_transcripts(history, transcripts, &positions, |_| {}).map(Some)
+    read_transcripts(history, transcripts, &positions, |_| {
+        ControlFlow::Continue(())
+    })
+    .map(Some)
 }
 
 /// The transcripts that the history has read but that are no longer there, such as those Claude
@@ -229,7 +246,7 @@ fn read_transcripts(
     history: &mut History,
     transcripts: &[Transcript],
     positions: &HashMap<String, ReadPosition>,
-    mut progress: impl FnMut(Progress),
+    mut progress: impl FnMut(Progress) -> ControlFlow<()>,
 ) -> Result<Report, HistoryError> {
     let mut report = Report::default();
     let mut changed = Vec::new();
@@ -251,14 +268,23 @@ fn read_transcripts(
     report.transcripts_read = changed.len() as u64;
     let total = transcripts.len();
     let mut done = total - changed.len();
-    progress(Progress { done, total });
+    let first = Progress {
+        done,
+        total,
+        request_records: 0,
+        requests_between: None,
+    };
+    if progress(first).is_break() {
+        report.stopped = true;
+        return Ok(report);
+    }
 
     let readers = thread::available_parallelism()
         .map_or(1, NonZero::get)
         .min(MAX_READERS)
         .min(changed.len());
     let next = AtomicUsize::new(0);
-    thread::scope(|scope| {
+    let flow = thread::scope(|scope| {
         let (sender, receiver) = mpsc::sync_channel(2 * readers);
         let (changed, next) = (&changed, &next);
         for _ in 0..readers {
@@ -267,7 +293,7 @@ fn read_transcripts(
         }
         drop(sender);
         // Returning drops the receiver before the scope waits for the readers, so a reader
-        // blocked on a full channel stops when writing fails.
+        // blocked on a full channel stops once it has read its part.
         write_found(history, changed, &receiver, |found| {
             match found {
                 Found::Part { read, last, .. } => {
@@ -282,20 +308,26 @@ fn read_transcripts(
                                 }));
                         }
                     }
-                    if !last {
-                        return;
+                    if last {
+                        done += 1;
                     }
                 }
                 Found::Failed { index, error } => {
                     report
                         .failed
                         .push((changed[index].transcript.path.clone(), error));
+                    done += 1;
                 }
             }
-            done += 1;
-            progress(Progress { done, total });
+            progress(Progress {
+                done,
+                total,
+                request_records: report.request_records,
+                requests_between: report.requests_between,
+            })
         })
     })?;
+    report.stopped = flow.is_break();
     Ok(report)
 }
 
@@ -344,13 +376,13 @@ fn read_changed(changed: &[Changed<'_>], next: &AtomicUsize, sender: &SyncSender
 }
 
 /// Writes what the readers found, a batch of parts per transaction, and hands each part on to
-/// `then` once it is written.
+/// `then` once it is written; stops after a batch when `then` breaks for one of its parts.
 fn write_found(
     history: &mut History,
     changed: &[Changed<'_>],
     receiver: &Receiver<Found>,
-    mut then: impl FnMut(Found),
-) -> Result<(), HistoryError> {
+    mut then: impl FnMut(Found) -> ControlFlow<()>,
+) -> Result<ControlFlow<()>, HistoryError> {
     let mut batch = Vec::new();
     while let Ok(found) = receiver.recv() {
         let mut records = found.records();
@@ -366,14 +398,20 @@ fn write_found(
                 if let Found::Part {
                     index,
                     read,
+                    last,
                     agent_type,
-                    ..
                 } = found
                 {
                     let changed = &changed[*index];
+                    // A transcript read only in part is recorded as no longer than that part, so
+                    // that the next ingest reads the rest even if this one stops in between.
                     let position = ReadPosition {
                         read_to: read.end,
-                        len: changed.transcript.len,
+                        len: if *last {
+                            changed.transcript.len
+                        } else {
+                            read.end
+                        },
                         modified_ms: changed.modified_ms,
                     };
                     let kept = Kept {
@@ -385,9 +423,17 @@ fn write_found(
             }
             Ok(())
         })?;
-        batch.drain(..).for_each(&mut then);
+        let mut flow = ControlFlow::Continue(());
+        for found in batch.drain(..) {
+            if then(found).is_break() {
+                flow = ControlFlow::Break(());
+            }
+        }
+        if flow.is_break() {
+            return Ok(flow);
+        }
     }
-    Ok(())
+    Ok(ControlFlow::Continue(()))
 }
 
 /// What one read of a transcript found that the history keeps.

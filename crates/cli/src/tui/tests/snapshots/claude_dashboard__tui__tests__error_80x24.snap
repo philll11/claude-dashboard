@@ -1,0 +1,60 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │                                                                                │
+ 3 │                                                                                │
+ 4 │                                                                                │
+ 5 │                                                                                │
+ 6 │                                                                                │
+ 7 │                                                                                │
+ 8 │                          The history cannot be opened                          │
+ 9 │                                                                                │
+10 │       SQLite cannot keep a write-ahead log for \\nas\you\history.sqlite        │
+11 │         (journal mode "delete"); the history must be on a local disk.          │
+12 │                                                                                │
+13 │                claude-dashboard doctor checks what it can find.                │
+14 │                                                                                │
+15 │                                                                                │
+16 │                                                                                │
+17 │                                                                                │
+18 │                                                                                │
+19 │                                                                                │
+20 │                                                                                │
+21 │                                                                                │
+22 │                                                                                │
+23 │ q quit   R try again   ? help                                                  │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc cccccccccc cccccccc cccccccc │
+ 1 │                                                                                │
+ 2 │                                                                                │
+ 3 │                                                                                │
+ 4 │                                                                                │
+ 5 │                                                                                │
+ 6 │                                                                                │
+ 7 │                                                                                │
+ 8 │                          aaaaaaaaaaaaaaaaaaaaaaaaaaaa                          │
+ 9 │                                                                                │
+10 │       ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd        │
+11 │         ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd          │
+12 │                                                                                │
+13 │                cccccccccccccccccccccccccccccccccccccccccccccccc                │
+14 │                                                                                │
+15 │                                                                                │
+16 │                                                                                │
+17 │                                                                                │
+18 │                                                                                │
+19 │                                                                                │
+20 │                                                                                │
+21 │                                                                                │
+22 │                                                                                │
+23 │ e cccc   e ccccccccc   e cccc                                                c │
+
+a = #f0f2f5 bold
+b = #0b0d10 on #5cc8e8 bold
+c = #8a919c
+d = #d7dae0
+e = #5cc8e8 bold

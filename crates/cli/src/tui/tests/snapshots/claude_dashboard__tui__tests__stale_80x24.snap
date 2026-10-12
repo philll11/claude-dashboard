@@ -1,0 +1,68 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │ ▲ No Claude Code session in a terminal since Wed 7 Oct: last readings          │
+ 2 │┌─ Plan limits ─────────────────────────────────── ▲ last reading 2 days ago ──┐│
+ 3 ││ Five-hour window 64%  ██████████░░░░░░  ended Wed 18:20                      ││
+ 4 ││ Weekly, all      58%  █████████░░░░░░░  Thu 09:00                            ││
+ 5 ││ Weekly, Fable    12%  ██░░░░░░░░░░░░░░  Thu 09:00                            ││
+ 6 │└──────────────────────────────────────────────────────────────────────────────┘│
+ 7 │┌─ Cost, API-equivalent ───────────────────────────────────────────────────────┐│
+ 8 ││ Today $5.05   Week $64.82   Month $99.18                                     ││
+ 9 │└──────────────────────────────────────────────────────────────────────────────┘│
+10 │┌─ Cost per day by model · 30 days ──────────────┐┌─ Top projects · 30 days ───┐│
+11 ││  $20                                           ││ claude-das… ██████ $110.76 ││
+12 ││                                                ││ api-gateway ███░░░  $64.12 ││
+13 ││                █ █                             ││ website     ██░░░░  $43.72 ││
+14 ││           █    ███ █  █   █     ██             ││ infra       ██░░░░  $34.98 ││
+15 ││  $10      ███  █████  █ █ █  █████             ││ notes       █░░░░░  $14.57 ││
+16 ││      █  █████  █████  █ ███  █████             ││ Other proj… █░░░░░  $23.32 ││
+17 ││      █  █████  ███████████████████             ││                            ││
+18 ││      ██████████████████████████████            ││                            ││
+19 ││   $0 ██████████████████████████████            ││                            ││
+20 ││      11   16   21   26   1    6   10           ││                            ││
+21 ││ ■ Fable  ■ Opus  ■ Sonnet  ■ Haiku             ││                            ││
+22 │└────────────────────────────────────────────────┘└────────────────────────────┘│
+23 │ q quit   ←→ sections   t table view   ? help                     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc cccccccccc cccccccc cccccccc │
+ 1 │ ddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee          │
+ 2 │ffaaaaaaaaaaaaafffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggfff│
+ 3 │f eeeeeeeeeeeeeeee eee  cccccccccchhhhhh  ccccccccccccccc                      f│
+ 4 │f eeeeeeeeeee      eee  ccccccccchhhhhhh  ccccccccc                            f│
+ 5 │f eeeeeeeeeeeee    eee  cchhhhhhhhhhhhhh  ccccccccc                            f│
+ 6 │ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff│
+ 7 │ffaaaaaaaaaaaaaaaaaaaaaaffffffffffffffffffffffffffffffffffffffffffffffffffffffff│
+ 8 │f ccccccaaaaa   cccccaaaaaa   ccccccaaaaaa                                     f│
+ 9 │ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff│
+10 │ffaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffffffffffffaaaaaaaaaaaaaaaaaaaaaaaaffff│
+11 │f  ccc                                           ff eeeeeeeeeee cccccc aaaaaaa f│
+12 │f                                                ff eeeeeeeeeee ccchhh  aaaaaa f│
+13 │f                i i                             ff eeeeeee     cchhhh  aaaaaa f│
+14 │f           j    kik j  i   k     ii             ff eeeee       cchhhh  aaaaaa f│
+15 │f  ccc      kkk  kkkjk  k i k  iiiki             ff eeeee       chhhhh  aaaaaa f│
+16 │f      i  ijkkk  kkkik  k kik  kkkkk             ff ccccccccccc chhhhh  aaaaaa f│
+17 │f      k  kkkkk  kklkkijkikkkijkkkkk             ff                            f│
+18 │f      kkikklklkklkllkkkkkkklkkllllkk            ff                            f│
+19 │f   cc llllllllllllllllllllllllllllll            ff                            f│
+20 │f      cc   cc   cc   cc   c    c   cc           ff                            f│
+21 │f l eeeee  k eeee  i eeeeee  j eeeee             ff                            f│
+22 │ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff│
+23 │ m cccc   mm cccccccc   m cccccccccc   m cccc                     ccccccccccccc │
+
+a = #f0f2f5 bold
+b = #0b0d10 on #5cc8e8 bold
+c = #8a919c
+d = #fab219 bold
+e = #d7dae0
+f = #3a404a
+g = #fab219
+h = #2a2f37
+i = #199e70
+j = #c98500
+k = #d95926
+l = #3987e5
+m = #5cc8e8 bold

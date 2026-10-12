@@ -2,6 +2,7 @@
 //! is a terminal.
 
 use std::io::{IsTerminal, Write};
+use std::ops::ControlFlow;
 use std::time::{Duration, Instant};
 
 use claude_dashboard_core::history::{History, HistoryError};
@@ -17,11 +18,17 @@ const QUIET_FOR: Duration = Duration::from_millis(300);
 pub fn ingest(app: &App, history: &mut History) -> Result<Option<Report>, HistoryError> {
     let started = Instant::now();
     let show = std::io::stderr().is_terminal();
-    let mut shown = false;
-    let report =
-        ingest::ingest_with_progress(history, &app.root_paths(), |Progress { done, total }| {
-            if show && started.elapsed() >= QUIET_FOR && (done % 25 == 0 || done == total) {
-                shown = true;
+    let mut shown = None;
+    let report = ingest::ingest_with_progress(
+        history,
+        &app.root_paths(),
+        |Progress { done, total, .. }| {
+            if show
+                && started.elapsed() >= QUIET_FOR
+                && shown != Some(done)
+                && (done % 25 == 0 || done == total)
+            {
+                shown = Some(done);
                 let mut stderr = std::io::stderr();
                 let _ = write!(
                     stderr,
@@ -31,8 +38,10 @@ pub fn ingest(app: &App, history: &mut History) -> Result<Option<Report>, Histor
                 );
                 let _ = stderr.flush();
             }
-        });
-    if shown {
+            ControlFlow::Continue(())
+        },
+    );
+    if shown.is_some() {
         let _ = write!(std::io::stderr(), "\r{}\r", " ".repeat(60));
     }
     report

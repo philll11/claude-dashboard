@@ -43,6 +43,18 @@ To cut a release:
 
    To check an existing release again, run the install check by hand with its tag; to package its extension or build its desktop app again, run the VS Code release or the desktop release workflow by hand from the tag.
 
+## Terminal UI
+
+`crates/cli/src/tui` is the dashboard in the terminal, which `cargo run -p claude-dashboard` opens.
+It reads your own Claude Code folder and history, as an installed copy would; set `CLAUDE_DASHBOARD_HISTORY` to a file of its own to keep your history out of it.
+The design's terminal boards on the canvas are what each screen is drawn to match.
+
+- The snapshot tests draw every screen and state from made-up answers, through crossterm into memory, read the result back as a terminal shows it, and compare its text and colours with the snapshots in `crates/cli/src/tui/tests/snapshots`.
+  After a change that is meant to show, run the tests with `INSTA_UPDATE=always`, or `cargo insta review` with [cargo-insta](https://insta.rs/docs/cli/), and read the changed snapshots before committing them.
+- `crates/cli/tests/tui.rs` runs the program in a pseudo-terminal, Windows' pseudo console on Windows, and moves through its screens as a person would.
+- `design/tokens.json` holds the terminal palettes, for a dark and a light background; the colour tests hold their text to 4.5:1 and their marks to 3:1, on white, GNOME Terminal's and Solarized Light's backgrounds as well as the dark one.
+- `design/formats.json` and `design/buckets.json` hold the examples that the Rust and the TypeScript formats, weeks and months are both tested against, so that every surface writes them the same.
+
 ## Web dashboard
 
 `web/app` is the dashboard that VS Code and the desktop app show, and `web/protocol` describes the messages it exchanges with `claude-dashboard serve`.

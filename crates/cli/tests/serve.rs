@@ -18,7 +18,8 @@ const NOW: &str = "2026-10-10T12:00:00Z";
 const TODAY: &str = "2026-10-10";
 
 struct Server {
-    _dir: tempfile::TempDir,
+    /// The data root and history, kept until the test ends.
+    dir: tempfile::TempDir,
     root: PathBuf,
     history: PathBuf,
     child: Child,
@@ -72,7 +73,7 @@ impl Server {
             }
         });
         Self {
-            _dir: dir,
+            dir,
             root,
             history,
             child,
@@ -615,6 +616,98 @@ fn offers_the_claude_usage_dashboards_history_once() {
         server.result("health", &Value::Null)["history"]["imported"]["requests"],
         1
     );
+}
+
+/// How many sessions, and requests in each, make a first read that writes several batches, so
+/// that it can be stopped or watched midway.
+const MANY: usize = 1_000;
+const EACH: usize = 24;
+
+/// Writes `MANY` sessions of `EACH` requests, today, into a new data root.
+fn many_sessions() -> (tempfile::TempDir, PathBuf, PathBuf) {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join(".claude");
+    let history = dir.path().join("history.sqlite");
+    let folder = root.join("projects").join("C--code-app");
+    fs::create_dir_all(&folder).unwrap();
+    for session in 0..MANY {
+        let lines: Vec<String> = (0..EACH)
+            .map(|n| {
+                request(
+                    &format!("{session}-{n}"),
+                    "claude-opus-5-5",
+                    &today_at(&format!(
+                        "{:02}:{:02}:{n:02}",
+                        session / 60 % 12,
+                        session % 60
+                    )),
+                )
+                .to_string()
+            })
+            .collect();
+        fs::write(
+            folder.join(format!("4f1c2a3b-0000-4000-8000-{session:012}.jsonl")),
+            lines.join("\n") + "\n",
+        )
+        .unwrap();
+    }
+    (dir, root, history)
+}
+
+fn requests_held(history: &Path) -> i64 {
+    rusqlite::Connection::open(history)
+        .unwrap()
+        .query_row("SELECT count(*) FROM requests", [], |row| row.get(0))
+        .unwrap()
+}
+
+#[test]
+fn a_client_that_goes_away_during_a_read_stops_it_and_the_next_read_carries_on() {
+    let (dir, root, history) = many_sessions();
+    let mut server = Server::start_with(dir, root, history);
+    server.wait_for(|message| {
+        message["method"] == "ingest/progress"
+            && message["params"]["done"].as_u64() < message["params"]["total"].as_u64()
+    });
+
+    drop(server.input.take());
+    let deadline = Instant::now() + WAIT;
+    while server.child.try_wait().unwrap().is_none() {
+        assert!(Instant::now() < deadline, "the server keeps reading");
+        thread::sleep(Duration::from_millis(20));
+    }
+    assert!(server.child.try_wait().unwrap().unwrap().success());
+    let kept = requests_held(&server.history);
+    assert!(
+        kept < i64::try_from(MANY * EACH).unwrap(),
+        "the read stopped midway: {kept} requests"
+    );
+
+    let dir = std::mem::replace(&mut server.dir, tempfile::tempdir().unwrap());
+    let mut next = Server::start_with(dir, server.root.clone(), server.history.clone());
+    next.wait_for(|message| {
+        message["method"] == "ingest/progress"
+            && message["params"]["done"] == message["params"]["total"]
+    });
+    assert_eq!(
+        next.result("status", &Value::Null)["todayTotals"]["requests"],
+        MANY * EACH
+    );
+}
+
+#[test]
+fn says_the_history_changed_while_a_long_read_goes_on() {
+    let (dir, root, history) = many_sessions();
+    let server = Server::start_with(dir, root, history);
+
+    let changed = server.wait_for(|message| {
+        message["method"] == "history/changed"
+            || (message["method"] == "ingest/progress"
+                && message["params"]["done"] == message["params"]["total"])
+    });
+
+    assert_eq!(changed["method"], "history/changed", "{changed}");
+    assert_eq!(changed["params"]["days"]["last"], today());
 }
 
 #[test]

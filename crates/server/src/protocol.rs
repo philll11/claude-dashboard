@@ -88,7 +88,8 @@ pub struct Model {
 pub struct Project {
     /// The folder that holds its transcripts, which identifies it.
     pub id: String,
-    /// The last part of its working folder, or the last two when another project shares it.
+    /// The last part of its working folder, with as many parts before it as tell it apart from
+    /// every other project's.
     pub name: String,
     /// Its working folder, once a transcript has named it.
     #[ts(optional = nullable)]
@@ -512,6 +513,18 @@ pub struct PriceRow {
     /// them.
     #[ts(optional = nullable)]
     pub long_prompt: Option<LongPrompt>,
+    /// The prices of input and output in fast mode, for a model that has one.
+    #[ts(optional = nullable)]
+    pub fast: Option<FastPrices>,
+}
+
+/// A model's fast-mode prices, in US dollars per million tokens.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct FastPrices {
+    pub input: f64,
+    pub output: f64,
 }
 
 /// A model's prices for long prompts, in US dollars per million tokens.
@@ -593,7 +606,8 @@ pub struct Health {
     /// How many days Claude Code keeps transcripts for.
     pub cleanup_days: u32,
     pub access: Access,
-    /// The schema that made the history read-only.
+    /// The schema of the newer claude-dashboard that upgraded the history: this one can only read
+    /// it, or, without `history`, cannot read it at all.
     #[ts(optional = nullable)]
     pub newer_schema: Option<u32>,
     /// What went wrong reading files during the last ingest.

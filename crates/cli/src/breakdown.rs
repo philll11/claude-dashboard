@@ -15,8 +15,8 @@ use claude_dashboard_server::fmt::short_date;
 use claude_dashboard_server::names::{model_name, project_names};
 
 use crate::report::{
-    CostJson, Output, Row, TokensJson, cells, cost_json, print_json, ready_history, series_colour,
-    sum, table, tokens_json, total_row,
+    CostJson, Output, Row, TokensJson, cells, cost_json, print_json, ready_history, sum, table,
+    tokens_json, total_row,
 };
 use crate::style::Paint;
 
@@ -94,7 +94,7 @@ pub fn models(app: &App, since: Option<Date>, until: Option<Date>, output: Outpu
                         Row {
                             label: format!(
                                 "{} {name}",
-                                paint.paint("■", series_colour(&model.model), false)
+                                paint.paint("■", paint.palette().series(&model.model), false)
                             ),
                             label_len: name.chars().count() + 2,
                             values: cells(&model.totals),

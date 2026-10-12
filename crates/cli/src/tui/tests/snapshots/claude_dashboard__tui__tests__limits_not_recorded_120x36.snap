@@ -1,0 +1,86 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits      30 days · all projects · all models │
+ 1 │                                                                                                                        │
+ 2 │┌─ Plan limits ────────────────────────────────────────────────────────────────────────────────────────────────────────┐│
+ 3 ││ Not connected. Claude Code passes plan limits to its status line while it runs in a terminal.                        ││
+ 4 ││ claude-dashboard statusline connect   records them as Claude Code runs in a terminal                                 ││
+ 5 ││ claude-dashboard limits endpoint on   asks Anthropic when no session runs there (experimental)                       ││
+ 6 ││                                                                                                                      ││
+ 7 ││                                                                                                                      ││
+ 8 ││                                                                                                                      ││
+ 9 ││                                                                                                                      ││
+10 ││                                                                                                                      ││
+11 ││                                                                                                                      ││
+12 ││                                                                                                                      ││
+13 ││                                                                                                                      ││
+14 ││                                                                                                                      ││
+15 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+16 │┌─ Recent five-hour windows ───────────────────────────────────────────────────────────────────────────────────────────┐│
+17 ││ No five-hour window has a reading yet.                                                                               ││
+18 ││                                                                                                                      ││
+19 ││                                                                                                                      ││
+20 ││                                                                                                                      ││
+21 ││                                                                                                                      ││
+22 ││                                                                                                                      ││
+23 ││                                                                                                                      ││
+24 ││                                                                                                                      ││
+25 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+26 │┌─ Where the limits come from ─────────────────────────────────────────────────────────────────────────────────────────┐│
+27 ││ Status line         not connected  claude-dashboard statusline connect                                               ││
+28 ││ Usage endpoint      off  claude-dashboard limits endpoint on       experimental, when no session runs in a terminal  ││
+29 ││                                                                                                                      ││
+30 ││ Limits are shared between Claude Code and claude.ai.                                                                 ││
+31 ││                                                                                                                      ││
+32 ││                                                                                                                      ││
+33 ││                                                                                                                      ││
+34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
+35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+ 1 │                                                                                                                        │
+ 2 │ddaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+ 3 │d eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee                        d│
+ 4 │d fffffffffffffffffffffffffffffffffff   bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                 d│
+ 5 │d fffffffffffffffffffffffffffffffffff   bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                       d│
+ 6 │d                                                                                                                      d│
+ 7 │d                                                                                                                      d│
+ 8 │d                                                                                                                      d│
+ 9 │d                                                                                                                      d│
+10 │d                                                                                                                      d│
+11 │d                                                                                                                      d│
+12 │d                                                                                                                      d│
+13 │d                                                                                                                      d│
+14 │d                                                                                                                      d│
+15 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+16 │ddaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+17 │d bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                               d│
+18 │d                                                                                                                      d│
+19 │d                                                                                                                      d│
+20 │d                                                                                                                      d│
+21 │d                                                                                                                      d│
+22 │d                                                                                                                      d│
+23 │d                                                                                                                      d│
+24 │d                                                                                                                      d│
+25 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+26 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+27 │d aaaaaaaaaaa         eeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffff                                               d│
+28 │d aaaaaaaaaaaaaa      eeeeefffffffffffffffffffffffffffffffffff       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  d│
+29 │d                                                                                                                      d│
+30 │d bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                 d│
+31 │d                                                                                                                      d│
+32 │d                                                                                                                      d│
+33 │d                                                                                                                      d│
+34 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+35 │ g bbbb   gg bbbbbbbb   g bbbbbbbbbb   g bbbb                        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = #d7dae0
+f = #5cc8e8
+g = #5cc8e8 bold

@@ -49,6 +49,8 @@ export function costSeries(
   };
 }
 
+/** How finely days are added up. design/buckets.json holds the examples that this and the CLI's
+ * bucketing are both tested against. */
 export type Bucket = "day" | "week" | "month";
 
 /** How finely a chart of `days` days can show them. */
@@ -56,6 +58,13 @@ export function bucketOf(dayCount: number): Bucket {
   if (dayCount <= 62) return "day";
   if (dayCount <= 434) return "week";
   return "month";
+}
+
+/** The first day of the bucket `day` falls in, for weeks starting on `weekStart`. */
+export function bucketStart(day: string, bucket: Bucket, weekStart: string): string {
+  if (bucket === "day") return day;
+  if (bucket === "week") return startOfWeek(day, weekStart);
+  return `${day.slice(0, 7)}-01`;
 }
 
 /** Columns of cost by series from `first` to `last`, one per day, week or month. */
@@ -68,12 +77,7 @@ export function costColumns(
 ): { bucket: Bucket; columns: Column[] } {
   const days = daysBetween(first, last);
   const bucket = bucketOf(days.length);
-  const keyOf = (day: string) =>
-    bucket === "day"
-      ? day
-      : bucket === "week"
-        ? startOfWeek(day, weekStart)
-        : `${day.slice(0, 7)}-01`;
+  const keyOf = (day: string) => bucketStart(day, bucket, weekStart);
   const columns = new Map<string, Column>();
   for (const day of days) {
     const key = keyOf(day);

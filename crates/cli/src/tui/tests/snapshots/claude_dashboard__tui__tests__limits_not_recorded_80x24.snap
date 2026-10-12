@@ -1,0 +1,62 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Plan limits ────────────────────────────────────────────────────────────────┐│
+ 3 ││ Not connected. Claude Code passes them to its status line as it runs.        ││
+ 4 ││ claude-dashboard statusline connect   records them as Claude Code runs       ││
+ 5 ││ claude-dashboard limits endpoint on   asks Anthropic (experimental)          ││
+ 6 ││                                                                              ││
+ 7 ││                                                                              ││
+ 8 ││                                                                              ││
+ 9 ││                                                                              ││
+10 ││                                                                              ││
+11 │└──────────────────────────────────────────────────────────────────────────────┘│
+12 │┌─ Recent five-hour windows ───────────────────────────────────────────────────┐│
+13 ││ No five-hour window has a reading yet.                                       ││
+14 ││                                                                              ││
+15 ││                                                                              ││
+16 ││                                                                              ││
+17 │└──────────────────────────────────────────────────────────────────────────────┘│
+18 │┌─ Where the limits come from ─────────────────────────────────────────────────┐│
+19 ││ Status line     not connected  claude-dashboard statusline connect           ││
+20 ││ Usage endpoint  off  claude-dashboard limits endpoint on                     ││
+21 │└──────────────────────────────────────────────────────────────────────────────┘│
+22 │                                                                                │
+23 │ q quit   ←→ sections   t table view   ? help                     Read just now │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc │
+ 1 │                                                                                │
+ 2 │ddaaaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+ 3 │d eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee        d│
+ 4 │d fffffffffffffffffffffffffffffffffff   bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb       d│
+ 5 │d fffffffffffffffffffffffffffffffffff   bbbbbbbbbbbbbbbbbbbbbbbbbbbbb          d│
+ 6 │d                                                                              d│
+ 7 │d                                                                              d│
+ 8 │d                                                                              d│
+ 9 │d                                                                              d│
+10 │d                                                                              d│
+11 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+12 │ddaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddddd│
+13 │d bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                       d│
+14 │d                                                                              d│
+15 │d                                                                              d│
+16 │d                                                                              d│
+17 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+18 │ddaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddddddddddddddddddddddddddddddddddd│
+19 │d aaaaaaaaaaa     eeeeeeeeeeeeeeefffffffffffffffffffffffffffffffffff           d│
+20 │d aaaaaaaaaaaaaa  eeeeefffffffffffffffffffffffffffffffffff                     d│
+21 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
+22 │                                                                                │
+23 │ g bbbb   gg bbbbbbbb   g bbbbbbbbbb   g bbbb                     bbbbbbbbbbbbb │
+
+a = #f0f2f5 bold
+b = #8a919c
+c = #0b0d10 on #5cc8e8 bold
+d = #3a404a
+e = #d7dae0
+f = #5cc8e8
+g = #5cc8e8 bold

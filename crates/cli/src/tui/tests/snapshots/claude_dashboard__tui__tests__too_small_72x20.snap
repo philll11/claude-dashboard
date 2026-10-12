@@ -1,0 +1,50 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │                                                                        │
+ 1 │                                                                        │
+ 2 │                                                                        │
+ 3 │                                                                        │
+ 4 │                                                                        │
+ 5 │                                                                        │
+ 6 │                                                                        │
+ 7 │                        The window is 72 by 20.                         │
+ 8 │                 The dashboard needs at least 80 by 24.                 │
+ 9 │                                                                        │
+10 │                                q quits                                 │
+11 │                                                                        │
+12 │                                                                        │
+13 │                                                                        │
+14 │                                                                        │
+15 │                                                                        │
+16 │                                                                        │
+17 │                                                                        │
+18 │                                                                        │
+19 │                                                                        │
+
+styles
+ 0 │                                                                        │
+ 1 │                                                                        │
+ 2 │                                                                        │
+ 3 │                                                                        │
+ 4 │                                                                        │
+ 5 │                                                                        │
+ 6 │                                                                        │
+ 7 │                        aaaaaaaaaaaaaaaaaaaaaaa                         │
+ 8 │                 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                 │
+ 9 │                                                                        │
+10 │                                ccccccc                                 │
+11 │                                                                        │
+12 │                                                                        │
+13 │                                                                        │
+14 │                                                                        │
+15 │                                                                        │
+16 │                                                                        │
+17 │                                                                        │
+18 │                                                                        │
+19 │                                                                        │
+
+a = #f0f2f5 bold
+b = #d7dae0
+c = #8a919c

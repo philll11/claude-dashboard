@@ -1,0 +1,60 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code                                                      │
+ 1 │                                                                                │
+ 2 │                                                                                │
+ 3 │                                                                                │
+ 4 │                                                                                │
+ 5 │                                                                                │
+ 6 │                                                                                │
+ 7 │                                                                                │
+ 8 │                This history is newer than this claude-dashboard                │
+ 9 │                                                                                │
+10 │      A newer version upgraded it (schema 5), and this one cannot read it.      │
+11 │                       Update claude-dashboard to see it:                       │
+12 │              github.com/philll11/claude-dashboard/releases/latest              │
+13 │                                                                                │
+14 │                                                                                │
+15 │                                                                                │
+16 │                                                                                │
+17 │                                                                                │
+18 │                                                                                │
+19 │                                                                                │
+20 │                                                                                │
+21 │                                                                                │
+22 │                                                                                │
+23 │ q quit                                                                         │
+
+styles
+ 0 │ aaaaaaaaaaaaaaaaaaaaaaaaa                                                      │
+ 1 │                                                                                │
+ 2 │                                                                                │
+ 3 │                                                                                │
+ 4 │                                                                                │
+ 5 │                                                                                │
+ 6 │                                                                                │
+ 7 │                                                                                │
+ 8 │                aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa                │
+ 9 │                                                                                │
+10 │      bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb      │
+11 │                       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                       │
+12 │              cccccccccccccccccccccccccccccccccccccccccccccccccccc              │
+13 │                                                                                │
+14 │                                                                                │
+15 │                                                                                │
+16 │                                                                                │
+17 │                                                                                │
+18 │                                                                                │
+19 │                                                                                │
+20 │                                                                                │
+21 │                                                                                │
+22 │                                                                                │
+23 │ d eeee                                                                         │
+
+a = #f0f2f5 bold
+b = #d7dae0
+c = #5cc8e8
+d = #5cc8e8 bold
+e = #8a919c

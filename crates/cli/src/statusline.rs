@@ -21,7 +21,7 @@ use claude_dashboard_server::statusline::{
 use serde_json::{Map, Value};
 
 use crate::prompt;
-use crate::style::{Paint, palette};
+use crate::style::Paint;
 
 /// The most status line JSON that is read.
 const MAX_INPUT: u64 = 1 << 20;
@@ -82,12 +82,12 @@ fn our_line(app: &App, input: &StatusLineInput, today_usd: Option<f64>) -> Strin
         let percent = format!("{used:.0}%");
         let figure = match Level::of(*used) {
             Level::Normal => paint.strong(&percent),
-            Level::Warning => paint.paint(&format!("{percent} ▲"), palette::WARNING, true),
+            Level::Warning => paint.paint(&format!("{percent} ▲"), paint.palette().warning, true),
             // Red passes WCAG AA only for marks, so the figure stays in strong ink.
             Level::Critical => format!(
                 "{} {}",
                 paint.strong(&percent),
-                paint.paint("▲", palette::CRITICAL, true)
+                paint.paint("▲", paint.palette().critical, true)
             ),
         };
         parts.push(format!("{label} {figure}"));
@@ -95,7 +95,7 @@ fn our_line(app: &App, input: &StatusLineInput, today_usd: Option<f64>) -> Strin
     if let Some(usd) = today_usd {
         parts.push(format!(
             "{} today",
-            paint.paint(&money(usd), palette::STRONG, false)
+            paint.paint(&money(usd), paint.palette().strong, false)
         ));
     }
     parts.join(&format!(" {} ", paint.muted("·")))
@@ -148,22 +148,19 @@ fn shell(command: &str) -> Command {
     }
 }
 
-/// Git Bash, where Claude Code would find it: the path it is told, `bash` on the `PATH`, or next
-/// to Git.
+/// Git Bash, where Claude Code finds it: the path it is told, next to the Git on the `PATH`, or
+/// where Git installs by default. A `bash` on the `PATH` is not taken, as on Windows it can be
+/// WSL's.
 fn git_bash() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("CLAUDE_CODE_GIT_BASH_PATH").map(PathBuf::from)
         && path.is_file()
     {
         return Some(path);
     }
-    let on_path = |name: &str| {
-        std::env::split_paths(&std::env::var_os("PATH")?)
-            .map(|folder| folder.join(name))
-            .find(|path| path.is_file())
-    };
-    on_path("bash.exe")
-        .or_else(|| {
-            let git = on_path("git.exe")?;
+    std::env::split_paths(&std::env::var_os("PATH")?)
+        .map(|folder| folder.join("git.exe"))
+        .filter(|git| git.is_file())
+        .find_map(|git| {
             let bash = git.parent()?.parent()?.join("bin").join("bash.exe");
             bash.is_file().then_some(bash)
         })
@@ -181,8 +178,8 @@ fn describe_change(
     old: Option<&Map<String, Value>>,
     new: Option<&Map<String, Value>>,
 ) -> String {
-    let removed = |text: String| paint.paint(&text, palette::REMOVED, false);
-    let added = |text: String| paint.paint(&text, palette::ADDED, false);
+    let removed = |text: String| paint.paint(&text, paint.palette().removed, false);
+    let added = |text: String| paint.paint(&text, paint.palette().added, false);
     let path = path.display();
     match (old, new) {
         (Some(old), Some(new)) => format!(

@@ -11,12 +11,14 @@ mod report;
 mod serve;
 mod statusline;
 mod style;
+mod tui;
 
 use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
+use claude_dashboard_core::report::Bucket;
 use claude_dashboard_server::app::App;
 use claude_dashboard_server::program;
 use jiff::civil::Date;
@@ -24,16 +26,13 @@ use jiff::civil::Date;
 use crate::report::Output;
 
 /// See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.
+///
+/// Without a command, in a terminal, it opens the dashboard there.
 #[derive(Debug, Parser)]
-#[command(
-    name = "claude-dashboard",
-    version,
-    about,
-    arg_required_else_help = true
-)]
+#[command(name = "claude-dashboard", version, about)]
 struct Cli {
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -49,6 +48,30 @@ enum Command {
         #[arg(long, value_name = "DATE")]
         since: Option<Date>,
         /// The last day; today unless given.
+        #[arg(long, value_name = "DATE")]
+        until: Option<Date>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Requests, tokens and API-equivalent cost per week, for the last 12 weeks unless told
+    /// otherwise.
+    Weekly {
+        /// A day in the first week, such as 2026-08-03.
+        #[arg(long, value_name = "DATE")]
+        since: Option<Date>,
+        /// A day in the last week; this week unless given.
+        #[arg(long, value_name = "DATE")]
+        until: Option<Date>,
+        #[command(flatten)]
+        format: Format,
+    },
+    /// Requests, tokens and API-equivalent cost per calendar month, for the last 12 months unless
+    /// told otherwise.
+    Monthly {
+        /// A day in the first month, such as 2026-01-01.
+        #[arg(long, value_name = "DATE")]
+        since: Option<Date>,
+        /// A day in the last month; this month unless given.
         #[arg(long, value_name = "DATE")]
         until: Option<Date>,
         #[command(flatten)]
@@ -103,10 +126,14 @@ enum Command {
         #[arg(long)]
         status_line_copy: bool,
     },
-    /// Choose where plan limits come from, besides Claude Code's status line.
+    /// Each plan window with its use, reset and source, and the recent five-hour windows; or
+    /// choose where plan limits come from, besides Claude Code's status line.
+    #[command(args_conflicts_with_subcommands = true)]
     Limits {
         #[command(subcommand)]
-        action: LimitsAction,
+        action: Option<LimitsAction>,
+        #[command(flatten)]
+        format: Format,
     },
     /// Open the desktop app, at a section when given.
     App {
@@ -220,13 +247,30 @@ impl Format {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let app = App::new().with_shared_settings();
-    match cli.command {
+    let Some(command) = cli.command else {
+        return if tui::can_run() {
+            tui::run(app)
+        } else {
+            help()
+        };
+    };
+    match command {
         Command::Today { format } => report::today(&app, format.output()),
         Command::Daily {
             since,
             until,
             format,
         } => report::daily(&app, since, until, format.output()),
+        Command::Weekly {
+            since,
+            until,
+            format,
+        } => report::periods(&app, Bucket::Week, since, until, format.output()),
+        Command::Monthly {
+            since,
+            until,
+            format,
+        } => report::periods(&app, Bucket::Month, since, until, format.output()),
         Command::Models { days, format } => {
             breakdown::models(&app, days.since, days.until, format.output())
         }
@@ -246,7 +290,12 @@ fn main() -> ExitCode {
             source: ImportSource::ClaudeUsage { database },
         } => import::claude_usage(&app, database),
         Command::Limits {
-            action: LimitsAction::Endpoint { switch, yes },
+            action: None,
+            format,
+        } => limits::report(&app, format.output()),
+        Command::Limits {
+            action: Some(LimitsAction::Endpoint { switch, yes }),
+            ..
         } => limits::endpoint(&app, switch == Switch::On, yes),
         Command::App { section } => desktop::open(&app, section.map(Section::name)),
         Command::Serve {
@@ -257,6 +306,14 @@ fn main() -> ExitCode {
             ..app
         }),
     }
+}
+
+/// The help, on standard error with the status a missing command gets, for a run without a
+/// command that has no terminal to open the dashboard in.
+fn help() -> ExitCode {
+    let help = Cli::command().render_help();
+    anstream::eprint!("{}", help.ansi());
+    ExitCode::from(2)
 }
 
 #[cfg(test)]
