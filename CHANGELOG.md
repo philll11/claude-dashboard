@@ -3,6 +3,35 @@
 Every release of claude-dashboard, newest first.
 A release's notes on GitHub come from its section here.
 
+## Version 0.4.0 (2026-10-13)
+
+The five-hour window at a glance from the desktop app's item in the notification area or the menu bar, exports from every surface, and newer prices between releases.
+Every surface has the same version number.
+The binaries are not signed.
+
+### What is new
+
+- **The desktop app's item in the notification area, or the menu bar on macOS**:
+  - on Windows and Linux its icon shows how much of the five-hour window you have used, amber from 70% and red from 90%, and on macOS a gauge with the figure beside it;
+  - its tooltip and menu give every plan window with its reset, today's API-equivalent cost and where the readings come from, and its menu opens the dashboard;
+  - closing the window keeps the app running there on Windows and macOS, where Quit in its menu ends it; Settings can make closing the window quit, and on Linux that is how it starts;
+  - the app can open at login, in its item without the window;
+  - an update that arrives while the window is closed waits in the item's menu until you restart.
+- **Export**:
+  - each section of the dashboard, in VS Code and the desktop app, exports its table as CSV or JSON, for the days and filters it shows, through the system's save dialog, and Settings exports the whole history, one row per request;
+  - `e` in the terminal UI exports the section shown;
+  - `claude-dashboard export` writes every request, or those of the days given, to standard output, or with `--output` to a file;
+  - a CSV file saved for you opens in Excel as UTF-8, and text that a spreadsheet would read as a formula stays text.
+- **Newer prices**: with `claude-dashboard prices refresh on`, or the switch in Settings, the dashboard checks this project's repository for a newer price table once a day; `claude-dashboard prices update` checks at once, and `claude-dashboard prices` says which table is in use.
+- `doctor` says which price table is in use and where the daily check stands.
+
+### Changed
+
+- The reports' `--json` and `--csv` are the dashboard's exports: the sessions and projects CSVs have every token kind and the price table after their earlier columns, every text field that needs quoting is quoted, and `sessions` lists the session started last first, as the dashboard does.
+- VS Code's status bar tooltip marks a plan window over 70% with ▲, as the dashboard does.
+- The terminal UI's key lines name `e export` and leave out `↑↓ move`, closing up before they leave out a key.
+- The desktop app's `.deb` package needs the AppIndicator library, for its item.
+
 ## Version 0.3.0 (2026-10-12)
 
 The dashboard in the terminal, and reports by week, by month and of the plan limits.

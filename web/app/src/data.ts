@@ -29,6 +29,9 @@ const NOTHING: Answer<never> = { data: undefined, error: undefined, loading: tru
 /** Requests whose answers depend on the plan limits rather than the requests in the history. */
 const LIMITS: readonly Method[] = ["status", "limits"];
 
+/** Requests whose answers depend on the settings every surface shares. */
+const SETTINGS: readonly Method[] = ["settings", "prices"];
+
 /** How many answers nothing shows are kept, for going back to a view. */
 const KEEP = 40;
 
@@ -45,6 +48,9 @@ export class Store {
     });
     backend.onNotification("limits/changed", () => {
       this.refresh((entry) => LIMITS.includes(entry.method));
+    });
+    backend.onNotification("settings/changed", () => {
+      this.refresh((entry) => SETTINGS.includes(entry.method));
     });
     backend.onNotification("ingest/progress", (progress) => {
       const reading = progress.done < progress.total;

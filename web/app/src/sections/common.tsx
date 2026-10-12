@@ -6,7 +6,7 @@ import type { Days, Totals } from "@claude-dashboard/protocol";
 
 import { useHost, useStatus } from "../context";
 import { useRequest } from "../data";
-import { money } from "../format";
+import { fullDate, grouped, money } from "../format";
 import { type Series, seriesOf } from "../models";
 import { type Choice, Picker, Segmented } from "../ui/controls";
 import { type Range, RANGE_NAMES, RANGES, rangeDays, useView } from "../view";
@@ -22,6 +22,30 @@ export function useDays(): Days {
 export function useRangeText(): string {
   const { view } = useView();
   return RANGE_NAMES[view.range].long.toLowerCase();
+}
+
+/** What an export of `count` rows of `noun`s holds, for its menu: `All 6 projects in the last 30
+ * days`, `All 214 sessions that match`. */
+export function useExportScope(count: number, one: string, many: string, after?: string): string {
+  const { view } = useView();
+  const what = `${grouped(count)} ${count === 1 ? one : many}`;
+  if (after) return `All ${what} ${after}`;
+  if (view.range === "all-time") return `All ${what}`;
+  return `All ${what} ${RANGE_NAMES[view.range].phrase}`;
+}
+
+/** What an export of the days holds, for its menu: `Every day with requests in the last 30
+ * days`. */
+export function useDaysScope(): string {
+  const { view } = useView();
+  const status = useStatus();
+  if (view.range === "today") return "Today's requests, in one row";
+  if (view.range === "all-time") {
+    return status.firstDay
+      ? `Every day with requests since ${fullDate(status.firstDay)}`
+      : "Every day with requests";
+  }
+  return `Every day with requests ${RANGE_NAMES[view.range].phrase}`;
 }
 
 /** A section's heading, with a line about what it shows and its filters. In VS Code the tab

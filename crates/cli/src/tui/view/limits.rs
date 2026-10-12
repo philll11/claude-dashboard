@@ -40,7 +40,7 @@ pub fn ordered(readings: &[WindowReading]) -> Vec<&WindowReading> {
 
 /// What a window is called in the Limits section: `Weekly, all models`.
 fn name(reading: &WindowReading) -> String {
-    crate::limits::window_name(reading)
+    claude_dashboard_server::glance::window_name(reading)
 }
 
 /// What a window is called in the Overview's narrower box: `Weekly, all`.

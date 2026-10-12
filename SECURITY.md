@@ -18,3 +18,6 @@ Security fixes go into the latest release only.
 - The contents and location of the local database.
 - The content security policy of the VS Code dashboard and the desktop app.
 - Signing and verification of desktop app updates.
+- The export writer, which writes files where the person chooses, and keeps text from transcripts from being read as spreadsheet formulas.
+- The price-table refresh, whose download changes every API-equivalent cost.
+- Opening the desktop app at login, which leaves a command that the system runs each time the person logs in.

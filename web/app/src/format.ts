@@ -215,6 +215,20 @@ export function monthYear(day: string): string {
   return `${monthName(parsed)} ${String(parsed.year)}`;
 }
 
+/** The day of a moment in the past, for a sentence: `today`, `yesterday`, or `on 12 October
+ * 2026`. */
+export function dayWords(atMs: number, nowMs: number, timeZone: string): string {
+  const days = dayNumber(local(nowMs, timeZone).day) - dayNumber(local(atMs, timeZone).day);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  return `on ${fullDate(local(atMs, timeZone).day)}`;
+}
+
+/** A moment in the past as a day and time, for a sentence: `today at 08:00`. */
+export function dayWordsAt(atMs: number, nowMs: number, timeZone: string): string {
+  return `${dayWords(atMs, nowMs, timeZone)} at ${local(atMs, timeZone).time}`;
+}
+
 /** A moment as a day and time: `Today 11:30`, or `Fri 9 Oct 16:05` on another day. */
 export function dayAndTime(atMs: number, nowMs: number, timeZone: string): string {
   const at = local(atMs, timeZone);

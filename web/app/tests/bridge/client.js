@@ -50,8 +50,62 @@
       settings.revealed = path;
     },
     pickFolder: () => Promise.resolve(settings.pickedFolder),
+    async exportTo(params) {
+      if (settings.exportHeld) {
+        // An export that stays under way until the test lets it go, at the progress it sets.
+        for (const listener of listeners.get("export/progress") ?? []) {
+          listener(settings.exportHeld);
+        }
+        await new Promise((resolve, reject) => {
+          settings.releaseExport = resolve;
+          settings.cancelHeld = () => {
+            reject(Object.assign(new Error("The export was cancelled."), { code: -32800 }));
+          };
+        });
+        return undefined;
+      }
+      const response = await fetch(`/__bridge/export?scenario=${scenario}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ params }),
+      });
+      const answer = await response.json();
+      if (answer.error) {
+        throw Object.assign(new Error(answer.error.message), { code: answer.error.code });
+      }
+      return answer.result ?? undefined;
+    },
+    cancelExport() {
+      if (settings.cancelHeld) {
+        settings.cancelHeld();
+        return;
+      }
+      void fetch(`/__bridge/cancel?scenario=${scenario}`, { method: "POST" });
+    },
   };
   if (window.claudeDashboardHost.surface === "desktop") {
+    // The desktop app's item in the notification area, and its question when the window first
+    // closes, which a test asks with `askClose`.
+    const closeAsked = new Set();
+    settings.askClose = () => {
+      for (const listener of closeAsked) listener();
+    };
+    window.claudeDashboardHost.desktop = {
+      tray: true,
+      trayPlace: "notification area",
+      autostart: () => Promise.resolve(settings.autostart ?? false),
+      setAutostart: (on) => {
+        settings.autostart = on;
+        return Promise.resolve();
+      },
+      onCloseAsked: (listener) => {
+        closeAsked.add(listener);
+        return () => closeAsked.delete(listener);
+      },
+      closeChoice: (keepRunning) => {
+        settings.closeChoice = keepRunning;
+      },
+    };
     // The desktop app's updates, standing where the test puts them.
     const update = settings.update ?? { kind: "current" };
     let automatic = true;

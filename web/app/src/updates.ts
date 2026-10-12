@@ -1,7 +1,9 @@
 // The desktop app's updates, from the project's GitHub releases. While they are automatic, the app
 // checks at start and every 6 hours: an update found at start installs straight away and the app
-// restarts, and one found later downloads and waits for the person to restart. Tauri's updater
-// checks each update's signature before installing it.
+// restarts, and one found later downloads and waits for the person to restart. A start at login,
+// which keeps the window hidden, never restarts the app by itself: its update waits too, offered
+// in the app's item in the notification area. Tauri's updater checks each update's signature
+// before installing it.
 
 import type { UpdateState, Updates } from "./host";
 
@@ -27,6 +29,10 @@ export interface UpdateApi {
   storage?: Pick<Storage, "getItem" | "setItem">;
   /** Whether updates are automatic until the person chooses; they are unless this says no. */
   automaticAtFirst?: boolean;
+  /** Whether an update found at start installs straight away; it does unless this says no. */
+  installAtStart?: boolean;
+  /** Told the version of an update that waits for a restart, and `null` once none does. */
+  waiting?: (version: string | null) => void;
 }
 
 function reason(error: unknown): string {
@@ -43,7 +49,10 @@ export function createUpdates(api: UpdateApi): Updates {
     for (const listener of listeners) listener();
   };
   const become = (next: UpdateState) => {
+    const wasReady = state.kind === "ready";
     state = next;
+    if (next.kind === "ready") api.waiting?.(next.version);
+    else if (wasReady) api.waiting?.(null);
     changed();
   };
   let on = api.automaticAtFirst ?? true;
@@ -62,7 +71,7 @@ export function createUpdates(api: UpdateApi): Updates {
       const update = await api.check();
       if (!update) {
         become({ kind: "current" });
-      } else if (atStart) {
+      } else if (atStart && (api.installAtStart ?? true)) {
         become({ kind: "installing", version: update.version });
         await update.downloadAndInstall();
         await api.relaunch();

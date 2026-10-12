@@ -5,9 +5,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bridge;
+mod export;
+mod icon;
+mod lifecycle;
+mod login;
 mod start;
+mod tray;
 
-use tauri::RunEvent;
+use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tauri_plugin_window_state::StateFlags;
 
@@ -48,13 +53,46 @@ fn main() {
                 .rotation_strategy(RotationStrategy::KeepOne)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![bridge::request, bridge::take_show])
+        .invoke_handler(tauri::generate_handler![
+            bridge::request,
+            bridge::take_show,
+            lifecycle::ready,
+            lifecycle::desktop,
+            lifecycle::close_choice,
+            lifecycle::update_waiting,
+            login::autostart,
+            login::set_autostart,
+            export::export,
+            export::export_cancel,
+        ])
         .setup(start::app)
         .build(tauri::generate_context!())
         .expect("the desktop app's Tauri context is valid");
-    app.run(|app, event| {
-        if let RunEvent::Exit = event {
+    app.run(|app, event| match event {
+        RunEvent::WindowEvent {
+            label,
+            event: WindowEvent::CloseRequested { api, .. },
+            ..
+        } if label == bridge::MAIN => lifecycle::close_requested(app, &api),
+        // The last window has gone without a close, as a backstop: while the app keeps running in
+        // its item, the item can open the window again.
+        RunEvent::ExitRequested {
+            code: None, api, ..
+        } if lifecycle::keeps_running(app) => api.prevent_exit(),
+        // The Dock's icon, clicked while the window is hidden.
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { .. } => lifecycle::open(app, None),
+        RunEvent::Exit => {
+            if let Some(life) = app.try_state::<lifecycle::Life>()
+                && let Some(tray) = &life.tray
+            {
+                tray.stop(app);
+            }
+            if let Some(exports) = app.try_state::<export::Exports>() {
+                exports.stop();
+            }
             bridge::stop(app);
         }
+        _ => {}
     });
 }

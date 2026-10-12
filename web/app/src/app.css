@@ -1832,3 +1832,226 @@ a.project-link:hover .project-title {
   margin-top: 4px;
   color: var(--ink);
 }
+
+/* Exports. */
+
+.export-button[aria-expanded="true"] {
+  border-color: var(--meter);
+  background: var(--selected);
+  color: var(--selected-ink);
+  outline: var(--selected-outline);
+}
+
+.export-menu {
+  gap: 2px;
+  width: 300px;
+  padding: 6px;
+  border-radius: var(--radius);
+}
+
+.export-menu.start {
+  right: auto;
+  left: 0;
+}
+
+.export-menu button {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 44px;
+  padding: 7px 10px;
+  white-space: normal;
+}
+
+.export-menu button:hover,
+.export-menu button:focus {
+  background: var(--band);
+  color: var(--ink);
+  outline: none;
+}
+
+.export-label {
+  font-weight: 500;
+}
+
+/* On the highlighted item the muted ink falls short of 4.5:1 in the dark themes. */
+.export-menu button:hover .export-detail,
+.export-menu button:focus .export-detail {
+  color: var(--ink-2);
+}
+
+.export-detail,
+.export-scope {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.export-scope {
+  padding: 4px 10px 6px;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--line);
+}
+
+.export-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.button.busy:disabled {
+  gap: 8px;
+  color: var(--ink-2);
+  opacity: 1;
+  cursor: progress;
+}
+
+.button.text-button {
+  border-color: transparent;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+/* The notice after an export, at the window's lower right. */
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 48px));
+  padding: 14px 16px;
+  border: 1px solid var(--tip-line);
+  border-radius: var(--radius);
+  background: var(--tip-bg);
+  box-shadow: var(--tip-shadow);
+}
+
+.toast-mark {
+  flex: none;
+  margin-top: 1px;
+}
+
+.good-mark {
+  color: var(--status-good);
+}
+
+.toast-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.toast-title {
+  font-weight: 500;
+}
+
+.toast-path {
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.toast-detail {
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.toast-actions {
+  margin-top: 4px;
+}
+
+.toast-dismiss {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -8px 0 0;
+  border: 0;
+  border-radius: var(--ctl-radius-in);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toast-dismiss:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+/* The desktop app's question the first time its window closes. */
+
+.dialog.notice {
+  width: min(480px, calc(100vw - 32px));
+  padding: 22px 24px 20px;
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.dialog.notice[open] {
+  gap: 14px;
+}
+
+.dialog.notice::backdrop {
+  background: rgb(5 7 9 / 62%);
+}
+
+.dialog.notice h2 {
+  font-size: 16px;
+}
+
+.notice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink-2);
+}
+
+.notice-text p {
+  margin: 0;
+}
+
+.dialog.notice .dialog-actions {
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.dialog.notice .button {
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.dialog.notice .button:not(.primary) {
+  background: transparent;
+}
+
+.dialog.notice .button.primary {
+  border-color: transparent;
+}

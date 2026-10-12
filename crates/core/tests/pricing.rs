@@ -361,6 +361,33 @@ fn a_model_missing_from_the_table_is_unpriced_never_free() {
     }
 }
 
+#[test]
+fn a_table_names_its_format_first() {
+    let with_format = |format: &str| {
+        PriceTable::parse(&format!(
+            r#"{{
+                {format}
+                "source": "https://example.com/pricing",
+                "checked": "2026-10-10",
+                "web_search_per_thousand": 10,
+                "us_only_inference_multiplier": 1.1,
+                "models": []
+            }}"#
+        ))
+    };
+
+    assert!(with_format("").is_ok());
+    assert!(with_format(r#""format": 1,"#).is_ok());
+    assert!(matches!(
+        with_format(r#""format": 0,"#),
+        Err(PriceTableError::Invalid(_))
+    ));
+    assert!(matches!(
+        PriceTable::parse(r#"{ "format": 2, "prices": "in a shape this version cannot know" }"#),
+        Err(PriceTableError::NewerFormat(2))
+    ));
+}
+
 fn table_with(models: &str) -> Result<PriceTable, PriceTableError> {
     PriceTable::parse(&format!(
         r#"{{

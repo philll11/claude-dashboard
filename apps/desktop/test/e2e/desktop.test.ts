@@ -1,10 +1,10 @@
 // The installed desktop app, driven through tauri-driver: its sections, its numbers against the
-// command line's, the status line's connection, and a second start. scripts/e2e.mjs installs the
-// app and sets the environment these tests read.
+// command line's, an export, the status line's connection, and a second start. scripts/e2e.mjs
+// installs the app and sets the environment these tests read.
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { strict as assert } from "node:assert";
 
 import { Builder, By, error, until, type WebDriver, type WebElement } from "selenium-webdriver";
@@ -14,6 +14,7 @@ const program = process.env.E2E_PROGRAM ?? "";
 const folder = process.env.E2E_FOLDER ?? "";
 const root = process.env.E2E_ROOT ?? "";
 const screenshots = process.env.E2E_SCREENSHOTS ?? "";
+const exportFolder = process.env.E2E_EXPORTS ?? "";
 const env = JSON.parse(process.env.E2E_ENV ?? "{}") as NodeJS.ProcessEnv;
 
 const SECTIONS = ["Overview", "Sessions", "Projects", "Models", "Limits", "Settings"];
@@ -114,6 +115,40 @@ describe("the desktop app", () => {
     }
   });
 
+  it("saves the sessions it lists, as the command line reports them", async () => {
+    await open("Sessions");
+    await press("Export");
+    const csv = await session().wait(
+      until.elementLocated(
+        By.xpath('//*[@role="menuitem"][contains(normalize-space(), "Export as CSV")]'),
+      ),
+      10_000,
+    );
+    await csv.click();
+    const saved = await session().wait(
+      until.elementLocated(By.css('[role="status"] .toast-title')),
+      60_000,
+    );
+    const path = await session().findElement(By.css('[role="status"] .toast-path')).getText();
+    const range =
+      /^claude-dashboard-sessions-(\d{4}-\d{2}-\d{2})-to-(\d{4}-\d{2}-\d{2})\.csv$/.exec(
+        basename(path),
+      );
+    assert.ok(range, `the file has the suggested name: ${path}`);
+    assert.equal(dirname(path), exportFolder);
+    const [, first = "", last = ""] = range;
+    const report = (format: string) =>
+      execFileSync(program, ["sessions", "--since", first, "--until", last, format], {
+        env,
+        encoding: "utf8",
+      });
+    const sessions = JSON.parse(report("--json")) as unknown[];
+    assert.equal(await saved.getText(), `Saved ${String(sessions.length)} sessions`);
+    // A saved file starts with the byte order mark that spreadsheets need to read UTF-8.
+    assert.equal(readFileSync(path, "utf8"), `\uFEFF${report("--csv")}`);
+    await shoot("export-saved");
+  });
+
   it("connects Claude Code's status line to a copy of claude-dashboard next to the history", async () => {
     await open("Settings");
     assert.equal(statusLine(), "claude-dashboard statusline");
@@ -165,4 +200,66 @@ describe("the desktop app", () => {
     execFileSync(program, ["app", "sessions"], { env, stdio: "ignore" });
     await session().wait(async () => (await heading()) === "Sessions", 20_000);
   });
+
+  it("keeps running in the notification area when its window closes", async function () {
+    // Closing the window as a person does takes the system's own close message, which only
+    // Windows can send here.
+    if (process.platform !== "win32") this.skip();
+    await open("Settings");
+    const keepRunning = await session().findElement(
+      By.xpath(
+        '//*[@role="switch"][@aria-labelledby=//*[normalize-space()="Keep running when the window closes"]/@id]',
+      ),
+    );
+    if ((await keepRunning.getAttribute("aria-checked")) !== "true") await keepRunning.click();
+    await session().wait(
+      async () => (await keepRunning.getAttribute("aria-checked")) === "true",
+      10_000,
+    );
+
+    closeWindow("Dashboard for Claude Code");
+    await session().wait(() => !windowShown("Dashboard for Claude Code"), 10_000);
+    const second = spawn(app, ["--section", "overview"], { env, stdio: "ignore" });
+    await new Promise((resolve) => second.on("exit", resolve));
+    await session().wait(() => windowShown("Dashboard for Claude Code"), 20_000);
+    await session().wait(async () => (await heading()) === "Overview", 20_000);
+
+    await open("Settings");
+    const again = await session().findElement(
+      By.xpath(
+        '//*[@role="switch"][@aria-labelledby=//*[normalize-space()="Keep running when the window closes"]/@id]',
+      ),
+    );
+    await again.click();
+    await session().wait(
+      async () => (await again.getAttribute("aria-checked")) === "false",
+      10_000,
+    );
+  });
 });
+
+/** Asks the app's window to close, as its close button does: Windows' WM_CLOSE. */
+function closeWindow(title: string) {
+  powershell(
+    `$window = [Win32]::FindWindow([NullString]::Value, '${title}'); if ($window -eq [IntPtr]::Zero) { exit 1 }; [void][Win32]::PostMessage($window, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)`,
+  );
+}
+
+/** Whether the app's window shows. */
+function windowShown(title: string): boolean {
+  return (
+    powershell(
+      `$window = [Win32]::FindWindow([NullString]::Value, '${title}'); [Win32]::IsWindowVisible($window)`,
+    ).trim() === "True"
+  );
+}
+
+function powershell(script: string): string {
+  const user32 = `Add-Type -Namespace '' -Name Win32 -MemberDefinition '
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string cls, string title);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr window, uint message, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);'`;
+  return execFileSync("powershell", ["-NoProfile", "-Command", `${user32}; ${script}`], {
+    encoding: "utf8",
+  });
+}

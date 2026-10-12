@@ -1,16 +1,25 @@
 // Settings: the Claude Code data folders, the history, the plan limit sources, the prices, time,
 // and what the dashboard does on the network.
 
-import { type ReactNode, useId, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useId, useState, useSyncExternalStore } from "react";
 
-import type { Folder, Health, Limits as LimitsAnswer, Prices } from "@claude-dashboard/protocol";
+import type {
+  Folder,
+  Health,
+  Limits as LimitsAnswer,
+  PriceRefresh,
+  Prices,
+  Settings as SettingsAnswer,
+} from "@claude-dashboard/protocol";
 
 import { useHost, useStatus } from "../context";
 import { useRequest, useStore } from "../data";
-import { fullDate, grouped } from "../format";
-import { RELEASES, type UpdateState, type Updates } from "../host";
+import { CancelExport, ExportMenu, ExportProgressLine, useExportState } from "../exports";
+import { dayWords, dayWordsAt, fullDate, grouped } from "../format";
+import { type Desktop, RELEASES, type UpdateState, type Updates } from "../host";
 import { Switch } from "../ui/controls";
-import { Check, Plus, Warning } from "../ui/icons";
+import { Check, Plus, Spinner, Warning } from "../ui/icons";
+import { useNow } from "../ui/time";
 import { Panel, Pill } from "../ui/panels";
 import { SectionHead } from "./common";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
@@ -18,9 +27,11 @@ import { ConsentDialog, StatusLineDialog } from "./dialogs";
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export function Settings() {
+  const host = useHost();
   const health = useRequest("health", null).data;
   const limits = useRequest("limits", null).data;
   const prices = useRequest("prices", { models: [] }).data;
+  const settings = useRequest("settings", null).data;
   return (
     <div className="section settings">
       <SectionHead title="Settings" />
@@ -28,7 +39,10 @@ export function Settings() {
       {health && <History health={health} />}
       {limits && <PlanLimits limits={limits} />}
       {prices && <PricesPanel prices={prices} />}
-      <Time />
+      {settings && <Time settings={settings} />}
+      {settings && host.desktop?.tray && (
+        <NotificationArea desktop={host.desktop} settings={settings} />
+      )}
       <Privacy />
     </div>
   );
@@ -150,8 +164,10 @@ function History({ health }: { health: Health }) {
   const host = useHost();
   const store = useStore();
   const offer = useRequest("import/offer", null).data;
+  const exporting = useExportState();
   const [change, problem] = useChange();
   const facts = health.history;
+  const exportingAll = exporting.kind === "running" && exporting.dataset === "requests";
   return (
     <Panel title="History">
       <Facts>
@@ -199,6 +215,27 @@ function History({ health }: { health: Health }) {
             Show in folder
           </button>
         )}
+        {facts && facts.requests > 0 && !exportingAll && (
+          <ExportMenu
+            what={{ dataset: "requests", filters: {} }}
+            scope={`All ${grouped(facts.requests)} ${facts.requests === 1 ? "request" : "requests"}${
+              status.firstDay ? ` since ${fullDate(status.firstDay)}` : ""
+            }`}
+            className="button compact quiet"
+            align="start"
+          >
+            Export all history…
+          </ExportMenu>
+        )}
+        {exportingAll && (
+          <>
+            <button type="button" className="button compact quiet busy" disabled aria-busy="true">
+              <Spinner className="spin" />
+              Exporting all history…
+            </button>
+            <CancelExport />
+          </>
+        )}
         {offer && offer.requests > 0 && (
           <button
             type="button"
@@ -211,6 +248,7 @@ function History({ health }: { health: Health }) {
           </button>
         )}
       </div>
+      {exportingAll && <ExportProgressLine label="Exporting all history" />}
       {problem && <p className="note problem">{problem}</p>}
     </Panel>
   );
@@ -310,6 +348,8 @@ function PlanLimits({ limits }: { limits: LimitsAnswer }) {
 }
 
 function PricesPanel({ prices }: { prices: Prices }) {
+  const { timeZone } = useStatus();
+  const now = useNow(60_000);
   const drift = prices.drift;
   const check =
     drift === null || drift === undefined ? (
@@ -332,21 +372,78 @@ function PricesPanel({ prices }: { prices: Prices }) {
     <Panel title="Prices">
       <Facts>
         <dt>Price table</dt>
-        <dd>{fullDate(prices.checked)}, from Anthropic's pricing page</dd>
+        <dd>
+          {fullDate(prices.checked)}, from Anthropic's pricing page
+          {prices.downloadedMs != null &&
+            `, downloaded ${dayWords(prices.downloadedMs, now, timeZone)} from this project's repository`}
+        </dd>
         <dt>Check</dt>
         <dd>{check}</dd>
       </Facts>
+      <PriceRefreshRow refresh={prices.refresh} />
     </Panel>
   );
 }
 
-function Time() {
-  const settings = useRequest("settings", null).data;
+/** What came of the last check for a newer price table, as the end of a sentence. */
+function outcomeWords(refresh: PriceRefresh): string | undefined {
+  switch (refresh.outcome) {
+    case "updated":
+      return "a newer price table arrived";
+    case "up-to-date":
+      return "up to date";
+    case "unreachable":
+      return `cannot reach this project's repository${refresh.detail ? ` (${refresh.detail})` : ""}`;
+    case "newer-format":
+      return "the newest price table needs a newer version of claude-dashboard";
+    case "refused":
+      return `the newest price table cannot be used${refresh.detail ? `: ${refresh.detail}` : ""}`;
+    default:
+      return undefined;
+  }
+}
+
+/** The switch for the daily check, with when it last ran and what came of it. */
+function PriceRefreshRow({ refresh }: { refresh: PriceRefresh }) {
+  const status = useStatus();
+  const store = useStore();
+  const now = useNow(60_000);
+  const [change, problem] = useChange();
+  const nameId = useId();
+  const textId = useId();
+  const outcome = outcomeWords(refresh);
+  const last =
+    refresh.checkedMs != null && outcome
+      ? ` Last checked ${dayWordsAt(refresh.checkedMs, now, status.timeZone)}: ${outcome}.`
+      : "";
+  return (
+    <div className="setting-row">
+      <span className="setting-text">
+        <span className="setting-name" id={nameId}>
+          Check for a newer price table once a day
+        </span>
+        <span className="ink-2" id={textId}>
+          Downloads it from this project's repository on GitHub, at most once a day.{last}
+        </span>
+        {problem && <span className="note problem">{problem}</span>}
+      </span>
+      <Switch
+        checked={refresh.enabled}
+        labelledBy={nameId}
+        describedBy={textId}
+        onChange={(on) => {
+          change(() => store.send("settings/set", { priceRefresh: on }));
+        }}
+      />
+    </div>
+  );
+}
+
+function Time({ settings }: { settings: SettingsAnswer }) {
   const store = useStore();
   const [change, problem] = useChange();
   const zoneId = useId();
   const weekId = useId();
-  if (!settings) return null;
   const zones = (() => {
     try {
       return Intl.supportedValuesOf("timeZone");
@@ -397,6 +494,105 @@ function Time() {
         </label>
       </div>
       {problem && <p className="note problem">{problem}</p>}
+    </Panel>
+  );
+}
+
+/** An on and off setting, with its name and what it does. */
+function SwitchRow({
+  name,
+  text,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  name: string;
+  text: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  const nameId = useId();
+  const textId = useId();
+  return (
+    <div className="setting-row">
+      <span className="setting-text">
+        <span className="setting-name" id={nameId}>
+          {name}
+        </span>
+        <span className="ink-2" id={textId}>
+          {text}
+        </span>
+      </span>
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        labelledBy={nameId}
+        describedBy={textId}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+/** The desktop app's item in the notification area or the menu bar: whether it shows, whether
+ * the app keeps running in it when the window closes, and whether the app opens at login. */
+function NotificationArea({ desktop, settings }: { desktop: Desktop; settings: SettingsAnswer }) {
+  const store = useStore();
+  const [change, problem] = useChange();
+  const [autostart, setAutostart] = useState<boolean | undefined>(undefined);
+  const [autostartProblem, setAutostartProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    desktop.autostart().then(
+      (on) => {
+        if (current) setAutostart(on);
+      },
+      (error: unknown) => {
+        if (current) setAutostartProblem(error instanceof Error ? error.message : String(error));
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [desktop]);
+  const place = desktop.trayPlace;
+  return (
+    <Panel title={place.charAt(0).toUpperCase() + place.slice(1)}>
+      <SwitchRow
+        name={`Show the five-hour window in the ${place}`}
+        text="Its icon shows how much of the window you have used, and its menu lists every plan window and opens the dashboard."
+        checked={settings.tray}
+        onChange={(tray) => {
+          change(() => store.send("settings/set", { tray }));
+        }}
+      />
+      <SwitchRow
+        name="Keep running when the window closes"
+        text="Quit from the icon's menu. Updates wait there until you restart."
+        checked={settings.tray && settings.keepRunning}
+        disabled={!settings.tray}
+        onChange={(keepRunning) => {
+          change(() => store.send("settings/set", { keepRunning }));
+        }}
+      />
+      <SwitchRow
+        name="Open at login"
+        text={`Starts in the ${place}, without the window.`}
+        checked={autostart ?? false}
+        disabled={autostart === undefined}
+        onChange={(on) => {
+          setAutostart(on);
+          setAutostartProblem(null);
+          desktop.setAutostart(on).catch((error: unknown) => {
+            setAutostart(!on);
+            setAutostartProblem(error instanceof Error ? error.message : String(error));
+          });
+        }}
+      />
+      {(problem ?? autostartProblem) && (
+        <p className="note problem">{problem ?? autostartProblem}</p>
+      )}
     </Panel>
   );
 }

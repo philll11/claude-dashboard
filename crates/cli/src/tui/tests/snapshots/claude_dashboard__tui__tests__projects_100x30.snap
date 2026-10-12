@@ -31,7 +31,7 @@ expression: shown(&state)
 26 ││      11             16             21             26             1              6           10   ││
 27 ││ ■ Fable 5.1  ■ Opus 5.5  ■ Sonnet 5.5  ■ Haiku 5.5                                               ││
 28 │└──────────────────────────────────────────────────────────────────────────────────────────────────┘│
-29 │ q quit   ←→ sections   ↑↓ move   Enter filter   t table view   ? help                Read just now │
+29 │ q quit   ←→ sections   Enter filter   t table view   e export   ? help               Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb cccccccccc bbbbbbbb bbbbbbbb                     │
@@ -63,7 +63,7 @@ styles
 26 │d      bb             bb             bb             bb             b              b           bb   d│
 27 │d o jjjjjjjjj  n jjjjjjjj  l jjjjjjjjjj  m jjjjjjjjj                                               d│
 28 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-29 │ p bbbb   pp bbbbbbbb   pp bbbb   ppppp bbbbbb   p bbbbbbbbbb   p bbbb                bbbbbbbbbbbbb │
+29 │ p bbbb   pp bbbbbbbb   ppppp bbbbbb   p bbbbbbbbbb   p bbbbbb   p bbbb               bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

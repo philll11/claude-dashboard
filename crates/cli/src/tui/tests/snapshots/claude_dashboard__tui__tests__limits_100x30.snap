@@ -31,7 +31,7 @@ expression: shown(&state)
 26 │                                                                                                    │
 27 │                                                                                                    │
 28 │                                                                                                    │
-29 │ q quit   ←→ sections   t table view   ? help                                         Read just now │
+29 │ q quit   ←→ sections   t table view   e export   ? help                              Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc                     │
@@ -63,7 +63,7 @@ styles
 26 │                                                                                                    │
 27 │                                                                                                    │
 28 │                                                                                                    │
-29 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbb                                         bbbbbbbbbbbbb │
+29 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbbbb   k bbbb                              bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

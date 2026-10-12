@@ -148,6 +148,7 @@ pub fn draw(c: &mut Canvas, state: &State) {
             ("←→", "sections"),
             ("↑↓", "scroll"),
             ("t", "table view"),
+            ("e", "export"),
             ("?", "help"),
         ]
     } else {
@@ -203,7 +204,7 @@ fn draw_page(c: &mut Canvas, state: &State, overview: &Overview) {
             c.text(
                 3,
                 y + 1,
-                "A newer claude-dashboard may price it.",
+                "claude-dashboard prices update looks for its price.",
                 theme.muted(),
             );
             y += 2;

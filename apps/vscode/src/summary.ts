@@ -38,7 +38,7 @@ export class SummaryModel implements vscode.Disposable {
     this.#subscriptions = [
       server.onNotification(({ method }) => {
         if (method === "history/changed") this.#soon(false);
-        else if (method === "limits/changed") this.#soon(true);
+        else if (method === "limits/changed" || method === "settings/changed") this.#soon(true);
       }),
       server.onDidChangeState((state) => {
         if (state.kind === "running") void this.refresh(true);

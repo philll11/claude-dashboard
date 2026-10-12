@@ -37,7 +37,7 @@ expression: shown(&state)
 32 ││   Sidebar width              api-gateway       8 Oct 14:02       24 min                   98      $5.80        $5.81 ││
 33 ││ 1–27 of 214 · PgDn for more                                                                                          ││
 34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-35 │ q quit   ←→ sections   ↑↓ move   Enter open   / search   ? help     Read just now · costs are API-equivalent estimates │
+35 │ q quit   ←→ sections   Enter open   / search   e export   ? help    Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -75,7 +75,7 @@ styles
 32 │d   fffffffffffff              bbbbbbbbbbb       bbbbbbbbbbb       ffffff                   ff      aaaaa        fffff d│
 33 │d bbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                          d│
 34 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-35 │ e bbbb   ee bbbbbbbb   ee bbbb   eeeee bbbb   e bbbbbb   e bbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+35 │ e bbbb   ee bbbbbbbb   eeeee bbbb   e bbbbbb   e bbbbbb   e bbbb    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

@@ -24,8 +24,8 @@ expression: shown(&state)
 19 ││ ? glm-4.6                   12           35K      ▲ unpriced             –   ││
 20 │└──────────────────────────────────────────────────────────────────────────────┘│
 21 │ ▲ No price for glm-4.6 yet: its tokens count, its cost does not.               │
-22 │   A newer claude-dashboard may price it.                                       │
-23 │ q quit   ←→ sections   ↑↓ scroll   t table view   ? help         Read just now │
+22 │   claude-dashboard prices update looks for its price.                          │
+23 │ q quit  ←→ sections  ↑↓ scroll  t table view  e export  ? help   Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb │
@@ -50,8 +50,8 @@ styles
 19 │d b iiiiiii                   ii           iii      j kkkkkkkk             b   d│
 20 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 21 │ jjiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii               │
-22 │   bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                       │
-23 │ l bbbb   ll bbbbbbbb   ll bbbbbb   l bbbbbbbbbb   l bbbb         bbbbbbbbbbbbb │
+22 │   bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                          │
+23 │ l bbbb  ll bbbbbbbb  ll bbbbbb  l bbbbbbbbbb  l bbbbbb  l bbbb   bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

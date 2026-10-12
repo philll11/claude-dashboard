@@ -1,0 +1,63 @@
+---
+source: crates/cli/src/tui/tests/mod.rs
+expression: shown(&state)
+---
+ 0 │ Dashboard for Claude Code    Overview   Sessions   Projects   Models   Limits  │
+ 1 │                                                                                │
+ 2 │┌─ Sessions · 30 days ─────────────────────────────────── 214 · newest first ──┐│
+ 3 ││ / searches titles and projects                                               ││
+ 4 ││                                                                              ││
+ 5 ││   Se┌─ Export the sessions ────────────────────────────────────────────┐st   ││
+ 6 ││   Re│                                                                  │60   ││
+ 7 ││   Fi│ Format    › CSV   for spreadsheets                               │90   ││
+ 8 ││ › De│             JSON  for scripts                                    │00   ││
+ 9 ││   Ad│                                                                  │30   ││
+10 ││   Re│ Save to     …de-dashboard-sessions-2026-09-11-to-2026-10-10.csv█ │40   ││
+11 ││   Pr│                                                                  │70   ││
+12 ││   St│ All 214 sessions in the last 30 days that match.                 │80   ││
+13 ││   In│ A file there already is replaced only when you say so.           │10   ││
+14 ││   Se│                                                                  │20   ││
+15 ││   Ex└──────────────────────────────────────────────────────────────────┘50   ││
+16 ││   Sparkline widths at 80 colu…  api-gateway       9 Oct 19:22        $2.60   ││
+17 ││   Limits pace estimate          claude-dashboard  9 Oct 17:32        $9.90   ││
+18 ││   Import the claude-usage his…  website           9 Oct 15:42        $3.00   ││
+19 ││   Untitled session              claude-dashboard  9 Oct 13:52       $10.30   ││
+20 ││   Windows key events            infra             9 Oct 12:02        $3.40   ││
+21 ││ 1–15 of 214 · PgDn for more                                                  ││
+22 │└──────────────────────────────────────────────────────────────────────────────┘│
+23 │ ↑↓ format   Enter save   Esc cancel                              Read just now │
+
+styles
+ 0 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 1 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 2 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 3 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 4 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 5 │aaaaaaaabbbbbbbbbbbbbbbbbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+ 6 │aaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaa│
+ 7 │aaaaaaacddddddcccefebbbeeeddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeaaaaaaa│
+ 8 │aaaaaaacccccccccccccccccccdddddddddddccccccccccccccccccccccccccccccccccccaaaaaaa│
+ 9 │aaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaa│
+10 │aaaaaaacdddddddccccccccccccccccccccccccccccccccccccccccccccccccccccccccgcaaaaaaa│
+11 │aaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaa│
+12 │aaaaaaacddddddddddddddddddddddddddddddddddddddddddddddddcccccccccccccccccaaaaaaa│
+13 │aaaaaaacddddddddddddddddddddddddddddddddddddddddddddddddddddddcccccccccccaaaaaaa│
+14 │aaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaa│
+15 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+16 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+17 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+18 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+19 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+20 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+21 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+22 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│
+23 │chhcddddddccchhhhhcddddccchhhcddddddccccccccccccccccccccccccccccccdddddddddddddc│
+
+a = #3a404a
+b = #f0f2f5 bold
+c = #d7dae0
+d = #8a919c
+e = #d7dae0 on #1c2128
+f = #5cc8e8 on #1c2128 bold
+g = #5cc8e8
+h = #5cc8e8 bold

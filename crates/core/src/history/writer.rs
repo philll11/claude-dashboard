@@ -584,6 +584,34 @@ impl<'conn> Writer<'conn> {
         Ok(())
     }
 
+    /// Takes a turn that the setting `name` keeps, as a time in milliseconds before which no
+    /// process takes it: when that time has come, or the setting is unset, holds the turn until
+    /// `now_ms + hold_ms` and says so.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn take_turn(
+        &mut self,
+        name: &str,
+        now_ms: i64,
+        hold_ms: i64,
+    ) -> Result<bool, HistoryError> {
+        let taken = self
+            .tx
+            .prepare_cached(
+                "INSERT INTO settings (name, value) VALUES (?1, ?2)
+                 ON CONFLICT (name) DO UPDATE SET value = excluded.value
+                 WHERE CAST(settings.value AS INTEGER) <= ?3",
+            )?
+            .execute(params![
+                name,
+                now_ms.saturating_add(hold_ms).to_string(),
+                now_ms
+            ])?;
+        Ok(taken == 1)
+    }
+
     /// Adds a data folder, read after the default one or `CLAUDE_CONFIG_DIR`'s.
     ///
     /// # Errors

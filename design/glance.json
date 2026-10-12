@@ -1,0 +1,170 @@
+{
+  "description": "What the glance says: the desktop app's item in the notification area and the menu bar, and VS Code's status bar item and its tooltip. The server's Rust tests and the VS Code extension's TypeScript tests both check their texts against these examples. The moment is 12:15 on Saturday 10 October 2026 in Auckland.",
+  "examples": [
+    {
+      "name": "plan limits, one window over 70%",
+      "nowMs": 1791587700000,
+      "timeZone": "Pacific/Auckland",
+      "limits": [
+        {
+          "window": "seven_day:claude-fable",
+          "model": "Fable",
+          "usedPercentage": 18,
+          "resetsAtMs": 1792008000000,
+          "observedMs": 1791587580000,
+          "provenance": "official",
+          "level": "normal",
+          "stale": false,
+          "expired": false
+        },
+        {
+          "window": "five_hour",
+          "usedPercentage": 42,
+          "resetsAtMs": 1791595200000,
+          "observedMs": 1791587580000,
+          "provenance": "official",
+          "level": "normal",
+          "stale": false,
+          "expired": false
+        },
+        {
+          "window": "seven_day",
+          "usedPercentage": 71,
+          "resetsAtMs": 1792008000000,
+          "observedMs": 1791587580000,
+          "provenance": "official",
+          "level": "warning",
+          "stale": false,
+          "expired": false
+        }
+      ],
+      "today": { "usd": 5.049, "unpricedRequests": 0 },
+      "expect": {
+        "lines": [
+          ["Five-hour window", "42% · resets 14:20"],
+          ["Weekly, all models", "71% ▲ · resets Thu 09:00"],
+          ["Weekly, Fable", "18% · resets Thu 09:00"],
+          ["Today", "$5.05"]
+        ],
+        "source": "Official, status line, 2 min ago",
+        "statusText": "5h 42% · 14:20",
+        "tooltip": "Dashboard for Claude Code - 5h 42% · resets 14:20",
+        "title": "42%",
+        "icon": 42
+      }
+    },
+    {
+      "name": "a five-hour window over 90%, from the usage endpoint",
+      "nowMs": 1791587700000,
+      "timeZone": "Pacific/Auckland",
+      "limits": [
+        {
+          "window": "five_hour",
+          "usedPercentage": 93.4,
+          "resetsAtMs": 1791595200000,
+          "observedMs": 1791587460000,
+          "provenance": "experimental",
+          "level": "critical",
+          "stale": false,
+          "expired": false
+        }
+      ],
+      "today": { "usd": 12.3, "unpricedRequests": 2 },
+      "expect": {
+        "lines": [
+          ["Five-hour window", "93% ▲ · resets 14:20"],
+          ["Today", "$12.30 + unpriced"]
+        ],
+        "source": "Experimental, usage endpoint, 4 min ago",
+        "statusText": "5h 93% · 14:20",
+        "tooltip": "Dashboard for Claude Code - 5h 93% ▲ · resets 14:20",
+        "title": "93% ▲",
+        "icon": 93.4
+      }
+    },
+    {
+      "name": "a five-hour window over its limit",
+      "nowMs": 1791587700000,
+      "timeZone": "Pacific/Auckland",
+      "limits": [
+        {
+          "window": "five_hour",
+          "usedPercentage": 104,
+          "resetsAtMs": 1791595200000,
+          "observedMs": 1791587580000,
+          "provenance": "official",
+          "level": "critical",
+          "stale": false,
+          "expired": false
+        }
+      ],
+      "today": { "usd": 5.049, "unpricedRequests": 0 },
+      "expect": {
+        "lines": [
+          ["Five-hour window", "104% ▲ · resets 14:20"],
+          ["Today", "$5.05"]
+        ],
+        "source": "Official, status line, 2 min ago",
+        "statusText": "5h 104% · 14:20",
+        "tooltip": "Dashboard for Claude Code - 5h 104% ▲ · resets 14:20",
+        "title": "104% ▲",
+        "icon": 104
+      }
+    },
+    {
+      "name": "the five-hour window has reset since its reading",
+      "nowMs": 1791587700000,
+      "timeZone": "Pacific/Auckland",
+      "limits": [
+        {
+          "window": "five_hour",
+          "usedPercentage": 42,
+          "resetsAtMs": 1791584400000,
+          "observedMs": 1791583500000,
+          "provenance": "official",
+          "level": "normal",
+          "stale": true,
+          "expired": false
+        },
+        {
+          "window": "seven_day",
+          "usedPercentage": 71,
+          "resetsAtMs": 1792008000000,
+          "observedMs": 1791583500000,
+          "provenance": "official",
+          "level": "warning",
+          "stale": true,
+          "expired": false
+        }
+      ],
+      "today": { "usd": 5.049, "unpricedRequests": 0 },
+      "expect": {
+        "lines": [
+          ["Five-hour window", "reset at 11:20"],
+          ["Weekly, all models", "71% ▲ · resets Thu 09:00"],
+          ["Today", "$5.05"]
+        ],
+        "source": "Official, status line, 1 h ago",
+        "statusText": "$5.05 today",
+        "tooltip": "Dashboard for Claude Code - $5.05 today",
+        "title": "$5.05",
+        "icon": null
+      }
+    },
+    {
+      "name": "no plan limits recorded",
+      "nowMs": 1791587700000,
+      "timeZone": "Pacific/Auckland",
+      "limits": [],
+      "today": { "usd": 0, "unpricedRequests": 0 },
+      "expect": {
+        "lines": [["Today", "$0.00"]],
+        "source": null,
+        "statusText": "$0.00 today",
+        "tooltip": "Dashboard for Claude Code - $0.00 today",
+        "title": "$0.00",
+        "icon": null
+      }
+    }
+  ]
+}

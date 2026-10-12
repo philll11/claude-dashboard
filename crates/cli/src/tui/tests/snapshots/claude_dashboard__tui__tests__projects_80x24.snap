@@ -25,7 +25,7 @@ expression: shown(&state)
 20 ││      11        16        21        26        1         6       10            ││
 21 ││ ■ Fable 5.1  ■ Opus 5.5  ■ Sonnet 5.5  ■ Haiku 5.5                           ││
 22 │└──────────────────────────────────────────────────────────────────────────────┘│
-23 │ q quit   ←→ sections   ↑↓ move   Enter filter   t table view     Read just now │
+23 │ q quit  ←→ sections  Enter filter  t table view  e export        Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb cccccccccc bbbbbbbb bbbbbbbb │
@@ -51,7 +51,7 @@ styles
 20 │d      bb        bb        bb        bb        b         b       bb            d│
 21 │d o jjjjjjjjj  n jjjjjjjj  l jjjjjjjjjj  m jjjjjjjjj                           d│
 22 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-23 │ p bbbb   pp bbbbbbbb   pp bbbb   ppppp bbbbbb   p bbbbbbbbbb     bbbbbbbbbbbbb │
+23 │ p bbbb  pp bbbbbbbb  ppppp bbbbbb  p bbbbbbbbbb  p bbbbbb        bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

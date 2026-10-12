@@ -13,8 +13,10 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::{Terminal, TerminalOptions, Viewport};
 use serde_json::json;
 
+use claude_dashboard_server::protocol::{Dataset, ExportFormat, Exported};
+
 use self::fixture::{Fixture, Variant};
-use super::state::{Event, Flow, Overlay, Range, Section, State};
+use super::state::{Event, ExportNotice, Flow, Overlay, Range, Section, State};
 use super::theme::Theme;
 use crate::style::Palette;
 
@@ -250,6 +252,113 @@ fn the_keys_and_the_pickers() {
             filter: String::new(),
         });
     });
+}
+
+/// Where the boards save an export.
+const SAVED_TO: &str =
+    r"C:\Users\you\Downloads\claude-dashboard-sessions-2026-09-11-to-2026-10-10.csv";
+
+#[test]
+fn the_export_box_and_what_it_saved() {
+    let (mut state, fixture) = ready(NARROW);
+    state.update(key(KeyCode::Right));
+    answer(&mut state, &fixture);
+    state.sessions.selected = 2;
+    state.update(typed('e'));
+    let Some(Overlay::Export(export)) = state.overlay.as_mut() else {
+        panic!("e opens the export box");
+    };
+    export.path = SAVED_TO.to_owned();
+    insta::assert_snapshot!("export_80x24", shown(&state));
+    check("export_saved", Variant::Normal, NARROW, |state| {
+        state.section = Section::Sessions;
+        state.sessions.selected = 2;
+        state.export = Some(ExportNotice::Saved {
+            what: "214 sessions".to_owned(),
+            path: SAVED_TO.to_owned(),
+        });
+    });
+}
+
+#[test]
+fn e_exports_the_section_shown_and_says_where_it_went() {
+    let (mut state, fixture) = ready(NARROW);
+    state.update(key(KeyCode::Right));
+    answer(&mut state, &fixture);
+    state.update(typed('e'));
+    let Some(Overlay::Export(export)) = &state.overlay else {
+        panic!("e opens the export box");
+    };
+    assert_eq!(export.title, "Export the sessions");
+    assert_eq!(
+        export.scope,
+        "All 214 sessions in the last 30 days that match."
+    );
+    assert_eq!(export.params.dataset, Dataset::Sessions);
+    assert!(
+        export
+            .path
+            .ends_with("claude-dashboard-sessions-2026-09-11-to-2026-10-10.csv"),
+        "{}",
+        export.path
+    );
+
+    state.update(key(KeyCode::Down));
+    let Some(Overlay::Export(export)) = &state.overlay else {
+        panic!("the box stays open");
+    };
+    assert_eq!(export.params.format, ExportFormat::Json);
+    assert!(export.path.ends_with("-2026-10-10.json"), "{}", export.path);
+
+    state.update(key(KeyCode::Enter));
+    assert_eq!(state.overlay, None);
+    let (params, path) = state.take_export().expect("Enter starts the export");
+    assert_eq!(params.format, ExportFormat::Json);
+    assert!(path.ends_with("claude-dashboard-sessions-2026-09-11-to-2026-10-10.json"));
+    assert!(matches!(state.export, Some(ExportNotice::Running(_))));
+    assert_eq!(state.take_export(), None);
+
+    state.update(Event::Exported(Ok(Exported {
+        rows: 214,
+        what: "214 sessions".to_owned(),
+        path: Some(path.display().to_string()),
+        content: None,
+    })));
+    assert!(matches!(state.export, Some(ExportNotice::Saved { .. })));
+    state.update(key(KeyCode::Down));
+    assert_eq!(state.export, None, "the next key puts the notice away");
+
+    state.update(typed('e'));
+    state.update(key(KeyCode::Enter));
+    state.take_export();
+    state.update(Event::Exported(Err(
+        r"Cannot write to D:\: the disk is full".to_owned(),
+    )));
+    assert!(matches!(state.export, Some(ExportNotice::Failed(_))));
+}
+
+#[test]
+fn a_file_there_already_is_replaced_only_when_you_say_so() {
+    let folder = tempfile::tempdir().unwrap();
+    let there = folder.path().join("sessions.csv");
+    std::fs::write(&there, "kept").unwrap();
+    let (mut state, fixture) = ready(NARROW);
+    state.update(key(KeyCode::Right));
+    answer(&mut state, &fixture);
+    state.update(typed('e'));
+    if let Some(Overlay::Export(export)) = state.overlay.as_mut() {
+        export.path = there.display().to_string();
+    }
+
+    state.update(key(KeyCode::Enter));
+    assert!(matches!(&state.overlay, Some(Overlay::Export(export)) if export.replacing));
+    assert_eq!(state.take_export(), None);
+    state.update(typed('n'));
+    assert!(matches!(&state.overlay, Some(Overlay::Export(export)) if !export.replacing));
+
+    state.update(key(KeyCode::Enter));
+    state.update(typed('y'));
+    assert_eq!(state.take_export().map(|(_, path)| path), Some(there));
 }
 
 #[test]

@@ -3,9 +3,11 @@
 //! The words used here are defined in `CONTEXT.md` at the repository root.
 
 pub mod history;
+pub mod http;
 pub mod import;
 pub mod ingest;
 pub mod limits;
+pub mod price_refresh;
 pub mod pricing;
 pub mod reconcile;
 pub mod report;

@@ -568,6 +568,30 @@ pub struct Prices {
     pub sessions_compared: u64,
     /// The models whose prices may be out of date.
     pub out_of_line: Vec<PriceDrift>,
+    /// When the table in use was downloaded from claude-dashboard's repository; `None` for the
+    /// table this version ships with.
+    #[ts(optional = nullable)]
+    pub downloaded_ms: Option<i64>,
+    /// The daily check for a newer table.
+    pub refresh: PriceRefresh,
+}
+
+/// The daily check for a newer price table in claude-dashboard's repository.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct PriceRefresh {
+    /// Whether the person has switched the daily check on.
+    pub enabled: bool,
+    /// When a check last ended.
+    #[ts(optional = nullable)]
+    pub checked_ms: Option<i64>,
+    /// What came of it: `updated`, `up-to-date`, `unreachable`, `newer-format` or `refused`.
+    #[ts(optional = nullable)]
+    pub outcome: Option<String>,
+    /// What went wrong, for an outcome that needs it.
+    #[ts(optional = nullable)]
+    pub detail: Option<String>,
 }
 
 /// Something the person needs to know about the data folders or the history.
@@ -648,6 +672,11 @@ pub struct Settings {
     pub system_time_zone: String,
     /// The first day of the week, such as `monday`.
     pub week_start: String,
+    /// Whether the desktop app shows the five-hour window in the notification area or the menu
+    /// bar.
+    pub tray: bool,
+    /// Whether the desktop app keeps running when its window closes.
+    pub keep_running: bool,
 }
 
 /// `settings/set` parameters: what to change; whatever is left out stays as it is.
@@ -663,6 +692,16 @@ pub struct SettingsChange {
     #[serde(default)]
     #[ts(optional)]
     pub week_start: Option<String>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub tray: Option<bool>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub keep_running: Option<bool>,
+    /// Switches the daily check for a newer price table on or off.
+    #[serde(default)]
+    #[ts(optional)]
+    pub price_refresh: Option<bool>,
 }
 
 /// `folders/add` and `folders/remove` parameters.
@@ -776,4 +815,101 @@ pub struct StatusLineApply {
 #[ts(export, export_to = "protocol.ts")]
 pub struct PricesParams {
     pub models: Vec<String>,
+}
+
+/// What an export holds, one row per day, week, month, model, project, session, five-hour window
+/// or request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export, export_to = "protocol.ts")]
+pub enum Dataset {
+    Days,
+    Weeks,
+    Months,
+    Models,
+    Projects,
+    Sessions,
+    FiveHourWindows,
+    Requests,
+}
+
+/// How an export is written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "protocol.ts")]
+pub enum ExportFormat {
+    Csv,
+    Json,
+}
+
+/// What to export: a dataset, for the days, filters and search a section shows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ExportParams {
+    pub dataset: Dataset,
+    pub format: ExportFormat,
+    /// The days to export; every day the history holds when absent. Five-hour windows without
+    /// days are the recent ones the Limits section shows.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub days: Option<Days>,
+    #[serde(default)]
+    pub filters: Filters,
+    /// For sessions: text the session's title, id or project name contains, in any case.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub search: Option<String>,
+    /// For requests: only those of this session, by Claude Code's session id.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub session: Option<String>,
+}
+
+/// `export/name`: the file name to suggest for an export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ExportName {
+    pub name: String,
+}
+
+/// `export/save` parameters: an export, and the file the person chose for it. Only the VS Code
+/// extension sends it, after its own save dialog; the dashboard never does.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ExportSave {
+    pub export: ExportParams,
+    pub path: String,
+}
+
+/// What an export wrote.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct Exported {
+    pub rows: u64,
+    /// What the rows are, such as `214 sessions`.
+    pub what: String,
+    /// The file it was saved to.
+    #[ts(optional = nullable)]
+    pub path: Option<String>,
+    /// For `export/content`: what to save, for the VS Code extension to write where the server
+    /// cannot.
+    #[ts(optional = nullable)]
+    pub content: Option<String>,
+}
+
+/// `export/progress`: how far an export has got.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "protocol.ts")]
+pub struct ExportProgress {
+    pub written: u64,
+    /// The rows it will write; 0 when that is not known.
+    pub total: u64,
+    /// The file it writes, where the server writes it.
+    #[ts(optional = nullable)]
+    pub path: Option<String>,
 }

@@ -3,19 +3,24 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
 use claude_dashboard_server::app::{App, DESKTOP_APP_SETTING};
 use claude_dashboard_server::{program, statusline};
-use tauri::{Manager, Url, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Url, WebviewWindow, WebviewWindowBuilder};
 
 use crate::bridge::{self, Dashboard, MAIN};
+use crate::export::Exports;
+use crate::lifecycle::{self, Life};
+use crate::tray::Tray;
 
 /// How long the window waits for the dashboard to draw before it shows anyway.
 const SHOW_ANYWAY_AFTER: Duration = Duration::from_secs(5);
 
-/// Starts the server and opens the window.
+/// Starts the server, adds the item to the notification area and opens the window, which a start
+/// at login keeps hidden.
 ///
 /// # Errors
 ///
@@ -25,9 +30,24 @@ pub fn app(tauri: &mut tauri::App) -> Result<(), Box<dyn Error>> {
         status_line_copy: Some(bundled_program()?),
         ..App::new().with_shared_settings()
     };
-    let show = bridge::requested(&std::env::args().collect::<Vec<_>>());
-    tauri.manage(Dashboard::start(tauri.handle(), app.clone(), show));
-    window(tauri)?;
+    let args: Vec<String> = std::env::args().collect();
+    let show = bridge::requested(&args);
+    let hidden = args.iter().any(|arg| arg == lifecycle::HIDDEN);
+    let (nudge, nudges) = mpsc::channel();
+    tauri.manage(Dashboard::start(
+        tauri.handle(),
+        app.clone(),
+        show,
+        nudge.clone(),
+    ));
+    let tray = Tray::start(tauri.handle(), app.clone(), (nudge, nudges));
+    let stays_hidden = hidden && tray.is_some();
+    tauri.manage(Life::new(app.clone(), tray, stays_hidden));
+    tauri.manage(Exports::new(app.clone()));
+    let window = window(tauri.handle())?;
+    if !stays_hidden {
+        show_anyway(window);
+    }
     thread::spawn(move || {
         if let Err(reason) = statusline::refresh_copy(&app) {
             log::warn!("Cannot update the status line's copy of claude-dashboard: {reason}.");
@@ -46,17 +66,25 @@ fn bundled_program() -> Result<PathBuf, Box<dyn Error>> {
 
 /// Opens the main window, hidden until the dashboard has drawn in the system's theme, so that it
 /// never shows the wrong colours first.
-fn window(tauri: &tauri::App) -> Result<(), Box<dyn Error>> {
-    let config = tauri
+///
+/// # Errors
+///
+/// Why the window cannot open, such as a configuration that describes no main window.
+pub fn window(app: &AppHandle) -> Result<WebviewWindow, Box<dyn Error>> {
+    let config = app
         .config()
         .app
         .windows
         .iter()
         .find(|window| window.label == MAIN)
         .ok_or("the configuration describes no main window")?;
-    let window = WebviewWindowBuilder::from_config(tauri.handle(), config)?
+    Ok(WebviewWindowBuilder::from_config(app, config)?
         .on_navigation(own_page)
-        .build()?;
+        .build()?)
+}
+
+/// Shows the window if the dashboard has not drawn in it in time.
+fn show_anyway(window: WebviewWindow) {
     thread::spawn(move || {
         thread::sleep(SHOW_ANYWAY_AFTER);
         if !window.is_visible().unwrap_or(true) {
@@ -64,7 +92,6 @@ fn window(tauri: &tauri::App) -> Result<(), Box<dyn Error>> {
             let _ = window.show();
         }
     });
-    Ok(())
 }
 
 /// Whether a navigation stays on the app's own page, which is all the window ever shows.

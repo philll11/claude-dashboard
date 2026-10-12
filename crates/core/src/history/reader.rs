@@ -1,6 +1,7 @@
 //! Reading the history back, for reports and reconciliation.
 
 use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::path::PathBuf;
 
 use rusqlite::OptionalExtension;
@@ -23,6 +24,7 @@ pub struct StoredRequest<'a> {
     pub model: &'a str,
     pub tokens: Tokens,
     pub web_search_requests: u64,
+    pub web_fetch_requests: u64,
     pub speed: Option<&'a str>,
     pub inference_geo: Option<&'a str>,
     pub skill: Option<&'a str>,
@@ -89,15 +91,15 @@ macro_rules! request_columns {
         "requests.session, sessions.project, subagent_id, timestamp_ms, model, input_tokens,
          output_tokens, cache_read_tokens, cache_write_5m_tokens, cache_write_1h_tokens,
          web_search_requests, speed, inference_geo, skill, mcp_server, mcp_tool, entrypoint,
-         claude_code_version"
+         claude_code_version, web_fetch_requests"
     };
 }
 
-/// Calls `each` for every row of a query that selects [`request_columns`].
-fn each_request(
+/// Calls `each` for every row of a query that selects [`request_columns`], until it breaks.
+fn each_request<B>(
     rows: &mut rusqlite::Rows<'_>,
-    mut each: impl FnMut(&StoredRequest<'_>),
-) -> Result<(), HistoryError> {
+    mut each: impl FnMut(&StoredRequest<'_>) -> ControlFlow<B>,
+) -> Result<ControlFlow<B>, HistoryError> {
     while let Some(row) = rows.next()? {
         let text = |index: usize| -> Result<Option<&str>, HistoryError> {
             Ok(match row.get_ref(index)? {
@@ -105,7 +107,7 @@ fn each_request(
                 _ => None,
             })
         };
-        each(&StoredRequest {
+        let flow = each(&StoredRequest {
             session: SessionKey(row.get(0)?),
             project: ProjectKey(row.get(1)?),
             subagent_id: text(2)?,
@@ -119,6 +121,7 @@ fn each_request(
                 cache_write_1h: row.get(9)?,
             },
             web_search_requests: row.get(10)?,
+            web_fetch_requests: row.get(18)?,
             speed: text(11)?,
             inference_geo: text(12)?,
             skill: text(13)?,
@@ -127,8 +130,21 @@ fn each_request(
             entrypoint: text(16)?,
             claude_code_version: text(17)?,
         });
+        if flow.is_break() {
+            return Ok(flow);
+        }
     }
-    Ok(())
+    Ok(ControlFlow::Continue(()))
+}
+
+/// `each` for a reader that always goes on.
+fn to_the_end(
+    mut each: impl FnMut(&StoredRequest<'_>),
+) -> impl FnMut(&StoredRequest<'_>) -> ControlFlow<()> {
+    move |request| {
+        each(request);
+        ControlFlow::Continue(())
+    }
 }
 
 impl History {
@@ -144,6 +160,22 @@ impl History {
         to_ms: i64,
         each: impl FnMut(&StoredRequest<'_>),
     ) -> Result<(), HistoryError> {
+        self.try_for_each_request(from_ms, to_ms, to_the_end(each))
+            .map(drop)
+    }
+
+    /// Calls `each` for every request made from `from_ms` up to, but not including, `to_ms`,
+    /// oldest first, until it breaks.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn try_for_each_request<B>(
+        &self,
+        from_ms: i64,
+        to_ms: i64,
+        each: impl FnMut(&StoredRequest<'_>) -> ControlFlow<B>,
+    ) -> Result<ControlFlow<B>, HistoryError> {
         let mut statement = self.conn.prepare_cached(concat!(
             "SELECT ",
             request_columns!(),
@@ -152,6 +184,20 @@ impl History {
              ORDER BY timestamp_ms"
         ))?;
         each_request(&mut statement.query([from_ms, to_ms])?, each)
+    }
+
+    /// How many requests were made from `from_ms` up to, but not including, `to_ms`.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn count_requests(&self, from_ms: i64, to_ms: i64) -> Result<u64, HistoryError> {
+        Ok(self
+            .conn
+            .prepare_cached(
+                "SELECT count(*) FROM requests WHERE timestamp_ms >= ?1 AND timestamp_ms < ?2",
+            )?
+            .query_row([from_ms, to_ms], |row| row.get(0))?)
     }
 
     /// Calls `each` for every request of one session, its subagents' included, oldest first.
@@ -164,6 +210,21 @@ impl History {
         session: SessionKey,
         each: impl FnMut(&StoredRequest<'_>),
     ) -> Result<(), HistoryError> {
+        self.try_for_each_request_in_session(session, to_the_end(each))
+            .map(drop)
+    }
+
+    /// Calls `each` for every request of one session, its subagents' included, oldest first,
+    /// until it breaks.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn try_for_each_request_in_session<B>(
+        &self,
+        session: SessionKey,
+        each: impl FnMut(&StoredRequest<'_>) -> ControlFlow<B>,
+    ) -> Result<ControlFlow<B>, HistoryError> {
         let mut statement = self.conn.prepare_cached(concat!(
             "SELECT ",
             request_columns!(),
@@ -319,6 +380,26 @@ impl History {
             .prepare_cached("SELECT subagent_id, agent_type FROM subagents WHERE session = ?1")?;
         let types = statement
             .query_map([session.0], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        Ok(types)
+    }
+
+    /// The kind of agent every subagent is, by session and subagent id, as far as the history
+    /// knows it.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn all_subagent_types(
+        &self,
+    ) -> Result<HashMap<(SessionKey, String), String>, HistoryError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT session, subagent_id, agent_type FROM subagents")?;
+        let types = statement
+            .query_map([], |row| {
+                Ok(((SessionKey(row.get(0)?), row.get(1)?), row.get(2)?))
+            })?
             .collect::<Result<_, _>>()?;
         Ok(types)
     }

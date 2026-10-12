@@ -15,6 +15,17 @@ function withStatus(
   };
 }
 
+/** The prices as after a daily check that found a newer table this morning, at 08:00 in Auckland. */
+const pricesRefreshed: NonNullable<Scenario["patch"]> = (method, result) => {
+  if (method !== "prices" || result === null || typeof result !== "object") return result;
+  const morning = Date.parse("2026-10-09T19:00:00Z");
+  return {
+    ...(result as Record<string, unknown>),
+    downloadedMs: morning,
+    refresh: { enabled: true, checkedMs: morning, outcome: "up-to-date", detail: null },
+  };
+};
+
 /** The gateway session as though Claude Code's figure for it counted other requests, such as an
  * earlier process's while a later one still runs. */
 const otherRequests: NonNullable<Scenario["patch"]> = (method, result) => {
@@ -60,6 +71,10 @@ export const SCENARIOS: Record<string, Scenario> = {
   "change-settings": {},
   /** Claude Code's figure for a session counts other requests than the history holds. */
   "other-requests": { patch: otherRequests },
+  /** The daily check for a newer price table is on, and found one this morning. */
+  "prices-refreshed": { patch: pricesRefreshed },
+  /** A server of its own for the browser tests that save exports. */
+  exports: {},
   /** New activity is being read. */
   reading: {
     patch: withStatus((status) => {

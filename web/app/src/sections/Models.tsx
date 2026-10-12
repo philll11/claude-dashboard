@@ -20,9 +20,11 @@ import {
   SectionHead,
   useDays,
   useFilters,
+  useExportScope,
   useRangeText,
   useSeries,
 } from "./common";
+import { ExportMenu } from "../exports";
 import { costColumns, costSeries } from "./series";
 import { unpriced } from "./Sessions";
 
@@ -37,11 +39,17 @@ export function Models() {
         rangeText === "today" ? "today" : `in the ${rangeText}`
       } · ${money(overview.totals.cost.total)} API-equivalent`
     : undefined;
+  const exportScope = useExportScope(models.length, "model", "models");
   return (
     <div className="section">
       <SectionHead title="Models" summary={summary}>
         <RangeMenu />
         <ProjectMenu />
+        <ExportMenu
+          what={{ dataset: "models", days, filters: { ...filters, model: null } }}
+          scope={exportScope}
+          className="button export-button"
+        />
       </SectionHead>
       <DailyLines />
       <TokensAndCost models={models} />
@@ -301,7 +309,10 @@ function PricesUsed({ models }: { models: readonly ModelRow[] }) {
       </TableScroll>
       <p className="footnote">
         Fast mode, US-only inference (1.1 times) and web search are priced from the same table. A
-        model missing from it shows as unpriced, never as free.
+        model missing from it shows as unpriced, never as free
+        {models.some((row) => unpriced(row.model)) && prices && !prices.refresh.enabled
+          ? "; Settings can check this project's repository for a newer table once a day."
+          : "."}
       </p>
     </Panel>
   );

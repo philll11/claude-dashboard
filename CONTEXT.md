@@ -60,7 +60,7 @@ What requests would cost at Anthropic's published API prices; an estimate, never
 _Avoid_: cost (on its own), spend, bill, price
 
 **Price table**:
-The dated list of API prices per model from which API-equivalent cost is calculated.
+The dated list of API prices per model from which API-equivalent cost is calculated: the one a version ships with, or a newer one from the project's repository.
 _Avoid_: pricing, rates, rate card
 
 **Unpriced model**:
@@ -106,3 +106,11 @@ _Avoid_: source, confidence
 **Surface**:
 One of the three ways the product is shown: the terminal, the desktop app or VS Code.
 _Avoid_: client, front end, app (on its own)
+
+**Glance**:
+The five-hour window's use and today's API-equivalent cost in a few words: the desktop app's item in the notification area or the menu bar, and VS Code's status bar item.
+_Avoid_: tray (on its own), widget, indicator
+
+**Export**:
+A section's table, or every request in the history, written as CSV or JSON for a spreadsheet or a script.
+_Avoid_: download, dump, report (for a file)

@@ -1,7 +1,8 @@
 // Starts the desktop app built for a target, where no WebDriver can drive it, on a synthetic Claude
 // Code folder and a history of its own that starts empty, and checks that the app keeps running,
-// reads the transcripts into the history, and shows its window once the dashboard has drawn rather
-// than through its fallback. On macOS it keeps a screenshot of the screen as well.
+// reads the transcripts into the history, makes its item in the menu bar or the notification area,
+// and shows its window once the dashboard has drawn rather than through its fallback. On macOS it
+// keeps a screenshot of the screen as well.
 //
 //   node scripts/start.mjs --target aarch64-apple-darwin
 
@@ -110,5 +111,8 @@ if (log.includes("did not draw in time")) {
   throw new Error(
     "The window showed only through its fallback: the dashboard never said it had drawn.",
   );
+}
+if (!log.includes("Added the item to the notification area.")) {
+  throw new Error("The app made no item in the notification area or the menu bar.");
 }
 console.log(`The app started and read ${String(read)} requests into its history.`);

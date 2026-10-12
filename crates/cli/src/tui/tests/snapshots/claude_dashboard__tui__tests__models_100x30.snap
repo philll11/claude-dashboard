@@ -31,7 +31,7 @@ expression: shown(&state)
 26 ││ ■ Opus 5.5                                 $4.00    $20.00       $5.00       $8.00       $0.20   ││
 27 ││ ■ Sonnet 5.5                               $2.00    $10.00       $2.50       $4.00       $0.10   ││
 28 ││ ■ Haiku 5.5                                $0.10     $0.50      $0.125       $0.20       $0.01   ││
-29 │ q quit   ←→ sections   ↑↓ scroll   t table view   ? help                             Read just now │
+29 │ q quit   ←→ sections   ↑↓ scroll   t table view   e export   ? help                  Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb                     │
@@ -63,7 +63,7 @@ styles
 26 │d f iiiiiiii                                 iiiii    iiiiii       iiiii       iiiii       iiiii   d│
 27 │d e iiiiiiiiii                               iiiii    iiiiii       iiiii       iiiii       iiiii   d│
 28 │d g iiiiiiiii                                iiiii     iiiii      iiiiii       iiiii       iiiii   d│
-29 │ j bbbb   jj bbbbbbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                             bbbbbbbbbbbbb │
+29 │ j bbbb   jj bbbbbbbb   jj bbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb                  bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

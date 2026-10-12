@@ -23,9 +23,11 @@ import {
   tokensOf,
   useDays,
   useFilters,
+  useExportScope,
   useRangeText,
   useSeries,
 } from "./common";
+import { ExportMenu } from "../exports";
 import { SessionDetail } from "./SessionDetail";
 
 /** Sessions on one page. */
@@ -65,6 +67,13 @@ function SessionList() {
       : page
         ? `${grouped(page.total)} ${page.total === 1 ? "session matches" : "sessions match"}`
         : undefined;
+  const total = page?.total ?? 0;
+  const exportScope = useExportScope(
+    total,
+    "session",
+    "sessions",
+    total > PAGE ? "that match, not only this page" : "that match",
+  );
   return (
     <div className="section">
       <SectionHead title="Sessions" summary={summary}>
@@ -79,6 +88,16 @@ function SessionList() {
         <RangeMenu />
         <ProjectMenu />
         <ModelMenu />
+        <ExportMenu
+          what={{
+            dataset: "sessions",
+            days,
+            filters,
+            search: view.search === "" ? null : view.search,
+          }}
+          scope={exportScope}
+          className="button export-button"
+        />
       </SectionHead>
       <section aria-label="Sessions" className="panel list">
         <TableScroll label="Sessions">

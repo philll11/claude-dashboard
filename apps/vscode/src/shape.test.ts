@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { ModelRow, Overview, Status, Totals, WindowReading } from "@claude-dashboard/protocol";
 import { describe, expect, it } from "vitest";
 
@@ -120,7 +122,7 @@ describe("the status bar item", () => {
     expect(item.level).toBe("normal");
     expect(item.lines).toEqual([
       { label: "Five-hour window", value: "42% · resets 14:20" },
-      { label: "Weekly, all models", value: "71% · resets Thu 09:00" },
+      { label: "Weekly, all models", value: "71% ▲ · resets Thu 09:00" },
       { label: "Weekly, Fable", value: "18% · resets Thu 09:00" },
       { label: "Today", value: "$5.10" },
     ]);
@@ -134,6 +136,14 @@ describe("the status bar item", () => {
     expect(statusItem(summary({ limits }), NOW).level).toBe("critical");
   });
 
+  it("marks a window over 70% in the tooltip, not in the text, and not once it has reset", () => {
+    const over = statusItem(summary({ limits: [window("five_hour", 93, NOW + HOUR)] }), NOW);
+    expect(over.text).toBe("5h 93% · 13:15");
+    expect(over.lines[0]).toEqual({ label: "Five-hour window", value: "93% ▲ · resets 13:15" });
+    const reset = statusItem(summary({ limits: [window("five_hour", 93, NOW - HOUR)] }), NOW);
+    expect(reset.lines[0]).toEqual({ label: "Five-hour window", value: "reset at 11:15" });
+  });
+
   it("shows today's cost once the five-hour window has reset", () => {
     const item = statusItem(summary(), Date.parse("2026-10-10T01:21:00Z"));
     expect(item.text).toBe("$5.10 today");
@@ -145,6 +155,42 @@ describe("the status bar item", () => {
     const item = statusItem(summary({ limits: [], todayTotals: totals(5.1, 2) }), NOW);
     expect(item.text).toBe("$5.10 + unpriced today");
     expect(item.note).toBe("Cost: API-equivalent estimate. Plan limits are not recorded yet.");
+  });
+});
+
+/** An example of design/glance.json, which the server's Rust tests check as well. */
+interface GlanceExample {
+  name: string;
+  nowMs: number;
+  timeZone: string;
+  limits: WindowReading[];
+  today: { usd: number; unpricedRequests: number };
+  expect: { lines: [string, string][]; source: string | null; statusText: string };
+}
+
+const GLANCE = JSON.parse(
+  readFileSync(new URL("../../../design/glance.json", import.meta.url), "utf8"),
+) as { examples: GlanceExample[] };
+
+describe("the glance's shared examples", () => {
+  it.each(GLANCE.examples)("$name", (example) => {
+    const item = statusItem(
+      summary({
+        limits: example.limits,
+        timeZone: example.timeZone,
+        todayTotals: totals(example.today.usd, example.today.unpricedRequests),
+      }),
+      example.nowMs,
+    );
+    expect(item.lines.map((line) => [line.label, line.value])).toEqual(example.expect.lines);
+    expect(item.text).toBe(example.expect.statusText);
+    const { source } = example.expect;
+    if (source === null) {
+      expect(item.note).not.toMatch(/^Limits: /);
+    } else {
+      const prefix = `Limits: ${source.charAt(0).toLowerCase()}${source.slice(1)}`;
+      expect(item.note.slice(0, prefix.length)).toBe(prefix);
+    }
   });
 });
 

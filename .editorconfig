@@ -13,3 +13,8 @@ indent_size = 4
 
 [*.{cmd,bat}]
 end_of_line = crlf
+
+# Exports as they are written, byte for byte, carriage returns and all.
+[crates/cli/tests/goldens/**]
+insert_final_newline = unset
+trim_trailing_whitespace = false

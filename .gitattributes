@@ -5,6 +5,10 @@
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
+# The CLI's tests compare their output with these files byte for byte, so a checkout keeps their
+# line endings and byte order marks as they are.
+crates/cli/tests/goldens/** -text
+
 *.png binary
 *.jpg binary
 *.jpeg binary

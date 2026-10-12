@@ -2,6 +2,8 @@
 // `?scenario=stale-limits&theme=vscode-light&surface=vscode` picks what it shows.
 
 import type { VsCodeTheme } from "../tests/bridge/themes";
+import type { ExportProgress } from "@claude-dashboard/protocol";
+
 import type { Host, UpdateState } from "./host";
 
 export async function previewHost(): Promise<Host | undefined> {
@@ -32,6 +34,16 @@ declare global {
       update?: UpdateState;
       /** Requests on their way. */
       pending?: number;
+      /** Holds an export under way at this progress until `releaseExport` is called. */
+      exportHeld?: ExportProgress;
+      releaseExport?: () => void;
+      cancelHeld?: () => void;
+      /** Asks the desktop app's question for when its window first closes. */
+      askClose?: () => void;
+      /** The answer to that question. */
+      closeChoice?: boolean;
+      /** Whether the desktop app opens at login. */
+      autostart?: boolean;
     };
   }
 }

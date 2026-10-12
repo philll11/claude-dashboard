@@ -6,6 +6,9 @@
 import type {
   Choices,
   EndpointParams,
+  ExportName,
+  ExportParams,
+  ExportProgress,
   FolderParams,
   ImportDone,
   ImportOffer,
@@ -53,6 +56,7 @@ export interface Requests {
   "import/offer": [null, ImportOffer | null];
   "import/run": [null, ImportDone];
   "import/dismiss": [null, null];
+  "export/name": [ExportParams, ExportName];
 }
 
 /** Each notification the server sends, and what it carries. */
@@ -60,6 +64,10 @@ export interface Notifications {
   "ingest/progress": Progress;
   "history/changed": HistoryChanged;
   "limits/changed": null;
+  /** The settings every surface shares changed, such as after a price-table check. */
+  "settings/changed": null;
+  /** How far the export under way has got. */
+  "export/progress": ExportProgress;
 }
 
 export type Method = keyof Requests;

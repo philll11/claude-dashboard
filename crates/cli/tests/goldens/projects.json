@@ -1,0 +1,23 @@
+[
+  {
+    "name": "app",
+    "path": "C:\\code\\app",
+    "transcript_folder": "C--code-app",
+    "sessions": 4,
+    "requests": 7,
+    "tokens": {
+      "input": 21,
+      "output": 4480,
+      "cache_write_5m": 3500,
+      "cache_write_1h": 7000,
+      "cache_read": 294000
+    },
+    "cost": {
+      "usd": 0.2,
+      "provenance": "estimate",
+      "price_table": "2026-10-10",
+      "unpriced_requests": 1
+    },
+    "last_request_at": "2026-10-06T16:05:00Z"
+  }
+]

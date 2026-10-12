@@ -72,11 +72,16 @@ export class Dashboard {
     await this.page.waitForFunction(() => window.claudeDashboardBridge?.pending === 0);
   }
 
-  /** Checks the page against its screenshot and for accessibility problems. */
+  /**
+   * Checks the page against its screenshot and for accessibility problems. A page with a modal
+   * dialog open is captured as the window shows it, since the dialog's backdrop covers the window
+   * rather than the whole page.
+   */
   async check(name: string) {
     await this.settled();
     await this.page.evaluate(() => document.fonts.ready);
-    await expect(this.page).toHaveScreenshot(`${name}.png`, { fullPage: true });
+    const modal = await this.page.evaluate(() => document.querySelector("dialog:modal") !== null);
+    await expect(this.page).toHaveScreenshot(`${name}.png`, { fullPage: !modal });
     const results = await new AxeBuilder({ page: this.page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();

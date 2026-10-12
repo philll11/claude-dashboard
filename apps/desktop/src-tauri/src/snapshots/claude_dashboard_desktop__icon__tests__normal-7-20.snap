@@ -1,0 +1,24 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+  ..llllllllllll..  
+ .l++++++++++++++l. 
+.l+pppppppppppppp+l.
+.+pppppppppppppppp+.
+l+pppppppppppppppp+l
+l+ppppmmmmmmmppppp+l
+l+pppppppppmmppppp+l
+l+pppppppppmmppppp+l
+l+ppppppppmppppppp+l
+l+pppppppmpppppppp+l
+l+ppppppmppppppppp+l
+l+ppppppmppppppppp+l
+l+ppppppmppppppppp+l
+l+ppppppmppppppppp+l
+l+pppppppppppppppp+l
+l+pppppppppppppppp+l
+.+pppppppppppppppp+.
+.l+pppppppppppppp+l.
+ .l++++++++++++++l. 
+  ..llllllllllll..

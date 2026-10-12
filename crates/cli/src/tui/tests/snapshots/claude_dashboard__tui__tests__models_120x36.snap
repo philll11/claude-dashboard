@@ -37,7 +37,7 @@ expression: shown(&state)
 32 ││                                                                                                                      ││
 33 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
 34 │  Within 0.4% of Claude Code's own session costs, over 412 sessions                                                     │
-35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+35 │ q quit   ←→ sections   t table view   e export   ? help             Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -75,7 +75,7 @@ styles
 32 │d                                                                                                                      d│
 33 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 34 │  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                     │
-35 │ j bbbb   jj bbbbbbbb   j bbbbbbbbbb   j bbbb                        bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+35 │ j bbbb   jj bbbbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

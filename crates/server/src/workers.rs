@@ -1,7 +1,8 @@
 //! The server's background work, each on a thread with a connection of its own to the history:
-//! reading new transcript content, and noticing what other processes change in the history, such
-//! as a status line's plan-limit readings.
+//! reading new transcript content, noticing what other processes change in the history, such as
+//! a status line's plan-limit readings, and the daily price-table check.
 
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::ControlFlow;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -9,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use claude_dashboard_core::history::History;
 use claude_dashboard_core::ingest;
+use claude_dashboard_core::price_refresh::{self, Check, When};
 use claude_dashboard_core::usage_endpoint::{self, Refresh};
 use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, select, unbounded};
 use jiff::Timestamp;
@@ -24,6 +26,8 @@ const READ_EVERY: Duration = Duration::from_secs(60);
 const CHECK_EVERY: Duration = Duration::from_secs(3);
 /// How often the usage endpoint gets the chance of a turn, which its own rules may decline.
 const ENDPOINT_EVERY: Duration = Duration::from_secs(60);
+/// How often the price-table check gets the chance of a turn, which its own rules may decline.
+const PRICES_EVERY: Duration = Duration::from_secs(60);
 /// How often progress is reported while transcripts are read.
 const PROGRESS_EVERY: Duration = Duration::from_millis(250);
 /// How often, at most, a read that adds requests says so before it ends, so that a long first
@@ -47,6 +51,8 @@ pub struct Triggers {
     pub read: Sender<()>,
     /// Gives the usage endpoint its turn, which its own rules may still decline.
     pub endpoint: Sender<()>,
+    /// Gives the price-table check its turn, which its own rules may still decline.
+    pub prices: Sender<()>,
 }
 
 impl Workers {
@@ -69,6 +75,7 @@ pub fn start(app: &App, client: Notify, shared: &Arc<Mutex<Shared>>) -> Workers 
     let (stop, stopped) = bounded::<()>(0);
     let (trigger, triggered) = unbounded::<()>();
     let (endpoint, endpoint_asked) = unbounded::<()>();
+    let (prices, prices_asked) = unbounded::<()>();
     let reader = {
         let (app, client, shared, stopped) = (
             app.clone(),
@@ -80,13 +87,18 @@ pub fn start(app: &App, client: Notify, shared: &Arc<Mutex<Shared>>) -> Workers 
     };
     let watcher = {
         let app = app.clone();
-        thread::spawn(move || watch_history(&app, &client, baseline, &stopped, &endpoint_asked))
+        let asked = Asked {
+            endpoint: endpoint_asked,
+            prices: prices_asked,
+        };
+        thread::spawn(move || watch_history(&app, &client, baseline, &stopped, &asked))
     };
     Workers {
         stop: Some(stop),
         triggers: Triggers {
             read: trigger,
             endpoint,
+            prices,
         },
         handles: vec![reader, watcher],
     }
@@ -238,6 +250,16 @@ struct Marks {
     limits: Option<i64>,
     endpoint: (Option<i64>, Option<&'static str>),
     requests: (u64, u64, Option<i64>),
+    /// A fingerprint of the shared settings.
+    settings: u64,
+    /// A fingerprint of the price table a check accepted, which prices every request.
+    prices: u64,
+}
+
+/// What asks the watch to give a turn now rather than at its next one.
+struct Asked {
+    endpoint: Receiver<()>,
+    prices: Receiver<()>,
 }
 
 /// Notices changes other processes make, such as a status line's readings and requests, and
@@ -268,9 +290,10 @@ fn watch_history(
     client: &Notify,
     mut watched: Option<Watched>,
     stopped: &Receiver<()>,
-    endpoint_asked: &Receiver<()>,
+    asked: &Asked,
 ) {
     let mut endpoint_turn = Instant::now().checked_sub(ENDPOINT_EVERY);
+    let mut prices_turn = Instant::now().checked_sub(PRICES_EVERY);
     loop {
         if watched.is_none() {
             watched = Watched::open(app);
@@ -293,6 +316,17 @@ fn watch_history(
                     notify(client, "limits/changed", ());
                 }
             }
+            if prices_turn.is_none_or(|turn| turn.elapsed() >= PRICES_EVERY) {
+                prices_turn = Some(Instant::now());
+                if let Ok(Check::Checked(outcome)) =
+                    price_refresh::refresh(history, app.now.as_millisecond(), When::Due)
+                {
+                    notify(client, "settings/changed", ());
+                    if outcome == price_refresh::Outcome::Updated {
+                        notify(client, "history/changed", HistoryChanged { days: None });
+                    }
+                }
+            }
             if let Ok(current) = history.data_version()
                 && *version != Some(current)
             {
@@ -304,8 +338,13 @@ fn watch_history(
                         {
                             notify(client, "limits/changed", ());
                         }
-                        if before.requests != now_marks.requests {
+                        if before.requests != now_marks.requests
+                            || before.prices != now_marks.prices
+                        {
                             notify(client, "history/changed", HistoryChanged { days: None });
+                        }
+                        if before.settings != now_marks.settings {
+                            notify(client, "settings/changed", ());
                         }
                     }
                     *marks = Some(now_marks);
@@ -314,7 +353,8 @@ fn watch_history(
         }
         select! {
             recv(stopped) -> _ => return,
-            recv(endpoint_asked) -> _ => endpoint_turn = None,
+            recv(asked.endpoint) -> _ => endpoint_turn = None,
+            recv(asked.prices) -> _ => prices_turn = None,
             default(CHECK_EVERY) => {}
         }
     }
@@ -322,7 +362,12 @@ fn watch_history(
 
 fn read_marks(history: &History, now_ms: i64) -> Option<Marks> {
     let endpoint = history.usage_endpoint().ok()?;
+    let settings = history.settings().ok()?;
+    let mut sorted: Vec<_> = settings.iter().collect();
+    sorted.sort();
     Some(Marks {
+        settings: fingerprint(&sorted),
+        prices: fingerprint(&settings.get(price_refresh::TABLE_SETTING)),
         limits: history.latest_limit_ms().ok()?,
         endpoint: (
             endpoint.asked_ms,
@@ -330,4 +375,10 @@ fn read_marks(history: &History, now_ms: i64) -> Option<Marks> {
         ),
         requests: history.recent_requests(now_ms - RECENT_MS).ok()?,
     })
+}
+
+fn fingerprint(value: &impl Hash) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
 }

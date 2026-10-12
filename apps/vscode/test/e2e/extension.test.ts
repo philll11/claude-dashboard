@@ -3,8 +3,9 @@
 // screenshot in E2E_SCREENSHOTS to compare with the design's boards.
 
 import * as assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import {
   ActivityBar,
@@ -21,6 +22,8 @@ import {
 
 const SETTINGS = process.env.E2E_SETTINGS ?? "";
 const SCREENSHOTS = process.env.E2E_SCREENSHOTS ?? "";
+const PROGRAM = process.env.E2E_PROGRAM ?? "";
+const EXPORTS = process.env.CLAUDE_DASHBOARD_EXPORT_TO ?? "";
 const NAME = "Dashboard for Claude Code";
 const THEMES = ["Default Dark Modern", "Default Light Modern", "Default High Contrast"];
 
@@ -158,5 +161,54 @@ describe(`${NAME}, installed from its package`, function () {
     );
     await new EditorView().openEditor("Usage dashboard");
     assert.equal(await shownSection(), "Projects");
+  });
+
+  it("saves the sessions the dashboard lists, as the command line reports them", async () => {
+    const webview = new WebView();
+    await webview.switchToFrame(20_000);
+    try {
+      const link = await driver.wait(
+        until.elementLocated(
+          By.xpath('//nav[@aria-label="Dashboard sections"]//a[normalize-space()="Sessions"]'),
+        ),
+        20_000,
+      );
+      await link.click();
+      const button = await driver.wait(
+        until.elementLocated(By.xpath('//main//button[normalize-space()="Export"]')),
+        20_000,
+      );
+      await button.click();
+      const json = await driver.wait(
+        until.elementLocated(
+          By.xpath('//*[@role="menuitem"][contains(normalize-space(), "Export as JSON")]'),
+        ),
+        10_000,
+      );
+      await json.click();
+      const saved = await driver.wait(
+        until.elementLocated(By.css('[role="status"] .toast-title')),
+        60_000,
+      );
+      const path = await driver.findElement(By.css('[role="status"] .toast-path')).getText();
+      const range =
+        /^claude-dashboard-sessions-(\d{4}-\d{2}-\d{2})-to-(\d{4}-\d{2}-\d{2})\.json$/.exec(
+          basename(path),
+        );
+      assert.ok(range, `the file has the suggested name: ${path}`);
+      // VS Code writes a Windows drive letter in lower case.
+      assert.equal(dirname(path).toLowerCase(), EXPORTS.toLowerCase());
+      const [, first = "", last = ""] = range;
+      const report = execFileSync(
+        PROGRAM,
+        ["sessions", "--since", first, "--until", last, "--json"],
+        { encoding: "utf8" },
+      );
+      const sessions = JSON.parse(report) as unknown[];
+      assert.equal(await saved.getText(), `Saved ${String(sessions.length)} sessions`);
+      assert.equal(readFileSync(path, "utf8"), report);
+    } finally {
+      await webview.switchBack();
+    }
   });
 });

@@ -1,0 +1,25 @@
+[
+  {
+    "first_day": "2026-10-01",
+    "last_day": "2026-10-31",
+    "requests": 7,
+    "tokens": {
+      "input": 21,
+      "output": 4480,
+      "cache_write_5m": 3500,
+      "cache_write_1h": 7000,
+      "cache_read": 294000
+    },
+    "cost": {
+      "usd": 0.2,
+      "provenance": "estimate",
+      "price_table": "2026-10-10",
+      "unpriced_requests": 1
+    },
+    "models": [
+      "claude-opus-5-5",
+      "claude-sonnet-5-5",
+      "claude-orion-1"
+    ]
+  }
+]

@@ -49,7 +49,7 @@ expression: shown(&state)
 44 ││                                                                                                                                                              ││
 45 ││                                                                                                                                                              ││
 46 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-47 │ q quit   ←→ sections   t table view   ? help                                                                Read just now · costs are API-equivalent estimates │
+47 │ q quit   ←→ sections   t table view   e export   ? help                                                     Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -99,7 +99,7 @@ styles
 44 │d                                                                                                                                                              d│
 45 │d                                                                                                                                                              d│
 46 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-47 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbb                                                                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+47 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbbbb   k bbbb                                                     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

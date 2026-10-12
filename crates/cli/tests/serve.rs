@@ -742,3 +742,70 @@ fn ends_when_its_input_closes() {
         thread::sleep(Duration::from_millis(50));
     }
 }
+
+#[test]
+fn an_export_is_saved_where_the_extension_says_and_named_as_the_dashboard_suggests() {
+    let mut server = Server::start();
+    server.changed();
+    let export = json!({
+        "dataset": "requests",
+        "format": "csv",
+        "days": {"first": TODAY, "last": TODAY},
+    });
+
+    let name = server.result("export/name", &export);
+    assert_eq!(
+        name["name"],
+        "claude-dashboard-history-2026-10-10-to-2026-10-10.csv"
+    );
+    let path = server.dir.path().join("saved.csv");
+    let saved = server.result(
+        "export/save",
+        &json!({"export": export, "path": path.display().to_string()}),
+    );
+    assert_eq!(saved["rows"], 2);
+    assert_eq!(saved["what"], "2 requests");
+    let written = fs::read(&path).unwrap();
+    assert!(
+        written.starts_with(b"\xef\xbb\xbf"),
+        "a saved file starts with a byte order mark"
+    );
+
+    let content = server.result("export/content", &export);
+    assert_eq!(
+        content["content"].as_str().unwrap().as_bytes(),
+        written.as_slice()
+    );
+}
+
+#[test]
+fn an_export_names_its_file_by_its_whole_path() {
+    let mut server = Server::start();
+    let response = server.request(
+        "export/save",
+        &json!({
+            "export": {"dataset": "days", "format": "json"},
+            "path": "relative.json",
+        }),
+    );
+    assert_eq!(response["error"]["code"], -32602, "{response}");
+    assert!(!server.dir.path().join("relative.json").exists());
+}
+
+#[test]
+fn the_server_keeps_answering_while_an_export_writes() {
+    let mut server = Server::start();
+    server.changed();
+    let path = server.dir.path().join("history.csv");
+    let export = server.ask(
+        "export/save",
+        &json!({
+            "export": {"dataset": "requests", "format": "csv"},
+            "path": path.display().to_string(),
+        }),
+    );
+    let status = server.result("status", &Value::Null);
+    assert_eq!(status["today"], TODAY);
+    let saved = server.wait_for(|message| message["id"] == export);
+    assert_eq!(saved["result"]["rows"], 2, "{saved}");
+}

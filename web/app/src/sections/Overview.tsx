@@ -41,9 +41,11 @@ import {
   tokensOf,
   useDays,
   useFilters,
+  useDaysScope,
   useRangeText,
   useSeries,
 } from "./common";
+import { ExportMenu } from "../exports";
 import { StatusLineDialog } from "./dialogs";
 import { Notices } from "./notices";
 import { costColumns, costSeries, dailyCost } from "./series";
@@ -55,6 +57,7 @@ export function Overview() {
   const filters = useFilters();
   const overview = useRequest("overview", { days, filters });
   const status = useStatus();
+  const exportScope = useDaysScope();
   const progress = useReadingProgress() ?? status.reading;
   // With no history and nothing being read, there is nothing to show but how to find some.
   const nothingYet = !status.firstDay && !progress && status.limits.length === 0;
@@ -64,6 +67,11 @@ export function Overview() {
         <RangeButtons />
         <ProjectMenu />
         <ModelMenu />
+        <ExportMenu
+          what={{ dataset: "days", days, filters }}
+          scope={exportScope}
+          className="button export-button"
+        />
       </SectionHead>
       <Notices />
       {nothingYet ? null : (

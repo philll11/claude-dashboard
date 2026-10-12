@@ -50,6 +50,10 @@ for (const key of ["CLAUDE_CONFIG_DIR", "CLAUDE_DASHBOARD_HISTORY", "CLAUDE_DASH
 }
 process.env.E2E_SETTINGS = join(storage, "settings", "User", "settings.json");
 process.env.E2E_SCREENSHOTS = join(storage, "screenshots");
+process.env.E2E_PROGRAM = prepared.program;
+// The extension saves exports here without its save dialog, which a test cannot answer.
+process.env.CLAUDE_DASHBOARD_EXPORT_TO = join(prepared.folder, "exports");
+mkdirSync(process.env.CLAUDE_DASHBOARD_EXPORT_TO);
 
 let code;
 try {

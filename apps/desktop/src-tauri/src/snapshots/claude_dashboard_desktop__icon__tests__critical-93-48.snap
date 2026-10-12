@@ -1,0 +1,52 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+       ....cccccccccccccccccccccccccc....       
+     ..cccccccccccccccccccccccccccccccccc..     
+    ..cccccccccccccccccccccccccccccccccccc..    
+   .cccccccccccccccccccccccccccccccccccccccc.   
+  .cccccccccccccccccccccccccccccccccccccccccc.  
+ ..cccccccccccccccccccccccccccccccccccccccccc.. 
+ .cccccccccccccccccccccccccccccccccccccccccccc. 
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+cccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+cccccccccWWWcccccccccWWWcccccccccccccccWWWcccccc
+ccccccccccccWWWWWWWWWWWWccccccWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWWWWccccccWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWWWWccccccWWWWWWWWWccccccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+cccccccccccccccccccccWWWcccccccccccccccWWWcccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+ccccccccccccWWWWWWWWWccccccWWWWWWWWWWWWccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccccccccccc
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccccccccccc.
+ .cccccccccccccccccccccccccccccccccccccccccccc. 
+ ..cccccccccccccccccccccccccccccccccccccccccc.. 
+  .cccccccccccccccccccccccccccccccccccccccccc.  
+   .cccccccccccccccccccccccccccccccccccccccc.   
+    ..cccccccccccccccccccccccccccccccccccc..    
+     ..cccccccccccccccccccccccccccccccccc..     
+       ....cccccccccccccccccccccccccc....

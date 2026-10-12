@@ -2,6 +2,7 @@
 //! carries every request, and one event every notification, as the protocol in
 //! `web/protocol` describes them.
 
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use claude_dashboard_server::app::App;
@@ -9,6 +10,9 @@ use claude_dashboard_server::{Fault, Notify, Server};
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+use crate::lifecycle;
+use crate::tray::Nudge;
 
 /// The window the dashboard is in.
 pub const MAIN: &str = "main";
@@ -27,7 +31,7 @@ pub struct Dashboard {
 /// A section for the dashboard to show.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Show {
-    section: &'static str,
+    pub section: &'static str,
 }
 
 /// A notification from the server, as the `notification` event carries it.
@@ -43,10 +47,18 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 impl Dashboard {
-    /// Starts the server, whose notifications go to the main window.
-    pub fn start(handle: &AppHandle, app: App, show: Option<Show>) -> Self {
+    /// Starts the server, whose notifications go to the main window and nudge the item in the
+    /// notification area.
+    pub fn start(handle: &AppHandle, app: App, show: Option<Show>, tray: Sender<Nudge>) -> Self {
         let handle = handle.clone();
+        let tray = Mutex::new(tray);
         let notify: Notify = Arc::new(move |method, params| {
+            if matches!(
+                method,
+                "limits/changed" | "history/changed" | "settings/changed"
+            ) {
+                let _ = lock(&tray).send(Nudge::Changed);
+            }
             let notification = Notification {
                 method: method.to_owned(),
                 params,
@@ -105,22 +117,17 @@ pub fn take_show(dashboard: State<'_, Dashboard>) -> Option<Show> {
 }
 
 /// What a second start of the app does instead of opening another window: it brings this one
-/// forward, at the section it asks for.
+/// forward, at the section it asks for. A start at login, which the app's own already had,
+/// changes nothing.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "the single instance plugin hands over the arguments by value"
 )]
 pub fn second_start(app: &AppHandle, args: Vec<String>, _folder: String) {
-    if let Some(window) = app.get_webview_window(MAIN) {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
+    if args.iter().any(|arg| arg == lifecycle::HIDDEN) {
+        return;
     }
-    if let Some(show) = requested(&args)
-        && let Err(error) = app.emit_to(MAIN, "show", show)
-    {
-        log::warn!("Cannot show the section asked for: {error}");
-    }
+    lifecycle::open(app, requested(&args).map(|show| show.section));
 }
 
 /// Stops the server's background work as the app ends.

@@ -114,6 +114,9 @@ export const Search = icon(
   </>,
 );
 export const Plus = icon(<path d="M12 5v14M5 12h14" />);
+export const Close = icon(<path d="M6 6l12 12M18 6L6 18" />);
+/** Three quarters of a circle, which turns while something is under way. */
+export const Spinner = icon(<path d="M12 3a9 9 0 1 0 9 9" />, 2.5);
 
 /** The desktop sidebar's icons for the sections, drawn at 16 units with a 1.75 stroke. */
 export const OverviewIcon = icon(
