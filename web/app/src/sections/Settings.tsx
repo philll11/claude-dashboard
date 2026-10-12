@@ -1,13 +1,14 @@
 // Settings: the Claude Code data folders, the history, the plan limit sources, the prices, time,
 // and what the dashboard does on the network.
 
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useState, useSyncExternalStore } from "react";
 
 import type { Folder, Health, Limits as LimitsAnswer, Prices } from "@claude-dashboard/protocol";
 
 import { useHost, useStatus } from "../context";
 import { useRequest, useStore } from "../data";
 import { fullDate, grouped } from "../format";
+import { RELEASES, type UpdateState, type Updates } from "../host";
 import { Switch } from "../ui/controls";
 import { Check, Plus, Warning } from "../ui/icons";
 import { Panel, Pill } from "../ui/panels";
@@ -15,9 +16,6 @@ import { SectionHead } from "./common";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
 
 const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-
-/** Where every version is published, with its VS Code packages. */
-const RELEASES = "https://github.com/philll11/claude-dashboard/releases";
 
 export function Settings() {
   const health = useRequest("health", null).data;
@@ -80,7 +78,7 @@ function Folders({ health }: { health: Health }) {
       subtitle="Where to read transcripts from. CLAUDE_CONFIG_DIR is used when it is set."
       actions={
         host.pickFolder ? (
-          <button type="button" className="button small raised" onClick={add}>
+          <button type="button" className="button compact raised" onClick={add}>
             <Plus />
             Add folder
           </button>
@@ -134,7 +132,7 @@ function FolderRow({ folder, onRemove }: { folder: Folder; onRemove: () => void 
           </span>
         )}
         {folder.source === "added" && (
-          <button type="button" className="button small quiet" onClick={onRemove}>
+          <button type="button" className="button compact quiet" onClick={onRemove}>
             Remove
           </button>
         )}
@@ -193,7 +191,7 @@ function History({ health }: { health: Health }) {
         {health.historyPath && host.reveal && (
           <button
             type="button"
-            className="button small quiet"
+            className="button compact quiet"
             onClick={() => {
               if (health.historyPath) host.reveal?.(health.historyPath);
             }}
@@ -204,7 +202,7 @@ function History({ health }: { health: Health }) {
         {offer && offer.requests > 0 && (
           <button
             type="button"
-            className="button small raised"
+            className="button compact raised"
             onClick={() => {
               change(() => store.send("import/run", null));
             }}
@@ -244,7 +242,7 @@ function PlanLimits({ limits }: { limits: LimitsAnswer }) {
           {statusLine.state === "connected" ? (
             <button
               type="button"
-              className="button small quiet"
+              className="button compact quiet"
               onClick={() => {
                 setDialog("disconnect");
               }}
@@ -254,7 +252,7 @@ function PlanLimits({ limits }: { limits: LimitsAnswer }) {
           ) : statusLine.state === "notConnected" ? (
             <button
               type="button"
-              className="button small raised"
+              className="button compact raised"
               onClick={() => {
                 setDialog("connect");
               }}
@@ -408,19 +406,102 @@ function Privacy() {
   const status = useStatus();
   return (
     <Panel title="Updates and privacy">
-      <p className="note">
-        Version {status.version}.
-        {host.surface === "vscode" && (
-          <>
-            {" "}
-            New versions are on the <a href={RELEASES}>releases page</a>.
-          </>
-        )}
-      </p>
+      {host.updates ? (
+        <UpdatesRow updates={host.updates} version={status.version} />
+      ) : (
+        <p className="note">
+          Version {status.version}.
+          {host.surface === "vscode" && (
+            <>
+              {" "}
+              New versions are on the <a href={RELEASES}>releases page</a>.
+            </>
+          )}
+        </p>
+      )}
       <p className="note">
         claude-dashboard collects no telemetry. It never stores prompt or code content, and it only
         uses the network for the features switched on above.
       </p>
     </Panel>
+  );
+}
+
+/** Where the desktop app's updates stand, after the version, in the Settings board's words. */
+function updateWords(state: UpdateState): string {
+  switch (state.kind) {
+    case "idle":
+      return "updates are signed and checked before installing";
+    case "checking":
+      return "checking for a newer version…";
+    case "current":
+      return "up to date · updates are signed and checked before installing";
+    case "ready":
+      return `version ${state.version} is ready to install`;
+    case "installing":
+      return `installing version ${state.version}…`;
+    case "failed":
+      return "cannot check for updates now";
+  }
+}
+
+/** The desktop app's updates: whether they install automatically, and where they stand. */
+function UpdatesRow({ updates, version }: { updates: Updates; version: string }) {
+  const state = useSyncExternalStore(updates.subscribe, updates.state);
+  const automatic = useSyncExternalStore(updates.subscribe, updates.automatic);
+  const nameId = useId();
+  const textId = useId();
+  const canCheck =
+    state.kind === "failed" || (!automatic && (state.kind === "idle" || state.kind === "current"));
+  return (
+    <div className="setting-row">
+      <span className="setting-text">
+        <span className="setting-name" id={nameId}>
+          Install updates automatically
+        </span>
+        <span className="ink-2" id={textId}>
+          Version {version} · {updateWords(state)}.
+        </span>
+        {state.kind === "failed" && (
+          <span className="note problem">
+            <Warning size={14} className="warning-mark" />
+            {state.reason}
+          </span>
+        )}
+        {(state.kind === "ready" || canCheck) && (
+          <span className="actions setting-actions">
+            {state.kind === "ready" ? (
+              <button
+                type="button"
+                className="button compact raised"
+                onClick={() => {
+                  updates.install();
+                }}
+              >
+                Restart to update
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="button compact quiet"
+                onClick={() => {
+                  updates.check();
+                }}
+              >
+                Check now
+              </button>
+            )}
+          </span>
+        )}
+      </span>
+      <Switch
+        checked={automatic}
+        labelledBy={nameId}
+        describedBy={textId}
+        onChange={(on) => {
+          updates.setAutomatic(on);
+        }}
+      />
+    </div>
   );
 }

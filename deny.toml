@@ -1,7 +1,7 @@
 [graph]
 all-features = true
-# The targets claude-dashboard ships for: the release's, and the glibc builds the VS Code
-# extension bundles. Dependencies that only other targets use, such as Android's, never ship.
+# The targets claude-dashboard ships for: the command line's, and the desktop app's, which on Linux
+# is built for glibc. Dependencies that only other targets use, such as Android's, never ship.
 targets = [
   "x86_64-pc-windows-msvc",
   "aarch64-pc-windows-msvc",
@@ -16,6 +16,9 @@ targets = [
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, unmaintained, runs only at build time, for the GTK 3 bindings that Tauri 2 uses on Linux; nothing maintained replaces them in Tauri 2" },
+]
 
 [licenses]
 version = 2

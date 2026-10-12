@@ -1,21 +1,16 @@
-//! What every command works with: the history, the data roots, the time zone and the prices.
+//! What every surface works with: the history, the data roots, the time zone and the prices.
 
 use std::ffi::OsString;
-use std::io::{IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::LazyLock;
-use std::time::{Duration, Instant};
 
-use claude_dashboard_core::history::{self, History, HistoryError};
-use claude_dashboard_core::ingest::{self, Progress, Report};
+use claude_dashboard_core::history::{self, History};
 use claude_dashboard_core::pricing::PriceTable;
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, DataRoot};
 use claude_dashboard_core::usage_endpoint::LoginSource;
 use jiff::civil::{Date, Weekday};
 use jiff::tz::TimeZone;
 use jiff::{Timestamp, ToSpan, Zoned};
-
-use crate::fmt::grouped;
 
 /// The environment variable that moves the history to another file, for a portable setup or a
 /// test.
@@ -34,6 +29,7 @@ pub fn now() -> Timestamp {
 }
 
 /// A day of the week by its English name, such as `monday`, in any case.
+#[must_use]
 pub fn weekday(name: &str) -> Option<Weekday> {
     WEEKDAYS
         .iter()
@@ -52,15 +48,16 @@ pub const WEEKDAYS: [(&str, Weekday); 7] = [
     ("sunday", Weekday::Sunday),
 ];
 
-/// How long a first ingest runs before it shows its progress.
-const QUIET_FOR: Duration = Duration::from_millis(300);
-
 /// The shared setting that holds the IANA time zone days are counted in; without it, this
 /// computer's.
 pub const TIME_ZONE_SETTING: &str = "time_zone";
 
 /// The shared setting that holds the first day of the week, such as `monday`.
 pub const WEEK_START_SETTING: &str = "week_start";
+
+/// The shared setting that holds where the desktop app last ran, which `claude-dashboard app`
+/// opens.
+pub const DESKTOP_APP_SETTING: &str = "desktop_app";
 
 #[derive(Clone)]
 pub struct App {
@@ -77,12 +74,23 @@ pub struct App {
     pub week_start: Weekday,
     pub now: Timestamp,
     pub prices: &'static PriceTable,
-    /// Whether a status line connected from here runs a copy of this program kept next to the
-    /// history, because an update moves this one (`serve --status-line-copy`).
-    pub status_line_copy: bool,
+    /// The `claude-dashboard` program that a status line connected from here runs a copy of,
+    /// kept next to the history, because an update moves the program itself: this program for
+    /// `serve --status-line-copy`, and the desktop app's bundled one. Without it, the status line
+    /// runs this program where it is.
+    pub status_line_copy: Option<PathBuf>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
+    /// The app as this computer and the environment set it up, before the settings the history
+    /// holds.
+    #[must_use]
     pub fn new() -> Self {
         let history_path = std::env::var_os(HISTORY_ENV)
             .filter(|path| !path.is_empty())
@@ -101,13 +109,14 @@ impl App {
             week_start: Weekday::Monday,
             now: now(),
             prices: PriceTable::bundled(),
-            status_line_copy: false,
+            status_line_copy: None,
         }
     }
 
     /// The app with the settings every surface shares, kept in the history: the data folders the
     /// person added, the time zone and the first day of the week. Without a history yet, there
     /// is nothing to apply.
+    #[must_use]
     pub fn with_shared_settings(self) -> Self {
         match &self.history_path {
             Some(path) if path.is_file() => match History::open(path) {
@@ -119,6 +128,7 @@ impl App {
     }
 
     /// The app with the settings `history` holds for every surface.
+    #[must_use]
     pub fn with_shared(&self, history: &History) -> Self {
         let mut app = self.clone();
         if let Ok(folders) = history.data_folders() {
@@ -137,6 +147,7 @@ impl App {
     }
 
     /// The first day of the week `day` falls in.
+    #[must_use]
     pub fn start_of_week(&self, day: Date) -> Date {
         let back = (7 + day.weekday().to_monday_zero_offset()
             - self.week_start.to_monday_zero_offset())
@@ -144,11 +155,13 @@ impl App {
         day.checked_sub(i64::from(back).days()).unwrap_or(day)
     }
 
+    #[must_use]
     pub fn now_zoned(&self) -> Zoned {
         self.now.to_zoned(self.zone.clone())
     }
 
     /// The same app as it is at `now`, for work that outlives a moment, such as a server.
+    #[must_use]
     pub fn at(&self, now: Timestamp) -> Self {
         Self {
             now,
@@ -157,6 +170,10 @@ impl App {
     }
 
     /// Opens the history, creating it on first use.
+    ///
+    /// # Errors
+    ///
+    /// Why the history cannot be opened, or that this system has no folder for it.
     pub fn open_history(&self) -> Result<History, String> {
         let path = self.history_path.as_ref().ok_or_else(|| {
             format!(
@@ -167,41 +184,14 @@ impl App {
     }
 
     /// Where Claude Code keeps the login that the usage endpoint needs.
+    #[must_use]
     pub fn login_source(&self) -> Option<LoginSource> {
         LoginSource::of(&self.roots, self.config_dir.as_deref())
     }
 
     /// The data roots, as paths.
+    #[must_use]
     pub fn root_paths(&self) -> Vec<PathBuf> {
         self.roots.iter().map(|root| root.path.clone()).collect()
-    }
-
-    /// Reads new transcript content into the history. A first ingest that takes a while shows
-    /// its progress on standard error when that is a terminal.
-    pub fn ingest(&self, history: &mut History) -> Result<Option<Report>, HistoryError> {
-        let started = Instant::now();
-        let show = std::io::stderr().is_terminal();
-        let mut shown = false;
-        let report = ingest::ingest_with_progress(
-            history,
-            &self.root_paths(),
-            |Progress { done, total }| {
-                if show && started.elapsed() >= QUIET_FOR && (done % 25 == 0 || done == total) {
-                    shown = true;
-                    let mut stderr = std::io::stderr();
-                    let _ = write!(
-                        stderr,
-                        "\rReading your history: {} of {} transcripts",
-                        grouped(done as u64),
-                        grouped(total as u64)
-                    );
-                    let _ = stderr.flush();
-                }
-            },
-        );
-        if shown {
-            let _ = write!(std::io::stderr(), "\r{}\r", " ".repeat(60));
-        }
-        report
     }
 }

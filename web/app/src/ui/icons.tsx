@@ -114,3 +114,48 @@ export const Search = icon(
   </>,
 );
 export const Plus = icon(<path d="M12 5v14M5 12h14" />);
+
+/** The desktop sidebar's icons for the sections, drawn at 16 units with a 1.75 stroke. */
+export const OverviewIcon = icon(
+  <>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </>,
+  1.75,
+);
+export const SessionsIcon = icon(
+  <>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
+  </>,
+  1.75,
+);
+export const ProjectsIcon = icon(
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
+  1.75,
+);
+export const ModelsIcon = icon(
+  <>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+    <path d="M12 12l8-4.5M12 12L4 7.5M12 12v9" />
+  </>,
+  1.75,
+);
+export const LimitsIcon = icon(
+  <>
+    <path d="M4 16a8 8 0 1 1 16 0" />
+    <path d="M12 16l4-5" />
+  </>,
+  1.75,
+);
+export const SettingsIcon = icon(
+  <>
+    <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+    <circle cx="15" cy="6" r="2" />
+    <circle cx="9" cy="12" r="2" />
+    <circle cx="17" cy="18" r="2" />
+  </>,
+  1.75,
+);

@@ -70,10 +70,11 @@ describe("Dashboard for Claude Code", () => {
     await until(() => dashboardTabs().length === 1, "The dashboard opening");
     await vscode.commands.executeCommand("claudeDashboard.show", { section: "limits" });
     await vscode.commands.executeCommand("claudeDashboard.open");
+    // VS Code marks the tab active a moment after it comes forward.
+    await until(() => dashboardTabs()[0]?.isActive === true, "The dashboard coming forward");
     const tabs = dashboardTabs();
     assert.equal(tabs.length, 1);
     assert.equal(tabs[0]?.label, "Usage dashboard");
-    assert.ok(tabs[0].isActive);
   });
 
   it("opens the dashboard from a tree item", async () => {

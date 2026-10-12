@@ -4,6 +4,7 @@ use jiff::civil::Date;
 use jiff::{Timestamp, Zoned};
 
 /// A count with thousands separators: `2,775`.
+#[must_use]
 pub fn grouped(count: u64) -> String {
     let digits = count.to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
@@ -18,6 +19,7 @@ pub fn grouped(count: u64) -> String {
 
 /// A count of tokens in a few characters: `640`, `3K`, `166K`, `1.0M`, `150M`, `11.5B`.
 #[allow(clippy::cast_precision_loss)]
+#[must_use]
 pub fn compact(count: u64) -> String {
     let value = count as f64;
     // Halves round away from zero, as in the design.
@@ -42,17 +44,20 @@ pub fn compact(count: u64) -> String {
 
 /// US dollars to the cent, with thousands separators: `$5.05`, `$1,380.57`.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+#[must_use]
 pub fn money(usd: f64) -> String {
     let cents = (usd * 100.0).round().max(0.0) as u64;
     format!("${}.{:02}", grouped(cents / 100), cents % 100)
 }
 
 /// A day as the design writes it: `Saturday 10 October`.
+#[must_use]
 pub fn long_day(day: Date) -> String {
     format!("{} {} {}", weekday(day), day.day(), month(day))
 }
 
 /// A date with the year: `1 Oct 2026`.
+#[must_use]
 pub fn short_date(day: Date) -> String {
     format!("{} {} {}", day.day(), &month(day)[..3], day.year())
 }
@@ -89,6 +94,7 @@ fn month(day: Date) -> &'static str {
 
 /// When something happens, from `now`'s point of view: `14:20` today, `Thu 09:00` within a week,
 /// and `15 Oct 09:00` after that.
+#[must_use]
 pub fn when(at: &Zoned, now: &Zoned) -> String {
     let time = format!("{:02}:{:02}", at.hour(), at.minute());
     let days = (at.date() - now.date()).get_days();
@@ -102,6 +108,7 @@ pub fn when(at: &Zoned, now: &Zoned) -> String {
 }
 
 /// How long ago something happened: `just now`, `2 min ago`, `3 h ago`, `4 days ago`.
+#[must_use]
 pub fn ago(then: Timestamp, now: Timestamp) -> String {
     let minutes = (now.as_second() - then.as_second()).max(0) / 60;
     match minutes {

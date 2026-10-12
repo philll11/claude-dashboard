@@ -47,6 +47,8 @@ const COLOURS = [
   "tip-line",
   "warning-icon",
   "spark",
+  "sidebar",
+  "sidebar-current",
 ] as const;
 
 describe("the stylesheet holds the design tokens", () => {

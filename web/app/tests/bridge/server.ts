@@ -5,7 +5,8 @@
 // its own and a Claude Code folder of its own, so it never reads or changes the person's.
 
 import { spawn } from "node:child_process";
-import { existsSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
+import { rm } from "node:fs/promises";
 
 import {
   createMessageConnection,
@@ -123,7 +124,8 @@ export class Bridge {
 
   async stop(): Promise<void> {
     await this.stopServer();
-    rmSync(this.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    // Only the asynchronous rm retries on Windows, where a process that has just ended can still hold files.
+    await rm(this.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 
   /** `value` with the temporary folders' paths replaced by the ones shown. */

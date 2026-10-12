@@ -11,3 +11,8 @@ allowBuilds:
   "@vscode/vsce-sign": false
   esbuild: false
   keytar: false
+
+# Every package's Node typings follow Node 24, which every script and test runs on, including those
+# a dependency asks for at any version.
+overrides:
+  "@types/node": 24.19.0

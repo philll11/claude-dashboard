@@ -12,6 +12,8 @@ export default tseslint.config(
       "**/test-results/",
       "**/playwright-report/",
       "apps/vscode/out/",
+      "apps/desktop/out/",
+      "apps/desktop/src-tauri/gen/",
       "apps/vscode/.vscode-test/",
     ],
   },

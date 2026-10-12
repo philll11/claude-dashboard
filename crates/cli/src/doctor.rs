@@ -11,11 +11,13 @@ use claude_dashboard_core::report::{self, Range};
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, RootSource, RootStatus};
 use jiff::Timestamp;
 
-use crate::app::App;
-use crate::fmt::{ago, grouped, short_date};
+use claude_dashboard_server::app::App;
+use claude_dashboard_server::fmt::{ago, grouped, short_date};
+use claude_dashboard_server::names::model_name;
+use claude_dashboard_server::statusline::{self, Connection};
+
 use crate::limits;
-use crate::report::model_name;
-use crate::statusline::{self, Connection};
+use crate::progress;
 use crate::style::{Paint, palette};
 
 /// How a check came out.
@@ -44,7 +46,7 @@ pub fn run(app: &App) -> ExitCode {
     let history = app.open_history();
     match history {
         Ok(mut history) => {
-            if let Err(error) = app.ingest(&mut history) {
+            if let Err(error) = progress::ingest(app, &mut history) {
                 lines.push(failed(
                     "History",
                     format!("new transcripts cannot be read in: {error}"),

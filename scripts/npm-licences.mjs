@@ -1,6 +1,7 @@
-// Checks the licences of the npm packages: what ships in the dashboard and the VS Code extension
-// must be permissive, and the tools that build, test and publish them may also be weak copyleft or
-// data licences. `deny.toml` holds the same rules for the Rust crates.
+// Checks the licences of the npm packages: what ships in the dashboard, the desktop app and the
+// VS Code extension must be permissive, apart from the design's fonts, and the tools that build and
+// test them may also be weak copyleft or data licences. `deny.toml` holds the same rules for the
+// Rust crates.
 
 import { execFileSync } from "node:child_process";
 
@@ -16,6 +17,10 @@ const TOOLS_ALSO = [
   "Python-2.0",
   "WTFPL",
 ];
+/** Fonts that ship under the SIL Open Font Licence, which lets software bundle them. No other
+ * package may use it. */
+const FONTS = { licence: "OFL-1.1", name: /^@fontsource\/ibm-plex-(sans|mono)$/ };
+
 /** Tools under terms of their own, each with why it is there. None of them ships. */
 const TOOL_EXCEPTIONS = [
   {
@@ -76,6 +81,7 @@ function check(production, allowed) {
       packages.filter(
         (p) =>
           !permits(licence, allowed) &&
+          !(licence === FONTS.licence && FONTS.name.test(p.name)) &&
           (production || !TOOL_EXCEPTIONS.some((exception) => exception.name.test(p.name))),
       ),
     ])

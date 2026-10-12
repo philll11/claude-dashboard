@@ -93,11 +93,17 @@ impl Server {
         input.flush().unwrap();
     }
 
-    /// Sends a request and returns its response, keeping the notifications that arrive first.
-    fn request(&mut self, method: &str, params: &Value) -> Value {
+    /// Sends a request, and returns its id without waiting for the response.
+    fn ask(&mut self, method: &str, params: &Value) -> u64 {
         self.next_id += 1;
         let id = self.next_id;
         self.send(&json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
+        id
+    }
+
+    /// Sends a request and returns its response, passing over the notifications that arrive first.
+    fn request(&mut self, method: &str, params: &Value) -> Value {
+        let id = self.ask(method, params);
         self.wait_for(|message| message["id"] == id)
     }
 
@@ -252,8 +258,12 @@ fn says_when_it_reads_new_activity() {
     server.changed();
 
     server.transcript(&[request("3", "claude-opus-5-5", &today_at("00:00:03"))]);
-    server.result("refresh", &Value::Null);
-    let changed = server.changed();
+    // The read may end before the answer to the request arrives, and the history watch may say the
+    // history changed as well, without the days, so the test waits for the read's own word.
+    server.ask("refresh", &Value::Null);
+    let changed = server.wait_for(|message| {
+        message["method"] == "history/changed" && !message["params"]["days"].is_null()
+    });
 
     assert_eq!(changed["params"]["days"]["first"], today());
     let status = server.result("status", &Value::Null);
@@ -265,7 +275,9 @@ fn says_when_a_read_ends_even_with_nothing_new() {
     let mut server = Server::start();
     server.changed();
 
-    server.result("refresh", &Value::Null);
+    // The read may end before the answer to the request arrives, so the test waits for the end of
+    // the read alone.
+    server.ask("refresh", &Value::Null);
     let ended = server.wait_for(|message| {
         message["method"] == "ingest/progress"
             && message["params"]["done"] == message["params"]["total"]
@@ -534,7 +546,8 @@ fn compares_a_session_with_claude_codes_figure_for_the_same_requests() {
 
     // The session goes on in a process that has not written its cost yet.
     server.transcript(&[request("2", "claude-opus-5-5", &today_at("00:00:04"))]);
-    server.result("refresh", &Value::Null);
+    // The read may end before the answer to the request arrives.
+    server.ask("refresh", &Value::Null);
     server.changed();
     let running = row(&mut server);
     assert_eq!(running["reportedUsd"], 0.05);

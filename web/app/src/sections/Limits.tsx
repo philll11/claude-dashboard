@@ -265,7 +265,7 @@ function Sources({ limits }: { limits: LimitsAnswer }) {
           {limits.statusLine.state === "connected" ? (
             <button
               type="button"
-              className="button small quiet"
+              className="button compact quiet"
               onClick={() => {
                 setDialog("disconnect");
               }}
@@ -275,7 +275,7 @@ function Sources({ limits }: { limits: LimitsAnswer }) {
           ) : limits.statusLine.state === "notConnected" ? (
             <button
               type="button"
-              className="button small raised"
+              className="button compact raised"
               onClick={() => {
                 setDialog("connect");
               }}
@@ -296,13 +296,13 @@ function Sources({ limits }: { limits: LimitsAnswer }) {
             <Pill tone="caution">Experimental</Pill>
           </span>
           {limits.endpoint.enabled ? (
-            <button type="button" className="button small quiet" onClick={turnOff}>
+            <button type="button" className="button compact quiet" onClick={turnOff}>
               Turn off
             </button>
           ) : (
             <button
               type="button"
-              className="button small raised"
+              className="button compact raised"
               onClick={() => {
                 setDialog("consent");
               }}

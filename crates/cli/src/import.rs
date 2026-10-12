@@ -5,8 +5,9 @@ use std::process::ExitCode;
 
 use claude_dashboard_core::import::{self, ImportReport};
 
-use crate::app::App;
-use crate::fmt::grouped;
+use claude_dashboard_server::app::App;
+use claude_dashboard_server::fmt::grouped;
+
 use crate::report::ready_history;
 
 pub fn claude_usage(app: &App, database: Option<PathBuf>) -> ExitCode {

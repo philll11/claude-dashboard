@@ -9,7 +9,8 @@
 //
 //   node scripts/e2e.mjs --vsix <package>
 
-import { copyFileSync, globSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, globSync, mkdirSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,6 +63,7 @@ try {
     resources: [prepared.folder],
   });
 } finally {
-  rmSync(prepared.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+  // Only the asynchronous rm retries on Windows, where a process that has just ended can still hold files.
+  await rm(prepared.folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
 }
 process.exitCode = code;

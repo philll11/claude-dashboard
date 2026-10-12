@@ -1,0 +1,191 @@
+name: Desktop release
+
+# Builds the desktop app for each platform around the claude-dashboard program of a published
+# release, and attaches its installers, its signed update bundles and latest.json, which the app's
+# updater reads, to the release. The release workflow calls this once the release is published
+# (dist's post-announce-jobs); it can also run by hand for a tag.
+#
+# The update bundles are signed with the key in the repository secrets TAURI_SIGNING_PRIVATE_KEY and
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD (docs/runbook.md); the app checks that signature before it
+# installs an update.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan for the release, as JSON.
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to build the desktop app for, such as v0.2.0.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with rust-toolchain.toml.
+  RUST_TOOLCHAIN: 1.99.0
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            program: x86_64-pc-windows-msvc
+            bundles: nsis
+          - platform: windows-arm64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            program: aarch64-pc-windows-msvc
+            bundles: nsis
+          - platform: macos-x64
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            program: x86_64-apple-darwin
+            bundles: app,dmg
+          - platform: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            program: aarch64-apple-darwin
+            bundles: app,dmg
+          # Ubuntu 22.04 is the oldest with WebKitGTK 4.1, so the app runs on newer distributions too.
+          # The static musl program runs on any of them.
+          - platform: linux-x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            program: x86_64-unknown-linux-musl
+            bundles: appimage,deb
+          - platform: linux-arm64
+            os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            program: aarch64-unknown-linux-musl
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The tag reaches the shell only through the environment, never inside a script.
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - name: Install what Tauri builds with on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: ${{ matrix.target }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Download the release's program, as the release built and attested it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROGRAM: ${{ matrix.program }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          cd release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "claude-dashboard-$PROGRAM.zip" --pattern "claude-dashboard-$PROGRAM.tar.xz" --pattern sha256.sum
+          sha256sum --check --ignore-missing sha256.sum
+          for archive in claude-dashboard-*.zip claude-dashboard-*.tar.xz; do
+            [ -e "$archive" ] || continue
+            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY"
+          done
+          if [ -f "claude-dashboard-$PROGRAM.zip" ]; then
+            unzip -o -q "claude-dashboard-$PROGRAM.zip" claude-dashboard.exe
+            echo "PROGRAM_PATH=$PWD/claude-dashboard.exe" >> "$GITHUB_ENV"
+          else
+            tar -xJf "claude-dashboard-$PROGRAM.tar.xz" --strip-components 1 "claude-dashboard-$PROGRAM/claude-dashboard"
+            echo "PROGRAM_PATH=$PWD/claude-dashboard" >> "$GITHUB_ENV"
+          fi
+      - name: Build the installers and the signed update bundles
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TARGET: ${{ matrix.target }}
+          BUNDLES: ${{ matrix.bundles }}
+        run: node apps/desktop/scripts/bundle.mjs --target "$TARGET" --program "$PROGRAM_PATH" --bundles "$BUNDLES" --updater
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            apps/desktop/out/bundles/*.exe
+            apps/desktop/out/bundles/*.dmg
+            apps/desktop/out/bundles/*.tar.gz
+            apps/desktop/out/bundles/*.AppImage
+            apps/desktop/out/bundles/*.deb
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: apps/desktop/out/bundles/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Attach to the release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: desktop-*
+          path: bundles
+          merge-multiple: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: node apps/desktop/scripts/update-manifest.mjs --folder bundles --repository "$GITHUB_REPOSITORY" --tag "$TAG" --out latest.json
+      # The installers and update bundles go first, so that latest.json never names a file the
+      # release does not have yet; their signatures are in latest.json.
+      - name: Attach the installers, the update bundles and latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          find bundles -type f ! -name '*.sig' -print0 | xargs -0 gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY" --clobber

@@ -11,7 +11,7 @@ import type {
   ToExtension,
 } from "@claude-dashboard/protocol";
 
-import type { Host } from "./host";
+import { type Host, RequestError } from "./host";
 
 interface VsCodeApi {
   postMessage(message: ToExtension): void;
@@ -23,16 +23,6 @@ declare global {
   // VS Code defines it in every webview with scripts; it can be called once.
 
   var acquireVsCodeApi: (() => VsCodeApi) | undefined;
-}
-
-/** A request the server refused, with the JSON-RPC error code it gave. */
-export class RequestError extends Error {
-  readonly code: number;
-
-  constructor(message: string, code: number) {
-    super(message);
-    this.code = code;
-  }
 }
 
 /** The host VS Code provides, or `undefined` outside a VS Code webview. */

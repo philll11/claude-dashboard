@@ -1,4 +1,4 @@
-//! Answers to the client's requests, from the history and the core's queries.
+//! Answers to the dashboard's requests, from the history and the core's queries.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -14,12 +14,13 @@ use claude_dashboard_core::tokens;
 use jiff::Timestamp;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
-use lsp_server::{ErrorCode, Request, Response};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use super::protocol::{
+use crate::app::{self, App};
+use crate::names::{model_name, project_names};
+use crate::protocol::{
     Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, EndpointParams,
     FiveHourWindow, Folder, FolderParams, FolderState, Health, HistoryFacts, ImportDone,
     ImportOffer, Imported, Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams,
@@ -28,12 +29,9 @@ use super::protocol::{
     SettingsChange, Status, StatusLine, StatusLineApply, StatusLineParams, StatusLinePlan, Tokens,
     Totals, UsePoint, WhoRow, WindowReading, WindowView,
 };
-use super::workers::Triggers;
-use super::{Shared, lock};
-use crate::app::{self, App};
-use crate::breakdown::project_names;
-use crate::report::model_name;
 use crate::statusline::{self, Connection};
+use crate::workers::Triggers;
+use crate::{Shared, lock};
 
 /// How long a weekly window lasts.
 const WEEK_MS: i64 = 7 * 24 * 60 * 60 * 1000;
@@ -44,16 +42,31 @@ const RECENT_WINDOWS_MS: i64 = 7 * DAY_MS;
 /// The most sessions one page holds.
 const LONGEST_PAGE: u32 = 500;
 
-/// Why a request could not be answered.
-struct Fault {
-    code: i32,
-    message: String,
+/// Why a request could not be answered, with its JSON-RPC error code.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Fault {
+    pub code: i32,
+    pub message: String,
 }
 
 impl Fault {
+    /// JSON-RPC's code for a method the server does not have.
+    pub const METHOD_NOT_FOUND: i32 = -32601;
+    /// JSON-RPC's code for parameters that do not fit the method.
+    pub const INVALID_PARAMS: i32 = -32602;
+    /// JSON-RPC's code for a failure inside the server.
+    pub const INTERNAL_ERROR: i32 = -32603;
+
     fn invalid(message: impl Into<String>) -> Self {
         Self {
-            code: ErrorCode::InvalidParams as i32,
+            code: Self::INVALID_PARAMS,
+            message: message.into(),
+        }
+    }
+
+    fn internal(message: impl Into<String>) -> Self {
+        Self {
+            code: Self::INTERNAL_ERROR,
             message: message.into(),
         }
     }
@@ -61,21 +74,18 @@ impl Fault {
 
 impl From<HistoryError> for Fault {
     fn from(error: HistoryError) -> Self {
-        Self {
-            code: ErrorCode::InternalError as i32,
-            message: error.to_string(),
-        }
+        Self::internal(error.to_string())
     }
 }
 
-pub struct Server {
+pub struct Answers {
     app: App,
     shared: Arc<Mutex<Shared>>,
     triggers: Triggers,
     history: Option<History>,
 }
 
-impl Server {
+impl Answers {
     pub fn new(app: App, shared: Arc<Mutex<Shared>>, triggers: Triggers) -> Self {
         Self {
             app,
@@ -85,10 +95,9 @@ impl Server {
         }
     }
 
-    pub fn answer(&mut self, request: Request) -> Response {
-        let Request { id, method, params } = request;
+    pub fn answer(&mut self, method: &str, params: Value) -> Result<Value, Fault> {
         let app = self.shared_app().at(app::now());
-        let answer = match method.as_str() {
+        match method {
             "status" => self.status(&app).and_then(json),
             "overview" => parse(params)
                 .and_then(|p| self.overview(&app, &p))
@@ -132,22 +141,15 @@ impl Server {
             "import/run" => self.run_import(&app).and_then(json),
             "import/dismiss" => self.dismiss_import().and_then(json),
             other => Err(Fault {
-                code: ErrorCode::MethodNotFound as i32,
+                code: Fault::METHOD_NOT_FOUND,
                 message: format!("claude-dashboard has no method {other}"),
             }),
-        };
-        match answer {
-            Ok(value) => Response::new_ok(id, value),
-            Err(fault) => Response::new_err(id, fault.code, fault.message),
         }
     }
 
     fn history(&mut self) -> Result<&History, Fault> {
         if self.history.is_none() {
-            self.history = Some(self.app.open_history().map_err(|message| Fault {
-                code: ErrorCode::InternalError as i32,
-                message,
-            })?);
+            self.history = Some(self.app.open_history().map_err(Fault::internal)?);
         }
         Ok(self.history.as_ref().expect("opened above"))
     }
@@ -413,7 +415,7 @@ impl Server {
         })
     }
 
-    fn limits(&mut self, app: &App) -> Result<super::protocol::Limits, Fault> {
+    fn limits(&mut self, app: &App) -> Result<crate::protocol::Limits, Fault> {
         let now_ms = app.now.as_millisecond();
         let history = self.history()?;
         let mut windows = Vec::new();
@@ -488,7 +490,7 @@ impl Server {
         })
         .collect();
         let state = history.usage_endpoint()?;
-        Ok(super::protocol::Limits {
+        Ok(crate::protocol::Limits {
             windows,
             recent,
             status_line: match statusline::connection(app) {
@@ -589,10 +591,8 @@ impl Server {
             return Ok(None);
         };
         let history = self.history()?;
-        let preview = import::preview_claude_usage(history, &database).map_err(|error| Fault {
-            code: ErrorCode::InternalError as i32,
-            message: error.to_string(),
-        })?;
+        let preview = import::preview_claude_usage(history, &database)
+            .map_err(|error| Fault::internal(error.to_string()))?;
         let day = |ms: i64| {
             Timestamp::from_millisecond(ms)
                 .ok()
@@ -618,12 +618,8 @@ impl Server {
             .find_map(|root| import::claude_usage_database(&root.path))
             .ok_or_else(|| Fault::invalid("There is no claude-usage database to import."))?;
         let now_ms = app.now.as_millisecond();
-        let report = import::import_claude_usage(self.history_mut()?, &database, now_ms).map_err(
-            |error| Fault {
-                code: ErrorCode::InternalError as i32,
-                message: error.to_string(),
-            },
-        )?;
+        let report = import::import_claude_usage(self.history_mut()?, &database, now_ms)
+            .map_err(|error| Fault::internal(error.to_string()))?;
         Ok(ImportDone {
             imported: report.imported,
             already_held: report.already_held,
@@ -783,10 +779,7 @@ fn parse<T: DeserializeOwned>(params: Value) -> Result<T, Fault> {
 }
 
 fn json(value: impl Serialize) -> Result<Value, Fault> {
-    serde_json::to_value(value).map_err(|error| Fault {
-        code: ErrorCode::InternalError as i32,
-        message: error.to_string(),
-    })
+    serde_json::to_value(value).map_err(|error| Fault::internal(error.to_string()))
 }
 
 fn range(app: &App, days: &Days) -> Result<Range, Fault> {
@@ -803,7 +796,7 @@ fn range(app: &App, days: &Days) -> Result<Range, Fault> {
 
 type Names = HashMap<ProjectKey, (String, Option<String>, String)>;
 
-fn filter(names: &Names, filters: &super::protocol::Filters) -> Result<Filter, Fault> {
+fn filter(names: &Names, filters: &crate::protocol::Filters) -> Result<Filter, Fault> {
     let project = match &filters.project {
         None => None,
         Some(id) => Some(
@@ -876,10 +869,9 @@ fn apply_status_line(app: &App, params: &StatusLineApply) -> Result<Value, Fault
                 .to_owned(),
         ));
     }
-    change.make().map_err(|reason| Fault {
-        code: ErrorCode::InternalError as i32,
-        message: format!("Cannot save the change: {reason}."),
-    })?;
+    change
+        .make()
+        .map_err(|reason| Fault::internal(format!("Cannot save the change: {reason}.")))?;
     Ok(Value::Null)
 }
 

@@ -11,12 +11,11 @@ use claude_dashboard_core::ingest;
 use claude_dashboard_core::usage_endpoint::{self, Refresh};
 use crossbeam_channel::{Receiver, Sender, bounded, select, unbounded};
 use jiff::Timestamp;
-use lsp_server::{Message, Notification};
 use serde::Serialize;
 
-use super::protocol::{Days, HistoryChanged, Progress};
-use super::{Shared, lock};
 use crate::app::{self, App};
+use crate::protocol::{Days, HistoryChanged, Progress};
+use crate::{Notify, Shared, lock};
 
 /// How often the transcripts are read again when nothing asks sooner.
 const READ_EVERY: Duration = Duration::from_secs(60);
@@ -59,7 +58,7 @@ impl Workers {
     }
 }
 
-pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -> Workers {
+pub fn start(app: &App, client: Notify, shared: &Arc<Mutex<Shared>>) -> Workers {
     // How the history stands before the server reads or answers anything, so that whatever
     // another process changes from then on is noticed.
     let baseline = Watched::open(app);
@@ -76,7 +75,7 @@ pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -
         thread::spawn(move || read_transcripts(&app, &client, &shared, &triggered, &stopped))
     };
     let watcher = {
-        let (app, client) = (app.clone(), client.clone());
+        let app = app.clone();
         thread::spawn(move || watch_history(&app, &client, baseline, &stopped, &endpoint_asked))
     };
     Workers {
@@ -89,17 +88,16 @@ pub fn start(app: &App, client: &Sender<Message>, shared: &Arc<Mutex<Shared>>) -
     }
 }
 
-fn notify(client: &Sender<Message>, method: &str, params: impl Serialize) {
-    let _ = client.send(Message::Notification(Notification::new(
-        method.to_owned(),
-        params,
-    )));
+fn notify(client: &Notify, method: &str, params: impl Serialize) {
+    if let Ok(params) = serde_json::to_value(params) {
+        client(method, params);
+    }
 }
 
 /// Reads new transcript content now, then whenever asked, and at least every [`READ_EVERY`].
 fn read_transcripts(
     app: &App,
-    client: &Sender<Message>,
+    client: &Notify,
     shared: &Mutex<Shared>,
     triggered: &Receiver<()>,
     stopped: &Receiver<()>,
@@ -129,7 +127,7 @@ fn read_transcripts(
     }
 }
 
-fn read_once(app: &App, history: &mut History, client: &Sender<Message>, shared: &Mutex<Shared>) {
+fn read_once(app: &App, history: &mut History, client: &Notify, shared: &Mutex<Shared>) {
     let mut reported = Instant::now()
         .checked_sub(PROGRESS_EVERY)
         .unwrap_or_else(Instant::now);
@@ -217,7 +215,7 @@ impl Watched {
 
 fn watch_history(
     app: &App,
-    client: &Sender<Message>,
+    client: &Notify,
     mut watched: Option<Watched>,
     stopped: &Receiver<()>,
     endpoint_asked: &Receiver<()>,

@@ -1,17 +1,32 @@
-import { type JSX, type MouseEvent, useEffect, useMemo, useState } from "react";
+import {
+  type JSX,
+  type MouseEvent,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import type { Status } from "@claude-dashboard/protocol";
 
-import { HostContext, StatusContext } from "./context";
+import { HostContext, StatusContext, useHost } from "./context";
 import { Store, StoreContext, useReadingProgress, useRequest } from "./data";
 import { ago, fullDate } from "./format";
-import type { Host } from "./host";
+import type { Host, Updates } from "./host";
 import { Limits } from "./sections/Limits";
 import { Models } from "./sections/Models";
 import { Overview } from "./sections/Overview";
 import { Projects } from "./sections/Projects";
 import { Sessions } from "./sections/Sessions";
 import { Settings } from "./sections/Settings";
+import {
+  LimitsIcon,
+  ModelsIcon,
+  OverviewIcon,
+  ProjectsIcon,
+  SessionsIcon,
+  SettingsIcon,
+} from "./ui/icons";
 import { Problem } from "./ui/panels";
 import { useNow } from "./ui/time";
 import {
@@ -75,10 +90,23 @@ const BODIES: Record<Section, () => JSX.Element> = {
   settings: Settings,
 };
 
+/** The desktop sidebar's icon for each section. */
+const SECTION_ICONS: Record<Section, (props: { size?: number }) => JSX.Element> = {
+  overview: OverviewIcon,
+  sessions: SessionsIcon,
+  projects: ProjectsIcon,
+  models: ModelsIcon,
+  limits: LimitsIcon,
+  settings: SettingsIcon,
+};
+
 function Shell() {
+  const host = useHost();
   const { view, change } = useView();
   const status = useRequest("status", null);
   const Body = BODIES[view.section];
+  // On the desktop the sections are a sidebar; in VS Code's editor tab, a row above the section.
+  const desktop = host.surface === "desktop";
 
   const go = (section: Section) => (event: MouseEvent) => {
     event.preventDefault();
@@ -86,22 +114,46 @@ function Shell() {
     window.scrollTo(0, 0);
   };
 
+  const links = (
+    <div className="section-links">
+      {SECTIONS.map((section) => {
+        const Icon = SECTION_ICONS[section];
+        return (
+          <a
+            key={section}
+            href={`#${section}`}
+            aria-current={view.section === section ? "page" : undefined}
+            onClick={go(section)}
+          >
+            {desktop && <Icon size={16} />}
+            {SECTION_NAMES[section]}
+          </a>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="shell">
+    <div className={desktop ? "shell desktop" : "shell"}>
       <nav aria-label="Dashboard sections" className="sections">
-        <div className="section-links">
-          {SECTIONS.map((section) => (
-            <a
-              key={section}
-              href={`#${section}`}
-              aria-current={view.section === section ? "page" : undefined}
-              onClick={go(section)}
-            >
-              {SECTION_NAMES[section]}
-            </a>
-          ))}
-        </div>
-        {status.data && <HistoryLine status={status.data} />}
+        {desktop ? (
+          <div className="sidebar">
+            <div className="brand">
+              <span className="brand-name">Dashboard</span>
+              <span className="brand-for">for Claude Code</span>
+            </div>
+            {links}
+            <div className="sidebar-foot">
+              {status.data && <HistoryLine status={status.data} stacked />}
+              {host.updates && <UpdateLine updates={host.updates} />}
+            </div>
+          </div>
+        ) : (
+          <>
+            {links}
+            {status.data && <HistoryLine status={status.data} />}
+          </>
+        )}
       </nav>
       <main className="body">
         {status.data ? (
@@ -119,8 +171,9 @@ function Shell() {
   );
 }
 
-/** Where the history starts and when it was last read, or that a read is under way. */
-function HistoryLine({ status }: { status: Status }) {
+/** Where the history starts and when it was last read, or that a read is under way: on one line,
+ * or `stacked` one above the other, as the desktop sidebar shows them. */
+function HistoryLine({ status, stacked = false }: { status: Status; stacked?: boolean }) {
   const now = useNow(15_000);
   const progress = useReadingProgress() ?? status.reading;
   if (progress && progress.done < progress.total) {
@@ -134,9 +187,43 @@ function HistoryLine({ status }: { status: Status }) {
       </span>
     );
   }
-  const parts = [
-    status.firstDay ? `History since ${fullDate(status.firstDay)}` : "No history yet",
-    status.readMs ? `read ${ago(status.readMs, now)}` : undefined,
-  ].filter(Boolean);
-  return <span className="history-line">{parts.join(" · ")}</span>;
+  const since = status.firstDay ? `History since ${fullDate(status.firstDay)}` : "No history yet";
+  const read = status.readMs ? ago(status.readMs, now) : undefined;
+  if (stacked) {
+    return (
+      <span className="history-line stacked">
+        <span>{since}</span>
+        {read && <span>Read {read}</span>}
+      </span>
+    );
+  }
+  return <span className="history-line">{read ? `${since} · read ${read}` : since}</span>;
+}
+
+/** An update that is installing, or ready to install with a restart. */
+function UpdateLine({ updates }: { updates: Updates }) {
+  const state = useSyncExternalStore(updates.subscribe, updates.state);
+  if (state.kind === "installing") {
+    return (
+      <span className="history-line reading">
+        <span className="dot" aria-hidden="true" />
+        Updating to version {state.version}…
+      </span>
+    );
+  }
+  if (state.kind !== "ready") return null;
+  return (
+    <span className="update-line">
+      <span>Version {state.version} is ready</span>
+      <button
+        type="button"
+        className="button link"
+        onClick={() => {
+          updates.install();
+        }}
+      >
+        Restart to update
+      </button>
+    </span>
+  );
 }

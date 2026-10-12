@@ -18,10 +18,11 @@ targets = [
   "x86_64-unknown-linux-musl",
   "aarch64-unknown-linux-musl",
 ]
-# The crate sets publish = false, which hides it from dist unless dist = true.
-# Naming the package keeps any other binary crate out of the release.
-packages = ["claude-dashboard"]
+# The crates set publish = false, which hides them from dist unless dist = true. A binary crate
+# that dist leaves alone, as the desktop app's, sets dist = false in its own manifest.
 dist = true
+# Build only the packages the release holds: the desktop app's crate does not build for musl.
+precise-builds = true
 install-path = "CARGO_HOME"
 install-updater = false
 # Pull requests build every artefact without publishing, so each one proves the release still builds.
@@ -31,9 +32,10 @@ github-attestations = true
 github-attestations-phase = "host"
 github-release = "host"
 # Once a release is published: install it on every operating system and run it (.github/workflows/install-check.yml),
-# and package the VS Code extension with its programs and attach the packages (.github/workflows/vscode-release.yml).
-post-announce-jobs = ["./install-check", "./vscode-release"]
-github-custom-job-permissions = { "vscode-release" = { attestations = "read", contents = "write" } }
+# package the VS Code extension with its programs and attach the packages (.github/workflows/vscode-release.yml),
+# and build the desktop app around them and attach its installers and updates (.github/workflows/desktop-release.yml).
+post-announce-jobs = ["./install-check", "./vscode-release", "./desktop-release"]
+github-custom-job-permissions = { "vscode-release" = { attestations = "read", contents = "write" }, "desktop-release" = { attestations = "write", contents = "write", id-token = "write" } }
 # Release builds start from a clean target directory.
 cache-builds = false
 

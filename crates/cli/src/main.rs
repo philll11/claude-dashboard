@@ -1,12 +1,11 @@
 //! The `claude-dashboard` command.
 
-mod app;
 mod breakdown;
+mod desktop;
 mod doctor;
-mod fmt;
 mod import;
 mod limits;
-mod program;
+mod progress;
 mod prompt;
 mod report;
 mod serve;
@@ -18,9 +17,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use claude_dashboard_server::app::App;
+use claude_dashboard_server::program;
 use jiff::civil::Date;
 
-use crate::app::App;
 use crate::report::Output;
 
 /// See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.
@@ -108,6 +108,36 @@ enum Command {
         #[command(subcommand)]
         action: LimitsAction,
     },
+    /// Open the desktop app, at a section when given.
+    App {
+        #[arg(value_enum)]
+        section: Option<Section>,
+    },
+}
+
+/// A section of the dashboard.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Section {
+    Overview,
+    Sessions,
+    Projects,
+    Models,
+    Limits,
+    Settings,
+}
+
+impl Section {
+    /// The section's name, as the desktop app takes it.
+    fn name(self) -> &'static str {
+        match self {
+            Self::Overview => "overview",
+            Self::Sessions => "sessions",
+            Self::Projects => "projects",
+            Self::Models => "models",
+            Self::Limits => "limits",
+            Self::Settings => "settings",
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -218,11 +248,12 @@ fn main() -> ExitCode {
         Command::Limits {
             action: LimitsAction::Endpoint { switch, yes },
         } => limits::endpoint(&app, switch == Switch::On, yes),
+        Command::App { section } => desktop::open(&app, section.map(Section::name)),
         Command::Serve {
             stdio: _,
             status_line_copy,
-        } => serve::run(&App {
-            status_line_copy,
+        } => serve::run(App {
+            status_line_copy: status_line_copy.then(program::this).and_then(Result::ok),
             ..app
         }),
     }

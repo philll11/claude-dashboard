@@ -26,6 +26,8 @@
   --band: rgb(255 255 255 / 5%);
   --warning-icon: #fab219;
   --spark: #5b6573;
+  --sidebar: #0d0f12;
+  --sidebar-current: #1b1f26;
   --indicator: var(--meter);
   --status-good: #3fbf6b;
   --status-warning: #fab219;
@@ -69,6 +71,8 @@
   --band: rgb(15 20 30 / 5%);
   --warning-icon: #b07800;
   --spark: #a3acb8;
+  --sidebar: #ffffff;
+  --sidebar-current: #e3eef2;
   --status-warning: #b07800;
   --series-fable: #2a78d6;
   --series-opus: #eb6834;
