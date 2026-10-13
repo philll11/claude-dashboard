@@ -44,6 +44,23 @@ fn clear_footer(c: &mut Canvas) {
     c.clear(0, y, c.w, 1);
 }
 
+/// The keys the help lists, and what each does; a test presses every one of them.
+pub const HELP_KEYS: [(&str, &str); 13] = [
+    ("← →  Tab  1–5", "sections"),
+    ("↑ ↓  j k", "move in a list"),
+    ("PgUp PgDn", "a page at a time"),
+    ("Home End", "top, bottom"),
+    ("Enter", "open"),
+    ("Esc", "back, close"),
+    ("/", "search the sessions"),
+    ("r  p  m", "range, project, model"),
+    ("t", "charts or tables"),
+    ("e", "export the section"),
+    ("R", "read new transcripts now"),
+    ("?", "this help"),
+    ("q  Ctrl-C", "quit"),
+];
+
 fn keys(c: &mut Canvas, state: &State) {
     let theme = c.theme;
     let (w, h) = (58, 18);
@@ -51,22 +68,7 @@ fn keys(c: &mut Canvas, state: &State) {
     let y0 = (c.h - h) / 2;
     c.clear(x0, y0, w, h);
     c.boxed((x0, y0, w, h), Some("Keys"), None);
-    let keys = [
-        ("← →  Tab  1–5", "sections"),
-        ("↑ ↓  j k", "move in a list"),
-        ("PgUp PgDn", "a page at a time"),
-        ("Home End", "top, bottom"),
-        ("Enter", "open"),
-        ("Esc", "back, close"),
-        ("/", "search the sessions"),
-        ("r  p  m", "range, project, model"),
-        ("t", "charts or tables"),
-        ("e", "export the section"),
-        ("R", "read new transcripts now"),
-        ("?", "this help"),
-        ("q  Ctrl-C", "quit"),
-    ];
-    for (row, (key, what)) in (0..).zip(keys) {
+    for (row, (key, what)) in (0..).zip(HELP_KEYS) {
         c.text(x0 + 3, y0 + 2 + row, key, theme.key());
         c.text(x0 + 22, y0 + 2 + row, what, theme.text());
     }

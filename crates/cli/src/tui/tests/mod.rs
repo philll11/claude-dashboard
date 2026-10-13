@@ -18,6 +18,7 @@ use claude_dashboard_server::protocol::{Dataset, ExportFormat, Exported};
 use self::fixture::{Fixture, Variant};
 use super::state::{Event, ExportNotice, Flow, Overlay, Range, Section, State};
 use super::theme::Theme;
+use super::view::HELP_KEYS;
 use crate::style::Palette;
 
 /// Bytes a terminal would receive.
@@ -497,6 +498,74 @@ fn sections_change_with_arrows_tabs_and_numbers() {
     assert_eq!(state.section, Section::Limits);
     state.update(typed('3'));
     assert_eq!(state.section, Section::Projects);
+}
+
+/// The events that pressing the key the help calls `name` sends.
+fn pressed(name: &str) -> Vec<Event> {
+    match name {
+        "←" => vec![key(KeyCode::Left)],
+        "→" => vec![key(KeyCode::Right)],
+        "Tab" => vec![key(KeyCode::Tab)],
+        "1–5" => ('1'..='5').map(typed).collect(),
+        "↑" => vec![key(KeyCode::Up)],
+        "↓" => vec![key(KeyCode::Down)],
+        "PgUp" => vec![key(KeyCode::PageUp)],
+        "PgDn" => vec![key(KeyCode::PageDown)],
+        "Home" => vec![key(KeyCode::Home)],
+        "End" => vec![key(KeyCode::End)],
+        "Enter" => vec![key(KeyCode::Enter)],
+        "Esc" => vec![key(KeyCode::Esc)],
+        "Ctrl-C" => vec![Event::Key(KeyEvent::new(
+            KeyCode::Char('c'),
+            KeyModifiers::CONTROL,
+        ))],
+        _ => {
+            let mut chars = name.chars();
+            let (Some(c), None) = (chars.next(), chars.next()) else {
+                panic!("the help names {name}, which this test does not know how to press");
+            };
+            vec![typed(c)]
+        }
+    }
+}
+
+/// Takes the dashboard where the key the help calls `name` has something to do: into the sessions
+/// for the keys that move in a list or open one, to its end first for those that move up, with the
+/// help open for Esc, and away from the Overview for 1.
+fn where_it_works(state: &mut State, fixture: &Fixture, name: &str, event: &Event) {
+    if matches!(
+        name,
+        "↑" | "↓" | "j" | "k" | "PgUp" | "PgDn" | "Home" | "End" | "Enter"
+    ) {
+        state.update(typed('2'));
+        answer(state, fixture);
+        if matches!(name, "↑" | "k" | "PgUp" | "Home") {
+            state.update(key(KeyCode::End));
+        }
+    } else if name == "Esc" {
+        state.update(typed('?'));
+    } else if matches!(event, Event::Key(pressed) if pressed.code == KeyCode::Char('1')) {
+        state.update(typed('2'));
+    }
+    answer(state, fixture);
+}
+
+#[test]
+fn every_key_the_help_lists_does_something() {
+    for (names, what) in HELP_KEYS {
+        for name in names.split_whitespace() {
+            for event in pressed(name) {
+                let (mut state, fixture) = ready(NARROW);
+                where_it_works(&mut state, &fixture, name, &event);
+                let before = shown(&state);
+                let flow = state.update(event);
+                assert!(
+                    flow == Flow::Quit || shown(&state) != before || !state.asks().is_empty(),
+                    "{name}, to {what}, does nothing"
+                );
+            }
+        }
+    }
 }
 
 #[test]
