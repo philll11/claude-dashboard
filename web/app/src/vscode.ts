@@ -36,7 +36,7 @@ export function vscodeHost(): Host | undefined {
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >();
   const listeners = new Map<string, Set<(params: unknown) => void>>();
-  const picking = new Map<number, (path: string | undefined) => void>();
+  const picking = new Map<number, { resolve: (path: string | undefined) => void }>();
   const exporting = new Map<
     number,
     { resolve: (value: Exported | undefined) => void; reject: (error: Error) => void }
@@ -55,7 +55,7 @@ export function vscodeHost(): Host | undefined {
         waiting?.resolve(message.result ?? null);
       }
     } else if (message.type === "picked") {
-      picking.get(message.id)?.(message.path);
+      picking.get(message.id)?.resolve(message.path);
       picking.delete(message.id);
     } else if (message.type === "show") {
       if (showing.size === 0) waitingShow = message.show;
@@ -111,7 +111,7 @@ export function vscodeHost(): Host | undefined {
       nextId += 1;
       const id = nextId;
       return new Promise((resolve) => {
-        picking.set(id, resolve);
+        picking.set(id, { resolve });
         api.postMessage({ type: "pickFolder", id });
       });
     },

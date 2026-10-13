@@ -160,6 +160,7 @@ The tests:
 
 - The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, export the sessions it lists, and uninstall it again, leaving nothing behind but a screenshot of each section in `apps/desktop/out/screenshots`.
   Install the driver with `cargo install tauri-driver --locked --version 2.1.0`, and close the app if you have it open, quitting it from its item, since a second copy hands over to the first.
+  They stop where the app is installed already, since a test copy would replace its entry in Apps & features, its shortcut and its folder, or on Linux its package: uninstall it first, or test on another machine.
   The tests switch keeping the app running off, because they end it by closing its window, and one test on Windows switches it on to close the window and bring it back.
   The native save dialog cannot be driven, so `CLAUDE_DASHBOARD_EXPORT_TO`, which only tests set, names a folder that exports go to without asking; the VS Code extension honours it too, and its end-to-end tests set it.
   Each suite checks that the saved file is what `claude-dashboard sessions` reports for the same days.
