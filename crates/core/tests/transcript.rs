@@ -328,6 +328,12 @@ fn finds_sessions_and_subagents_most_recently_changed_first() {
             .join("journal.jsonl"),
         b"{}\n",
     );
+    for elsewhere in ["tool-results", "workflows"] {
+        write(
+            &project.join("4f1c").join(elsewhere).join("agent-c3.jsonl"),
+            b"{}\n",
+        );
+    }
 
     let found: Vec<_> = transcript::find(dir.path())
         .into_iter()

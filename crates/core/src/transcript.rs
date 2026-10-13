@@ -43,6 +43,9 @@ pub fn find(root: &Path) -> Vec<Transcript> {
     let mut found: Vec<Transcript> = WalkDir::new(&projects)
         .min_depth(2)
         .into_iter()
+        // Within a session's folder only `subagents` can hold transcripts (`classify`), so the
+        // walk leaves the rest, such as the tool results Claude Code keeps there, unvisited.
+        .filter_entry(|entry| entry.depth() != 3 || entry.file_name() == "subagents")
         .filter_map(Result::ok)
         .filter(|entry| entry.file_type().is_file())
         .filter_map(|entry| {
