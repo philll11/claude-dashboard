@@ -43,6 +43,12 @@ export function Panel({
 export type Tone = "accent" | "caution" | "critical";
 
 /** A small rounded label, such as `Running` or `Experimental`. */
+/** A pause for screen readers between two parts that stand apart on screen only through layout,
+ * such as a name and its figure, which they would otherwise read as one word. */
+export function Pause() {
+  return <span className="visually-hidden">, </span>;
+}
+
 export function Pill({ tone, children }: { tone?: Tone | undefined; children: ReactNode }) {
   return <span className={tone ? `pill ${tone}` : "pill"}>{children}</span>;
 }

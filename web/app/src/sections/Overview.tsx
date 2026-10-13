@@ -27,7 +27,7 @@ import {
 } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
-import { Panel, Tile, TableScroll } from "../ui/panels";
+import { Panel, Pause, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import {
@@ -329,6 +329,7 @@ function DailyCost({ overview }: { overview: OverviewAnswer | undefined }) {
             <li key={item.id}>
               <span className="swatch" style={{ background: item.fill }} />
               <span>{item.name}</span>
+              <Pause />
               <span className="figure strong">{money(item.total)}</span>
             </li>
           ))}
@@ -405,6 +406,7 @@ function TopProjects({ projects }: { projects: readonly ProjectRow[] | undefined
             <li key={item.key}>
               <div className="ranking-row">
                 <span className={item.mono ? "mono name" : "name"}>{item.name}</span>
+                <Pause />
                 <span className="figure">{money(item.cost)}</span>
               </div>
               <ShareBar share={largest > 0 ? item.cost / largest : 0} />

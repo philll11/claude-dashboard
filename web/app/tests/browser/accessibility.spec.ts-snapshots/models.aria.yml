@@ -23,10 +23,10 @@
     - text: /Estimate at Anthropic's list prices · last \d+ days/
     - button "Show as table"
     - list "Legend":
-      - listitem: /Fable 5\.1 \$\d+\.\d+/
-      - listitem: /Opus 5\.5 \$\d+\.\d+/
-      - listitem: /Sonnet 5\.5 \$\d+\.\d+/
-      - listitem: /Haiku 5\.5 \$\d+\.\d+/
+      - listitem: /Fable 5\.1 , \$\d+\.\d+/
+      - listitem: /Opus 5\.5 , \$\d+\.\d+/
+      - listitem: /Sonnet 5\.5 , \$\d+\.\d+/
+      - listitem: /Haiku 5\.5 , \$\d+\.\d+/
     - 'group /4 lines of API-equivalent cost per day, last \d+ days: Fable 5\.1 \$\d+\.\d+, Opus 5\.5 \$\d+\.\d+, Sonnet 5\.5 \$\d+\.\d+, Haiku 5\.5 \$\d+\.\d+\. The left and right arrow keys read along it\./'
   - region /Tokens and cost · last \d+ days/:
     - heading /Tokens and cost · last \d+ days/ [level=2]

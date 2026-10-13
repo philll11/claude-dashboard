@@ -19,7 +19,7 @@
     - text: Where to read transcripts from. CLAUDE_CONFIG_DIR is used when it is set.
     - button "Add folder"
     - list:
-      - listitem: /\/home\/you\/\.claude From CLAUDE_CONFIG_DIR · \d+ transcripts · \d+ MB Found/
+      - listitem: /\/home\/you\/\.claude , From CLAUDE_CONFIG_DIR · \d+ transcripts · \d+ MB , Found/
   - region "History":
     - heading "History" [level=2]
     - term: Stored in

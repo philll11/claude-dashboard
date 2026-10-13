@@ -20,7 +20,7 @@ import { type Desktop, RELEASES, type UpdateState, type Updates } from "../host"
 import { Switch } from "../ui/controls";
 import { Check, Plus, Spinner, Warning } from "../ui/icons";
 import { useNow } from "../ui/time";
-import { Panel, Pill } from "../ui/panels";
+import { Panel, Pause, Pill } from "../ui/panels";
 import { SectionHead } from "./common";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
 
@@ -127,10 +127,12 @@ function FolderRow({ folder, onRemove }: { folder: Folder; onRemove: () => void 
     <li className="folder">
       <span className="folder-text">
         <span className="mono folder-path">{folder.path}</span>
+        <Pause />
         <span className="subtitle">
           {SOURCES[folder.source] ?? folder.source} · {detail}
         </span>
       </span>
+      <Pause />
       <span className="folder-state">
         {state.state === "found" ? (
           <span className="state-line">

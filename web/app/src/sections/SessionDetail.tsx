@@ -12,7 +12,7 @@ import { useRequest } from "../data";
 import { compact, dayLabel, duration, grouped, local, money, percent } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, Copy, Folder, TableIcon } from "../ui/icons";
-import { Panel, Problem, Tile, TableScroll } from "../ui/panels";
+import { Panel, Pause, Problem, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import { ExportMenu } from "../exports";
@@ -432,6 +432,7 @@ function WhoAndCredits({ detail, timeZone }: { detail: Detail; timeZone: string 
               <span className="muted">{kind}</span> {credit.name}
               {credit.tool && <span className="muted"> {credit.tool}</span>}
             </span>
+            <Pause />
             <span className="credit-figures">
               {requestsText(credit.totals)} · {costText(credit.totals)}
             </span>
@@ -443,6 +444,7 @@ function WhoAndCredits({ detail, timeZone }: { detail: Detail; timeZone: string 
               ? "Not credited to a skill or an MCP server"
               : "Not credited to either"}
           </span>
+          <Pause />
           <span>
             {requestsText(detail.uncredited)} · {costText(detail.uncredited)}
           </span>

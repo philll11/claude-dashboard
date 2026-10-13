@@ -102,6 +102,6 @@
           - cell /\$\d+\.\d+/
     - heading "Credited to skills and MCP servers" [level=3]
     - list:
-      - listitem: /Skill research \d+ requests · \$\d+\.\d+/
-      - listitem: /MCP server github search_code 5 requests · \$\d+\.\d+/
-      - listitem: /Not credited to either \d+ requests · \$\d+\.\d+/
+      - listitem: /Skill research , \d+ requests · \$\d+\.\d+/
+      - listitem: /MCP server github search_code , 5 requests · \$\d+\.\d+/
+      - listitem: /Not credited to either , \d+ requests · \$\d+\.\d+/

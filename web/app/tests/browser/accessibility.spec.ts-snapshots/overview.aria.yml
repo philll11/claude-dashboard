@@ -35,35 +35,35 @@
   - region "Today":
     - heading "Today" [level=2]
     - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · −\d+% on yesterday/
-    - img /Daily cost over the last \d+ days/
+    - 'img /Daily cost over the last \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
   - region "This week":
     - heading "This week" [level=2]
     - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · \+\d+% on last week/
-    - img /Daily cost over the last \d+ days/
+    - 'img /Daily cost over the last \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
   - region "This month":
     - heading "This month" [level=2]
     - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · month to date/
-    - img /Daily cost over the last \d+ days/
+    - 'img /Daily cost over the last \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
   - region "API-equivalent cost per day":
     - heading "API-equivalent cost per day" [level=2]
     - text: /Estimate at Anthropic's list prices · last \d+ days/
     - button "Show as table"
     - list "Legend":
-      - listitem: /Fable 5\.1 \$\d+\.\d+/
-      - listitem: /Opus 5\.5 \$\d+\.\d+/
-      - listitem: /Sonnet 5\.5 \$\d+\.\d+/
-      - listitem: /Haiku 5\.5 \$\d+\.\d+/
+      - listitem: /Fable 5\.1 , \$\d+\.\d+/
+      - listitem: /Opus 5\.5 , \$\d+\.\d+/
+      - listitem: /Sonnet 5\.5 , \$\d+\.\d+/
+      - listitem: /Haiku 5\.5 , \$\d+\.\d+/
     - 'group /API-equivalent cost per day by model, last \d+ days: \$\d+\.\d+ in all, highest \$\d+\.\d+ on Mon \d+ Sep\. The left and right arrow keys read each column\./'
   - region "Top projects":
     - heading "Top projects" [level=2]
     - text: /API-equivalent cost · last \d+ days/
     - list:
-      - listitem: /claude-dashboard \$\d+\.\d+/
-      - listitem: /api-gateway \$\d+\.\d+/
-      - listitem: /website \$\d+\.\d+/
-      - listitem: /infra \$\d+\.\d+/
-      - listitem: /notes \$\d+\.\d+/
-      - listitem: /Other projects \$\d+\.\d+/
+      - listitem: /claude-dashboard , \$\d+\.\d+/
+      - listitem: /api-gateway , \$\d+\.\d+/
+      - listitem: /website , \$\d+\.\d+/
+      - listitem: /infra , \$\d+\.\d+/
+      - listitem: /notes , \$\d+\.\d+/
+      - listitem: /Other projects , \$\d+\.\d+/
   - region /Models · last \d+ days/:
     - heading /Models · last \d+ days/ [level=2]
     - text: /\d+% of input read from cache/
