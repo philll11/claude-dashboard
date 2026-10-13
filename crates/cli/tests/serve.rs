@@ -1,6 +1,7 @@
 //! `claude-dashboard serve --stdio`, spoken to as the VS Code extension speaks to it: JSON-RPC
 //! with `Content-Length` framing over its standard input and output.
 
+use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -115,6 +116,20 @@ impl Server {
             "{method} failed: {response}"
         );
         response["result"].clone()
+    }
+
+    /// Waits for the responses to `ids`, which may come in any order, passing over the rest.
+    fn responses(&self, ids: &[u64]) -> HashMap<u64, Value> {
+        let mut responses = HashMap::new();
+        while responses.len() < ids.len() {
+            let response =
+                self.wait_for(|message| message["id"].as_u64().is_some_and(|id| ids.contains(&id)));
+            let id = response["id"]
+                .as_u64()
+                .expect("a response has its request's id");
+            responses.insert(id, response);
+        }
+        responses
     }
 
     fn wait_for(&self, wanted: impl Fn(&Value) -> bool) -> Value {
@@ -804,8 +819,10 @@ fn the_server_keeps_answering_while_an_export_writes() {
             "path": path.display().to_string(),
         }),
     );
-    let status = server.result("status", &Value::Null);
-    assert_eq!(status["today"], TODAY);
-    let saved = server.wait_for(|message| message["id"] == export);
+    let status = server.ask("status", &Value::Null);
+    // The export answers from a thread of its own, so either answer can come first.
+    let responses = server.responses(&[export, status]);
+    assert_eq!(responses[&status]["result"]["today"], TODAY);
+    let saved = &responses[&export];
     assert_eq!(saved["result"]["rows"], 2, "{saved}");
 }
