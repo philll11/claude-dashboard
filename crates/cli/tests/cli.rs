@@ -675,3 +675,89 @@ fn limits_shows_each_window_and_the_recent_five_hour_windows() {
         .success()
         .stdout(contains("The usage endpoint is already off."));
 }
+
+/// Makes the fixture's history one that a newer claude-dashboard has upgraded to schema 999,
+/// which this version can still read when `readable` is set, and cannot otherwise.
+fn upgraded_by_a_newer_version(fixture: &Fixture, readable: bool) {
+    fixture.cli(&["today"]).assert().success();
+    let conn = rusqlite::Connection::open(fixture.history()).unwrap();
+    conn.execute(
+        "UPDATE compatibility SET readable_from = ?1",
+        [if readable { 1 } else { 999 }],
+    )
+    .unwrap();
+    conn.pragma_update(None, "user_version", 999).unwrap();
+}
+
+#[test]
+fn reports_read_a_history_a_newer_version_upgraded_and_say_to_update() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+    upgraded_by_a_newer_version(&fixture, true);
+
+    fixture
+        .cli(&["today"])
+        .assert()
+        .success()
+        .stdout(contains("Opus 5.5"))
+        .stderr(contains(
+            "a newer claude-dashboard has upgraded the history (schema 999); update claude-dashboard to keep recording",
+        ));
+}
+
+#[test]
+fn reports_on_a_history_too_new_to_read_say_to_update_and_fail() {
+    let fixture = Fixture::new();
+    upgraded_by_a_newer_version(&fixture, false);
+
+    fixture
+        .cli(&["daily", "--json"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr(contains(
+            "a newer claude-dashboard has upgraded the history (schema 999); update claude-dashboard to read it",
+        ));
+}
+
+#[test]
+fn doctor_names_a_history_a_newer_version_upgraded_once() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+    upgraded_by_a_newer_version(&fixture, true);
+
+    let output = fixture.cli(&["doctor"]).assert().failure();
+    let stdout = String::from_utf8_lossy(&output.get_output().stdout).into_owned();
+    let history: Vec<&str> = stdout
+        .lines()
+        .filter(|line| line.contains("History"))
+        .collect();
+    assert_eq!(history.len(), 1, "{stdout}");
+    assert!(
+        history[0].starts_with('✗')
+            && history[0].contains(
+                "upgraded by a newer claude-dashboard (schema 999): update claude-dashboard to keep recording"
+            ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn the_status_line_prints_its_line_whatever_the_history() {
+    for readable in [true, false] {
+        let fixture = Fixture::new();
+        upgraded_by_a_newer_version(&fixture, readable);
+        fixture
+            .cli(&["statusline"])
+            .write_stdin(status_line_input(&fixture))
+            .assert()
+            .success()
+            .stdout(contains("5h 42%"));
+    }
+}
