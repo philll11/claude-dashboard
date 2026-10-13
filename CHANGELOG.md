@@ -3,6 +3,47 @@
 Every release of claude-dashboard, newest first.
 A release's notes on GitHub come from its section here.
 
+## Version 1.0.0 (2026-10-14)
+
+The first stable version: checked against WCAG 2.2 AA in every theme, measured against its performance targets on real transcripts, tested with every surface on one history and with histories of every earlier version, and published only once every file is attached.
+Every surface has the same version number.
+The binaries are not signed.
+
+### What is new
+
+- **What version 1 keeps stable**: a later version reads the history an earlier one kept, reports keep their JSON fields and CSV columns, and commands keep their options, as the README's Versions section says.
+- **Accessibility**, checked against WCAG 2.2 AA in every theme, VS Code's high contrast themes included:
+  - in Windows contrast themes the dashboard keeps its focus rings, chart lines and marks, level marks and switches, in the system's colours;
+  - the Limits charts show as tables, as the Overview and Models charts do, and each sparkline gives screen readers its lowest, highest and latest figures;
+  - in a VS Code tab 320 pixels wide everything fits the width, and only tables and charts scroll sideways;
+  - VS Code's status bar and sidebar tell screen readers a plan window's level in words, such as "over 90%";
+  - screen readers hear names and figures as separate words, and the Limits charts' descriptions give times as the text beside them does.
+- **Releases** stay drafts until every file is attached, and every file carries a build provenance attestation, which `gh attestation verify <file> --repo philll11/claude-dashboard` checks.
+  A release check then installs the published desktop app and VS Code packages and runs their end-to-end tests.
+- The README says how to install the VS Code extension in a remote window, over WSL, SSH or in a container: from that window, with the package for that machine.
+
+### Changed
+
+- When a newer claude-dashboard has changed the history in a way this version cannot read, the dashboard says the history needs a newer claude-dashboard, `doctor` says so once, the reports stop with that reason, and the status line still prints its line.
+- The desktop app checks for an update again an hour after a check that failed, and says why it failed in plain words.
+- On Windows, the desktop app removes the installers its updater leaves in the temporary folder.
+- Closing the desktop app's window to the notification area in its first five seconds keeps it closed, and an update found at start keeps the window hidden while its installer starts.
+- Settings puts each value under its name where the window is narrow, and charts leave out the dates that would overlap on a narrow chart.
+- A read that finds nothing new leaves out the folders that cannot hold transcripts, such as tool results.
+
+### Performance
+
+Measured on a Windows 11 computer with 20 processor threads, as medians of the benchmarks that CONTRIBUTING describes, with peak memory from the program's own first read:
+
+| Measure | 1.67 GiB of real transcripts | The same transcripts twice, 3.34 GiB | Target |
+| --- | --- | --- | --- |
+| First read of every transcript | 3.9 s | 6.5 s | under 15 s for about 3 GB |
+| First read of the last 7 days | 1.1 s | 1.1 s | under 3 s |
+| A read that finds nothing new | 113 ms | 168 ms | under 200 ms |
+| Peak memory during the first read | 28 MB | 34 MB | under 64 MB |
+
+VS Code's extension host used 2 to 4% of one processor while claude-dashboard read 48 MiB of new transcripts, on Windows, macOS and Linux.
+
 ## Version 0.4.0 (2026-10-13)
 
 The five-hour window at a glance from the desktop app's item in the notification area or the menu bar, exports from every surface, and newer prices between releases.
