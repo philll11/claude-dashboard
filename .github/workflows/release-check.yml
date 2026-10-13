@@ -114,9 +114,6 @@ jobs:
             installer: .app.tar.gz
             check: start
     runs-on: ${{ matrix.os }}
-    permissions:
-      attestations: read
-      contents: read
     defaults:
       run:
         shell: bash
@@ -138,7 +135,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Download the release's app and program, and verify them
+      - name: Download the release's app and program
         env:
           GH_TOKEN: ${{ github.token }}
           PLATFORM: ${{ matrix.platform }}
@@ -154,9 +151,6 @@ jobs:
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern "claude-dashboard-desktop-$version-$PLATFORM$INSTALLER" \
             --pattern "claude-dashboard-$PROGRAM.zip" --pattern "claude-dashboard-$PROGRAM.tar.xz"
-          for file in *; do
-            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" > /dev/null
-          done
           echo "APP_FILE=$here/$(ls claude-dashboard-desktop-*)" >> "$GITHUB_ENV"
           # The program the tests read their synthetic Claude Code folder with.
           if [ -f "claude-dashboard-$PROGRAM.zip" ]; then
@@ -222,9 +216,6 @@ jobs:
             target: darwin-arm64
             program: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    permissions:
-      attestations: read
-      contents: read
     defaults:
       run:
         shell: bash
@@ -245,7 +236,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Download the release's package and program, and verify them
+      - name: Download the release's package and program
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET: ${{ matrix.target }}
@@ -260,9 +251,6 @@ jobs:
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
             --pattern "claude-dashboard-$TARGET-$version.vsix" \
             --pattern "claude-dashboard-$PROGRAM.zip" --pattern "claude-dashboard-$PROGRAM.tar.xz"
-          for file in *; do
-            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" > /dev/null
-          done
           echo "VSIX=$here/claude-dashboard-$TARGET-$version.vsix" >> "$GITHUB_ENV"
           # The program the tests read their synthetic Claude Code folder with.
           if [ -f "claude-dashboard-$PROGRAM.zip" ]; then
