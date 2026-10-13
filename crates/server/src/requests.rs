@@ -321,15 +321,14 @@ impl Answers {
     fn session(&mut self, app: &App, params: &SessionParams) -> Result<SessionDetail, Fault> {
         let history = self.history()?;
         let stored = history
-            .sessions()?
-            .into_iter()
-            .find(|session| session.session_id == params.id)
+            .session(&params.id)?
             .ok_or_else(|| Fault::invalid(format!("The history holds no session {}", params.id)))?;
         let detail = report::session_detail(history, &app.prices, stored.key)?
             .ok_or_else(|| Fault::invalid(format!("Session {} has no requests", params.id)))?;
         let names = project_names(history);
+        let reported = reconcile::reported_for(history, stored.key)?;
         let (reported_usd, drift) = own_figure(
-            reconcile::reported(history)?.get(&stored.key),
+            Some(&reported).filter(|reported| !reported.is_empty()),
             &detail.models,
         );
         let agent_types = history.subagent_types(stored.key)?;

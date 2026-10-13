@@ -147,6 +147,29 @@ fn to_the_end(
     }
 }
 
+/// A session from a row of its key, Claude Code's session id, its project and its title.
+fn stored_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredSession> {
+    Ok(StoredSession {
+        key: SessionKey(row.get(0)?),
+        session_id: row.get(1)?,
+        project: ProjectKey(row.get(2)?),
+        title: row.get(3)?,
+    })
+}
+
+/// A reported cost from a row of its session, model, cost and the four token sums.
+fn stored_reported_cost(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredReportedCost> {
+    Ok(StoredReportedCost {
+        session: SessionKey(row.get(0)?),
+        model: row.get(1)?,
+        cost_usd: row.get(2)?,
+        input: row.get(3)?,
+        output: row.get(4)?,
+        cache_read: row.get(5)?,
+        cache_write: row.get(6)?,
+    })
+}
+
 impl History {
     /// Calls `each` for every request made from `from_ms` up to, but not including, `to_ms`,
     /// oldest first.
@@ -332,16 +355,24 @@ impl History {
             "SELECT id, session_id, project, coalesce(custom_title, ai_title) FROM sessions",
         )?;
         let sessions = statement
-            .query_map([], |row| {
-                Ok(StoredSession {
-                    key: SessionKey(row.get(0)?),
-                    session_id: row.get(1)?,
-                    project: ProjectKey(row.get(2)?),
-                    title: row.get(3)?,
-                })
-            })?
+            .query_map([], stored_session)?
             .collect::<Result<_, _>>()?;
         Ok(sessions)
+    }
+
+    /// The session with Claude Code's `session_id`, when the history holds it.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session(&self, session_id: &str) -> Result<Option<StoredSession>, HistoryError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT id, session_id, project, coalesce(custom_title, ai_title) FROM sessions
+             WHERE session_id = ?1",
+        )?;
+        Ok(statement
+            .query_row([session_id], stored_session)
+            .optional()?)
     }
 
     /// Every project the history holds.
@@ -432,17 +463,29 @@ impl History {
              GROUP BY session, model",
         )?;
         let costs = statement
-            .query_map([], |row| {
-                Ok(StoredReportedCost {
-                    session: SessionKey(row.get(0)?),
-                    model: row.get(1)?,
-                    cost_usd: row.get(2)?,
-                    input: row.get(3)?,
-                    output: row.get(4)?,
-                    cache_read: row.get(5)?,
-                    cache_write: row.get(6)?,
-                })
-            })?
+            .query_map([], stored_reported_cost)?
+            .collect::<Result<_, _>>()?;
+        Ok(costs)
+    }
+
+    /// The cost Claude Code reports for each model of one session, summed over its runs.
+    ///
+    /// # Errors
+    ///
+    /// SQLite errors.
+    pub fn session_reported_costs(
+        &self,
+        session: SessionKey,
+    ) -> Result<Vec<StoredReportedCost>, HistoryError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT session, model, sum(cost_usd), sum(input_tokens), sum(output_tokens),
+                 sum(cache_read_tokens), sum(cache_write_tokens)
+             FROM reported_costs
+             WHERE session = ?1
+             GROUP BY session, model",
+        )?;
+        let costs = statement
+            .query_map([session.0], stored_reported_cost)?
             .collect::<Result<_, _>>()?;
         Ok(costs)
     }

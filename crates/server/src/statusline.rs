@@ -101,8 +101,8 @@ pub fn cleanup_period_days(app: &App) -> u32 {
         .unwrap_or(30)
 }
 
-/// Whether a status line command is claude-dashboard's: its program is `claude-dashboard`,
-/// however it is reached, and its first argument is `statusline`.
+/// Whether a status line command is claude-dashboard's: its program is `claude-dashboard` or its
+/// short name, however it is reached, and its first argument is `statusline`.
 fn is_ours(command: &str) -> bool {
     let command = command.trim_start();
     let (program, rest) = match command.chars().next() {
@@ -118,7 +118,8 @@ fn is_ours(command: &str) -> bool {
         .next()
         .unwrap_or_default()
         .trim_end_matches(".exe");
-    name == "claude-dashboard" && rest.split_whitespace().next() == Some("statusline")
+    (name == "claude-dashboard" || name == program::ALIAS)
+        && rest.split_whitespace().next() == Some("statusline")
 }
 
 /// The person's own status line command that claude-dashboard's wraps, exactly as it stands in
@@ -387,6 +388,8 @@ mod tests {
             "claude-dashboard statusline --then ~/.claude/my-statusline.sh",
             "C:/Users/ada/.cargo/bin/claude-dashboard.exe statusline",
             "\"/opt/claude dashboard/claude-dashboard\" statusline",
+            "cld statusline",
+            "C:/Users/ada/.cargo/bin/cld.exe statusline --then ~/.claude/my-statusline.sh",
         ] {
             assert!(is_ours(command), "{command}");
         }
@@ -394,6 +397,8 @@ mod tests {
             "~/.claude/statusline.sh",
             "claude-dashboard today",
             "my-claude-dashboard statusline",
+            "cld today",
+            "my-cld statusline",
         ] {
             assert!(!is_ours(command), "{command}");
         }

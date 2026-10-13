@@ -234,6 +234,30 @@ fn a_session_is_compared_with_claude_codes_figure_for_the_same_requests() {
 }
 
 #[test]
+fn one_sessions_figures_are_those_reported_for_it_among_every_session() {
+    let mut fixture = Fixture::new();
+    let first = fixture.session("session-1");
+    let second = fixture.session("session-2");
+    let quiet = fixture.session("session-3");
+    fixture.reported(first, "claude-opus-5-5[1m]", 1.5, 300);
+    fixture.reported(first, "claude-haiku-5-5", 0.000_5, 20);
+    fixture.reported(second, "claude-opus-5-5", 2.0, 400);
+
+    let every = reconcile::reported(&fixture.history).unwrap();
+    for session in [first, second] {
+        assert_eq!(
+            reconcile::reported_for(&fixture.history, session).unwrap(),
+            every[&session]
+        );
+    }
+    assert!(
+        reconcile::reported_for(&fixture.history, quiet)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn a_session_still_running_after_a_process_ended_is_not_compared() {
     let mut fixture = Fixture::new();
     let session = fixture.session("session-1");

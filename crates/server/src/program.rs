@@ -17,6 +17,9 @@ pub const FILE_NAME: &str = if cfg!(windows) {
     "claude-dashboard"
 };
 
+/// The short name that the installers give the program beside its own: a link to the same file.
+pub const ALIAS: &str = "cld";
+
 /// How old a half-made copy must be before it counts as abandoned rather than under way.
 const ABANDONED: Duration = Duration::from_hours(1);
 
@@ -28,7 +31,18 @@ const ABANDONED: Duration = Duration::from_hours(1);
 pub fn this() -> Result<PathBuf, String> {
     std::env::current_exe()
         .and_then(fs::canonicalize)
+        .map(in_full)
         .map_err(|error| format!("cannot tell where claude-dashboard is: {error}"))
+}
+
+/// `program`, or the `claude-dashboard` beside it when `program` is its short name. On Windows the
+/// short name is a hardlink, which keeps the name it was started by where a symlink resolves to
+/// the program's own.
+fn in_full(program: PathBuf) -> PathBuf {
+    if program.file_stem().is_none_or(|stem| stem != ALIAS) {
+        return program;
+    }
+    fs::canonicalize(program.with_file_name(FILE_NAME)).unwrap_or(program)
 }
 
 /// Where the copy lives that a status line runs for a surface whose program an update moves,
@@ -312,6 +326,24 @@ mod tests {
             spelled("/opt/ada's tools/claude-dashboard", None, false),
             Ok(r"'/opt/ada'\''s tools/claude-dashboard'".to_owned())
         );
+    }
+
+    #[test]
+    fn its_short_name_is_the_program_beside_it() {
+        let folder = tempfile::tempdir().unwrap();
+        let alias = folder
+            .path()
+            .join(format!("{ALIAS}{}", std::env::consts::EXE_SUFFIX));
+        let other = folder.path().join("helper");
+        fs::write(&alias, "").unwrap();
+        fs::write(&other, "").unwrap();
+        assert_eq!(in_full(alias.clone()), alias, "with nothing beside it");
+
+        let full = folder.path().join(FILE_NAME);
+        fs::write(&full, "").unwrap();
+        assert_eq!(in_full(alias), fs::canonicalize(&full).unwrap());
+        assert_eq!(in_full(full.clone()), full);
+        assert_eq!(in_full(other.clone()), other);
     }
 
     #[test]
