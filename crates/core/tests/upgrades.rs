@@ -74,7 +74,10 @@ const ROWS: &[(u32, &str)] = &[
         2,
         "UPDATE requests SET imported_from = 'claude-usage' WHERE id = 5",
     ),
-    (2, "UPDATE sessions SET ai_title = 'Fix the build' WHERE id = 1"),
+    (
+        2,
+        "UPDATE sessions SET ai_title = 'Fix the build' WHERE id = 1",
+    ),
     (
         2,
         "UPDATE sessions SET ai_title = 'Draft notes', custom_title = 'Release notes' WHERE id = 2",
@@ -186,7 +189,11 @@ fn picture(history: &History) -> String {
     add(&sorted(history.latest_limits().unwrap()));
     add(&history.usage_endpoint().unwrap());
     add(&history.import("claude-usage").unwrap());
-    add(&history.settings().unwrap().into_iter().collect::<BTreeMap<_, _>>());
+    add(&history
+        .settings()
+        .unwrap()
+        .into_iter()
+        .collect::<BTreeMap<_, _>>());
     add(&history.data_folders().unwrap());
     picture
 }
@@ -203,15 +210,30 @@ fn a_history_of_every_version_upgrades_with_everything_it_holds() {
         let upgraded = History::open(&old).unwrap();
         let made = History::open(&new).unwrap();
         assert_eq!(upgraded.access(), Access::ReadWrite, "version {version}");
-        assert_eq!(upgraded.schema_version().unwrap(), latest(), "version {version}");
-        assert_eq!(upgraded.integrity_check().unwrap(), Vec::<String>::new(), "version {version}");
+        assert_eq!(
+            upgraded.schema_version().unwrap(),
+            latest(),
+            "version {version}"
+        );
+        assert_eq!(
+            upgraded.integrity_check().unwrap(),
+            Vec::<String>::new(),
+            "version {version}"
+        );
         assert_eq!(picture(&upgraded), picture(&made), "version {version}");
 
         let backup = old.with_extension("backup.sqlite");
         if version < latest() {
-            assert_eq!(version_of(&backup), version, "the copy from before the upgrade");
+            assert_eq!(
+                version_of(&backup),
+                version,
+                "the copy from before the upgrade"
+            );
         } else {
-            assert!(!backup.exists(), "a history at the latest version needs no copy");
+            assert!(
+                !backup.exists(),
+                "a history at the latest version needs no copy"
+            );
         }
     }
 }
@@ -226,8 +248,16 @@ fn an_empty_history_of_every_version_upgrades() {
         make(&new, latest(), 0);
 
         let upgraded = History::open(&old).unwrap();
-        assert_eq!(upgraded.schema_version().unwrap(), latest(), "version {version}");
-        assert_eq!(picture(&upgraded), picture(&History::open(&new).unwrap()), "version {version}");
+        assert_eq!(
+            upgraded.schema_version().unwrap(),
+            latest(),
+            "version {version}"
+        );
+        assert_eq!(
+            picture(&upgraded),
+            picture(&History::open(&new).unwrap()),
+            "version {version}"
+        );
     }
 }
 
@@ -240,7 +270,11 @@ fn an_upgrade_reads_again_the_transcripts_its_steps_ask_for() {
         let path = dir.path().join("history.sqlite");
         make(&path, version, version);
         let upgraded = History::open(&path).unwrap();
-        assert_eq!(upgraded.read_positions().unwrap().len(), kept, "version {version}");
+        assert_eq!(
+            upgraded.read_positions().unwrap().len(),
+            kept,
+            "version {version}"
+        );
     }
 }
 
