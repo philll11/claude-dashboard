@@ -13,8 +13,9 @@ import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { Worker } from "node:worker_threads";
 
-import { NOW_MS, type Options, type Synthetic, TIME_ZONE, writeClaudeFolder } from "./synthetic.ts";
+import { NOW_MS, type Options, type Synthetic, TIME_ZONE } from "./synthetic.ts";
 
 /** What to write: the variant of the synthetic folder, or no Claude Code folder at all. */
 export interface Setup {
@@ -119,6 +120,24 @@ function seed(history: string, synthetic: Synthetic): void {
 
 const run = promisify(execFile);
 
+/** Writes the synthetic Claude Code folder at `root` on a thread of its own: writing one takes the
+ * best part of a second, which would otherwise hold up everything else the process does. */
+function writeFolder(root: string, options: Options | undefined): Promise<Synthetic> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./folder-writer.ts", import.meta.url), {
+      workerData: { root, options },
+    });
+    worker.once("message", (synthetic: Synthetic) => {
+      resolve(synthetic);
+    });
+    worker.once("error", reject);
+    worker.once("exit", (code) => {
+      if (code !== 0)
+        reject(new Error(`Writing the synthetic folder stopped with ${String(code)}.`));
+    });
+  });
+}
+
 /** This process's copy of claude-dashboard, made by the first folder prepared and removed as the
  * process ends. */
 let copied: Promise<string> | undefined;
@@ -148,7 +167,7 @@ export async function prepare(setup: Setup = {}): Promise<Prepared> {
   const history = join(folder, "history.sqlite");
   const synthetic: Synthetic = setup.empty
     ? { readings: [], endpoint: null, folders: [], schema: null, readableFrom: null }
-    : writeClaudeFolder(root, setup.options);
+    : await writeFolder(root, setup.options);
   const env = {
     ...process.env,
     CLAUDE_CONFIG_DIR: root,
