@@ -48,11 +48,20 @@ pub fn app(tauri: &mut tauri::App) -> Result<(), Box<dyn Error>> {
     if !stays_hidden {
         show_anyway(window);
     }
+    let product = tauri.package_info().name.clone();
     thread::spawn(move || {
         if let Err(reason) = statusline::refresh_copy(&app) {
             log::warn!("Cannot update the status line's copy of claude-dashboard: {reason}.");
         }
         record_location(&app);
+        if cfg!(windows) {
+            let removed = crate::updater::remove_downloads(&std::env::temp_dir(), &product);
+            if removed > 0 {
+                log::info!(
+                    "Removed {removed} installers the updater left in the temporary folder."
+                );
+            }
+        }
     });
     Ok(())
 }

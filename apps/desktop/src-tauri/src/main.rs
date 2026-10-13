@@ -11,6 +11,7 @@ mod lifecycle;
 mod login;
 mod start;
 mod tray;
+mod updater;
 
 use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
