@@ -47,7 +47,7 @@ The dashboard's own Settings section holds the rest: data folders, where plan li
 
 - claude-dashboard reads the files Claude Code keeps on your machine and records numbers, names and titles in a local database; it never stores prompt or code content.
 - There is no telemetry.
-- It only uses the network for the usage endpoint, and only once you turn it on.
+- It only uses the network for features you switch on: plan limits from Anthropic's undocumented usage endpoint (labelled experimental), and the daily check for a newer price table in this repository.
 
 ## Platforms
 
