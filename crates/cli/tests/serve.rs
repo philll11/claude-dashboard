@@ -155,6 +155,8 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         let _ = self.child.kill();
+        // Windows cannot remove the folder while the server still holds the history in it open.
+        let _ = self.child.wait();
     }
 }
 

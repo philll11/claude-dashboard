@@ -21,15 +21,17 @@ const TOKENS: Tokens = Tokens {
 const COST: f64 = 0.031_712;
 
 struct Fixture {
-    _dir: tempfile::TempDir,
     history: History,
+    /// Last, so that the history in it closes first: fields drop in the order they are declared,
+    /// and Windows cannot remove a folder that holds an open file.
+    _dir: tempfile::TempDir,
 }
 
 impl Fixture {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
         let history = History::open(&dir.path().join("history.sqlite")).unwrap();
-        Self { _dir: dir, history }
+        Self { history, _dir: dir }
     }
 
     fn session(&mut self, session_id: &str) -> SessionKey {

@@ -196,6 +196,8 @@ impl Terminal {
 impl Drop for Terminal {
     fn drop(&mut self) {
         let _ = self.child.kill();
+        // Windows cannot remove the fixture's folder while the program still runs in it.
+        let _ = self.child.wait();
     }
 }
 

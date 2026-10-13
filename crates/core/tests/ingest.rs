@@ -67,9 +67,11 @@ fn append(path: &Path, bytes: &[u8]) {
 }
 
 struct Fixture {
-    _dir: tempfile::TempDir,
     root: PathBuf,
     history: History,
+    /// Last, so that the history in it closes first: fields drop in the order they are declared,
+    /// and Windows cannot remove a folder that holds an open file.
+    _dir: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -78,9 +80,9 @@ impl Fixture {
         let root = dir.path().join(".claude");
         let history = History::open(&dir.path().join("history.sqlite")).unwrap();
         Self {
-            _dir: dir,
             root,
             history,
+            _dir: dir,
         }
     }
 
