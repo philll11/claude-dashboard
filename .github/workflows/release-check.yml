@@ -82,12 +82,14 @@ jobs:
             program: x86_64-pc-windows-msvc
             installer: -setup.exe
             check: e2e
+          # Microsoft Edge WebDriver cannot start a WebView2 app on the Windows 11 arm64 image either,
+          # so there the installed app is started and watched, as on macOS.
           - name: Windows arm64
             os: windows-11-arm
             platform: windows-arm64
             program: aarch64-pc-windows-msvc
             installer: -setup.exe
-            check: e2e
+            check: start
           - name: Linux x64
             os: ubuntu-22.04
             platform: linux-x64
@@ -186,9 +188,13 @@ jobs:
         if: matrix.check == 'start'
         run: |
           set -euo pipefail
-          mkdir app
-          tar -xzf "$APP_FILE" -C app
-          node apps/desktop/scripts/start.mjs --app "$PWD/app/Dashboard for Claude Code.app"
+          if [ "$RUNNER_OS" = macOS ]; then
+            mkdir app
+            tar -xzf "$APP_FILE" -C app
+            node apps/desktop/scripts/start.mjs --app "$PWD/app/Dashboard for Claude Code.app"
+          else
+            node apps/desktop/scripts/start.mjs --installer "$APP_FILE"
+          fi
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
