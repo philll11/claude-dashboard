@@ -48,9 +48,11 @@ fn claude_usage(path: &Path, turns: &[(&str, &str, &str, i64, Option<&str>)]) {
 }
 
 struct Fixture {
-    dir: tempfile::TempDir,
     root: PathBuf,
     history: History,
+    /// Last, so that the history in it closes first: fields drop in the order they are declared,
+    /// and Windows cannot remove a folder that holds an open file.
+    dir: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -58,7 +60,7 @@ impl Fixture {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join(".claude");
         let history = History::open(&dir.path().join("history.sqlite")).unwrap();
-        Self { dir, root, history }
+        Self { root, history, dir }
     }
 
     fn transcript(&self, message: &str, request: &str, output: u64) {

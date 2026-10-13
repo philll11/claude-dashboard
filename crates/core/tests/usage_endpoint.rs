@@ -14,10 +14,12 @@ const MINUTE: i64 = 60 * 1000;
 /// A history and a Claude Code configuration folder of their own. The folder is named the way
 /// `CLAUDE_CONFIG_DIR` names one, so that on macOS its Keychain entry is one nobody has.
 struct Fixture {
-    _dir: tempfile::TempDir,
     config: PathBuf,
     login: LoginSource,
     history: History,
+    /// Last, so that the history in it closes first: fields drop in the order they are declared,
+    /// and Windows cannot remove a folder that holds an open file.
+    _dir: tempfile::TempDir,
 }
 
 impl Fixture {
@@ -29,10 +31,10 @@ impl Fixture {
         let login = LoginSource::of(&roots, Some(config.as_os_str())).unwrap();
         let history = History::open(&dir.path().join("history.sqlite")).unwrap();
         Self {
-            _dir: dir,
             config,
             login,
             history,
+            _dir: dir,
         }
     }
 

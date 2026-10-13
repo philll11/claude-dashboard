@@ -11,10 +11,12 @@ const EVENING: i64 = 1_791_588_600_000;
 const MINUTE: i64 = 60 * 1000;
 
 struct Fixture {
-    _dir: tempfile::TempDir,
     history: History,
     app: SessionKey,
     site: SessionKey,
+    /// Last, so that the history in it closes first: fields drop in the order they are declared,
+    /// and Windows cannot remove a folder that holds an open file.
+    _dir: tempfile::TempDir,
 }
 
 /// What one request carries, beyond its session, model and time.
@@ -42,10 +44,10 @@ impl Fixture {
             })
             .unwrap();
         Self {
-            _dir: dir,
             history,
             app,
             site,
+            _dir: dir,
         }
     }
 
