@@ -1,19 +1,15 @@
 name: VS Code release
 
-# Packages the VS Code extension for each platform with the programs of a published release, and
-# attaches the packages to the release. The release workflow calls this once the release is
-# published (dist's post-announce-jobs); it can also run by hand for a tag.
+# Packages the VS Code extension for each platform with the programs of the release being made, and
+# attaches the packages to the release's draft. The release workflow calls this as one of dist's
+# global-artifacts-jobs, once the programs are built, and dist's host job publishes the release
+# only if this succeeds (docs/adr/0012-releases-go-public-complete.md). On a pull request it
+# packages nothing: CI's VS Code jobs package and test every pull request.
 on:
   workflow_call:
     inputs:
       plan:
         description: dist's plan for the release, as JSON.
-        required: true
-        type: string
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: The release tag to package, such as v0.1.1.
         required: true
         type: string
 
@@ -23,26 +19,18 @@ permissions:
 jobs:
   package:
     name: Package
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
-      attestations: read
+      attestations: write
       contents: write
-    steps:
+      id-token: write
+    env:
       # The tag reaches the shell only through the environment, never inside a script.
-      # GitHub reads a step's env before its if, so a run by hand reads an empty plan, not none.
-      - name: Choose the release from dist's plan
-        if: inputs.plan != ''
-        env:
-          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
-        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
-      - name: Choose the release asked for
-        if: inputs.tag != ''
-        env:
-          ASKED_TAG: ${{ inputs.tag }}
-        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.TAG }}
           persist-credentials: false
       - name: Check the extension's version
         run: |
@@ -56,19 +44,18 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Download the release's programs, as the release built and attested them
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # The programs as this run built them for the release. dist attests them as it publishes the
+      # release, and the release check verifies that (.github/workflows/release-check.yml).
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: artifacts-build-local-*
+          path: release
+          merge-multiple: true
+      - name: Check the programs against their checksums
         run: |
           set -euo pipefail
-          mkdir release
           cd release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'claude-dashboard-*.zip' --pattern 'claude-dashboard-*.tar.xz' --pattern sha256.sum
-          sha256sum --check --ignore-missing sha256.sum
-          for archive in claude-dashboard-*.zip claude-dashboard-*.tar.xz; do
-            gh attestation verify "$archive" --repo "$GITHUB_REPOSITORY"
-          done
+          sha256sum --check claude-dashboard-*.sha256
       - name: Package for each platform, and for the rest
         run: |
           set -euo pipefail
@@ -97,7 +84,10 @@ jobs:
           package alpine-x64 x86_64-unknown-linux-musl
           package alpine-arm64 aarch64-unknown-linux-musl
           node apps/vscode/scripts/package.mjs --out "packages/claude-dashboard-$VERSION.vsix"
-      - name: Attach the packages to the release
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: packages/*.vsix
+      - name: Attach the packages to the draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" packages/*.vsix --repo "$GITHUB_REPOSITORY" --clobber

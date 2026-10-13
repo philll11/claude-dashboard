@@ -25,17 +25,24 @@ dist = true
 precise-builds = true
 install-path = "CARGO_HOME"
 install-updater = false
-# Pull requests build every artefact without publishing, so each one proves the release still builds.
+# Pull requests build the programs' artefacts without publishing, so each one proves the release still builds.
 pr-run-mode = "upload"
 github-attestations = true
 # Attest only when publishing: pull request builds are never published, and Dependabot pull requests cannot write attestations.
 github-attestations-phase = "host"
 github-release = "host"
-# Once a release is published: install it on every operating system and run it (.github/workflows/install-check.yml),
-# package the VS Code extension with its programs and attach the packages (.github/workflows/vscode-release.yml),
-# and build the desktop app around them and attach its installers and updates (.github/workflows/desktop-release.yml).
-post-announce-jobs = ["./install-check", "./vscode-release", "./desktop-release"]
-github-custom-job-permissions = { "vscode-release" = { attestations = "read", contents = "write" }, "desktop-release" = { attestations = "write", contents = "write", id-token = "write" } }
+# A release goes public only when it is complete (docs/adr/0012-releases-go-public-complete.md):
+# - its GitHub Release starts as a draft, with the notes dist plans (.github/workflows/release-draft.yml);
+# - once the programs are built, the VS Code extension is packaged with them (.github/workflows/vscode-release.yml)
+#   and the desktop app built around them (.github/workflows/desktop-release.yml), and both attach their files to the draft;
+# - dist's host job then attaches the programs and publishes the draft, which it does only if every job before it succeeded.
+create-release = false
+local-artifacts-jobs = ["./release-draft"]
+global-artifacts-jobs = ["./vscode-release", "./desktop-release"]
+# Once a release is published: install its programs on every operating system and run them (.github/workflows/install-check.yml),
+# and install its desktop app and VS Code packages and run their end-to-end tests (.github/workflows/release-check.yml).
+post-announce-jobs = ["./install-check", "./release-check"]
+github-custom-job-permissions = { "release-draft" = { contents = "write" }, "vscode-release" = { attestations = "write", contents = "write", id-token = "write" }, "desktop-release" = { attestations = "write", contents = "write", id-token = "write" }, "release-check" = { attestations = "read", contents = "read" } }
 # Release builds start from a clean target directory.
 cache-builds = false
 

@@ -10,8 +10,8 @@
 # * uploads those artifacts to temporary workflow zip
 # * on success, uploads the artifacts to a GitHub Release
 #
-# Note that the GitHub Release will be created with a generated
-# title/body based on your changelogs.
+# Note that a GitHub Release with this tag is assumed to exist as a draft
+# with the appropriate title/body, and will be undrafted for you.
 
 name: Release
 permissions:
@@ -165,11 +165,23 @@ jobs:
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
 
+  custom-release-draft:
+    needs:
+      - plan
+    if: ${{ needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload' }}
+    uses: ./.github/workflows/release-draft.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+    permissions:
+      "contents": "write"
+
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:
     needs:
       - plan
       - build-local-artifacts
+      - custom-release-draft
     runs-on: "ubuntu-24.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -211,14 +223,45 @@ jobs:
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
+
+  custom-vscode-release:
+    needs:
+      - plan
+      - build-local-artifacts
+      - custom-release-draft
+    uses: ./.github/workflows/vscode-release.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+    permissions:
+      "attestations": "write"
+      "contents": "write"
+      "id-token": "write"
+
+  custom-desktop-release:
+    needs:
+      - plan
+      - build-local-artifacts
+      - custom-release-draft
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+    permissions:
+      "attestations": "write"
+      "contents": "write"
+      "id-token": "write"
   # Determines if we should publish/announce
   host:
     needs:
       - plan
       - build-local-artifacts
+      - custom-release-draft
       - build-global-artifacts
+      - custom-vscode-release
+      - custom-desktop-release
     # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
-    if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
+    if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.custom-vscode-release.result == 'skipped' || needs.custom-vscode-release.result == 'success') && (needs.custom-desktop-release.result == 'skipped' || needs.custom-desktop-release.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') && (needs.custom-release-draft.result == 'skipped' || needs.custom-release-draft.result == 'success') }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-24.04"
@@ -278,14 +321,12 @@ jobs:
       - name: Create GitHub Release
         env:
           PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
-          ANNOUNCEMENT_TITLE: "${{ fromJson(steps.host.outputs.manifest).announcement_title }}"
-          ANNOUNCEMENT_BODY: "${{ fromJson(steps.host.outputs.manifest).announcement_github_body }}"
           RELEASE_COMMIT: "${{ github.sha }}"
         run: |
-          # Write and read notes from a file to avoid quoting breaking things
-          echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
+          # If we're editing a release in place, we need to upload things ahead of time
+          gh release upload "${{ needs.plan.outputs.tag }}" artifacts/*
 
-          gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+          gh release edit "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --draft=false
 
   announce:
     needs:
@@ -313,27 +354,14 @@ jobs:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
 
-  custom-vscode-release:
+  custom-release-check:
     needs:
       - plan
       - announce
-    uses: ./.github/workflows/vscode-release.yml
+    uses: ./.github/workflows/release-check.yml
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
     permissions:
       "attestations": "read"
-      "contents": "write"
-
-  custom-desktop-release:
-    needs:
-      - plan
-      - announce
-    uses: ./.github/workflows/desktop-release.yml
-    with:
-      plan: ${{ needs.plan.outputs.val }}
-    secrets: inherit
-    permissions:
-      "attestations": "write"
-      "contents": "write"
-      "id-token": "write"
+      "contents": "read"

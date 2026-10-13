@@ -1,10 +1,11 @@
-// Starts the desktop app built for a target, where no WebDriver can drive it, on a synthetic Claude
-// Code folder and a history of its own that starts empty, and checks that the app keeps running,
-// reads the transcripts into the history, makes its item in the menu bar or the notification area,
-// and shows its window once the dashboard has drawn rather than through its fallback. On macOS it
-// keeps a screenshot of the screen as well.
+// Starts the desktop app built for a target, or an app as a release publishes it, where no WebDriver
+// can drive it, on a synthetic Claude Code folder and a history of its own that starts empty, and
+// checks that the app keeps running, reads the transcripts into the history, makes its item in the
+// menu bar or the notification area, and shows its window once the dashboard has drawn rather than
+// through its fallback. On macOS it keeps a screenshot of the screen as well.
 //
 //   node scripts/start.mjs --target aarch64-apple-darwin
+//   node scripts/start.mjs --app "<folder>/Dashboard for Claude Code.app"
 
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync } from "node:fs";
@@ -21,13 +22,23 @@ import { newAppFolders } from "./app-folders.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repository = join(root, "..", "..");
-const { values } = parseArgs({ options: { target: { type: "string" } } });
-if (!values.target) throw new Error("--target names the build to start.");
+const { values } = parseArgs({
+  options: { target: { type: "string" }, app: { type: "string" } },
+});
+if (!values.target === !values.app) {
+  throw new Error("--target names a build to start, or --app an app; one of them.");
+}
 
-// The app as built, with the claude-dashboard program Tauri put next to it.
-const release = join(repository, "target", values.target, "release");
-const app =
-  process.platform === "darwin"
+/** The app's program inside a macOS app bundle, or the program itself elsewhere. */
+function program(app) {
+  return process.platform === "darwin" ? join(app, "Contents/MacOS/claude-dashboard-desktop") : app;
+}
+
+// The app as built or published, with the claude-dashboard program Tauri put next to it.
+const release = values.target && join(repository, "target", values.target, "release");
+const app = values.app
+  ? program(values.app)
+  : process.platform === "darwin"
     ? globSync(
         `${release}/bundle/macos/*.app/Contents/MacOS/claude-dashboard-desktop`.replaceAll(
           "\\",
@@ -35,7 +46,9 @@ const app =
         ),
       )[0]
     : join(release, `claude-dashboard-desktop${process.platform === "win32" ? ".exe" : ""}`);
-if (!app || !existsSync(app)) throw new Error(`There is no app built for ${values.target}.`);
+if (!app || !existsSync(app)) {
+  throw new Error(`There is no app at ${values.app ?? `the build for ${values.target}`}.`);
+}
 
 const prepared = prepare();
 const history = join(prepared.folder, "started", "history.sqlite");

@@ -1,0 +1,287 @@
+name: Release check
+
+# Checks a published release as people install it: every file it publishes carries its build
+# provenance attestation, and the end-to-end tests pass on its own desktop installers and VS Code
+# packages, with its own programs, on every system their drivers support. The release workflow
+# calls this once the release is published (dist's post-announce-jobs); it also runs by hand for any
+# tag, with the tests of the branch it runs on.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan for the release, as JSON.
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to check, such as v1.0.0.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with rust-toolchain.toml.
+  RUST_TOOLCHAIN: 1.99.0
+
+jobs:
+  attestations:
+    name: Attestations
+    runs-on: ubuntu-24.04
+    permissions:
+      attestations: read
+      contents: read
+    steps:
+      # The tag reaches the shell only through the environment, never inside a script.
+      # GitHub reads a step's env before its if, so a run by hand reads an empty plan, not none.
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - name: Verify every file the release publishes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir files
+          cd files
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY"
+          unattested=()
+          for file in *; do
+            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" > /dev/null || unattested+=("$file")
+          done
+          if [ "${#unattested[@]}" -gt 0 ]; then
+            printf '::error::No attestation from this repository for %s\n' "${unattested[@]}"
+            exit 1
+          fi
+          echo "Every one of the $(ls | wc -l) files is attested."
+
+  desktop:
+    name: Desktop (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Microsoft Edge WebDriver cannot start a WebView2 app on the Windows Server 2025 image
+          # (actions/runner-images#14738), so the end-to-end tests run on Windows Server 2022.
+          - name: Windows x64
+            os: windows-2022
+            platform: windows-x64
+            program: x86_64-pc-windows-msvc
+            installer: -setup.exe
+            check: e2e
+          - name: Windows arm64
+            os: windows-11-arm
+            platform: windows-arm64
+            program: aarch64-pc-windows-msvc
+            installer: -setup.exe
+            check: e2e
+          - name: Linux x64
+            os: ubuntu-22.04
+            platform: linux-x64
+            program: x86_64-unknown-linux-musl
+            installer: .deb
+            check: e2e
+          - name: Linux arm64
+            os: ubuntu-22.04-arm
+            platform: linux-arm64
+            program: aarch64-unknown-linux-musl
+            installer: .deb
+            check: e2e
+          # Tauri's WebDriver has no macOS support, so there the app is started and watched.
+          - name: macOS arm64
+            os: macos-latest
+            platform: macos-arm64
+            program: aarch64-apple-darwin
+            installer: .app.tar.gz
+            check: start
+          - name: macOS x64
+            os: macos-15-intel
+            platform: macos-x64
+            program: x86_64-apple-darwin
+            installer: .app.tar.gz
+            check: start
+    runs-on: ${{ matrix.os }}
+    permissions:
+      attestations: read
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      # On Linux the app needs a display, which xvfb-run gives it, and a D-Bus session bus, which
+      # every desktop has and the app's single instance relies on.
+      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a dbus-run-session --' || '' }}
+    steps:
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the release's app and program, and verify them
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLATFORM: ${{ matrix.platform }}
+          PROGRAM: ${{ matrix.program }}
+          INSTALLER: ${{ matrix.installer }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir release
+          cd release
+          # Node reads a Windows path from the environment, not Git Bash's own form of it.
+          here=$(pwd -W 2>/dev/null || pwd)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "claude-dashboard-desktop-$version-$PLATFORM$INSTALLER" \
+            --pattern "claude-dashboard-$PROGRAM.zip" --pattern "claude-dashboard-$PROGRAM.tar.xz"
+          for file in *; do
+            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" > /dev/null
+          done
+          echo "APP_FILE=$here/$(ls claude-dashboard-desktop-*)" >> "$GITHUB_ENV"
+          # The program the tests read their synthetic Claude Code folder with.
+          if [ -f "claude-dashboard-$PROGRAM.zip" ]; then
+            unzip -o -q "claude-dashboard-$PROGRAM.zip" claude-dashboard.exe
+            echo "CLAUDE_DASHBOARD_BIN=$here/claude-dashboard.exe" >> "$GITHUB_ENV"
+          else
+            tar -xJf "claude-dashboard-$PROGRAM.tar.xz" --strip-components 1 "claude-dashboard-$PROGRAM/claude-dashboard"
+            echo "CLAUDE_DASHBOARD_BIN=$here/claude-dashboard" >> "$GITHUB_ENV"
+          fi
+      # The tests install the package with dpkg, which leaves its dependencies to apt.
+      - name: Install what the package needs, and what the tests drive it with, on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get satisfy -y "$(dpkg-deb --field "$APP_FILE" Depends)"
+          sudo apt-get install -y webkit2gtk-driver xvfb dbus
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # master
+        if: matrix.check == 'e2e'
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - name: Install Tauri's WebDriver
+        if: matrix.check == 'e2e'
+        run: cargo install tauri-driver --locked --version 2.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: End-to-end tests on the installer
+        if: matrix.check == 'e2e'
+        run: $WITH_DISPLAY node apps/desktop/scripts/e2e.mjs --installer "$APP_FILE"
+      - name: Start the app and check that it reads the history
+        if: matrix.check == 'start'
+        run: |
+          set -euo pipefail
+          mkdir app
+          tar -xzf "$APP_FILE" -C app
+          node apps/desktop/scripts/start.mjs --app "$PWD/app/Dashboard for Claude Code.app"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-desktop-screenshots-${{ matrix.platform }}
+          path: apps/desktop/out/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+  vscode:
+    name: VS Code (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-24.04
+            target: linux-x64
+            program: x86_64-unknown-linux-musl
+          - name: Windows x64
+            os: windows-latest
+            target: win32-x64
+            program: x86_64-pc-windows-msvc
+          - name: macOS arm64
+            os: macos-latest
+            target: darwin-arm64
+            program: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    permissions:
+      attestations: read
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      # VS Code needs a display, which xvfb-run gives it on Linux.
+      WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a' || '' }}
+    steps:
+      - name: Choose the release from dist's plan
+        if: inputs.plan != ''
+        env:
+          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
+        run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
+      - name: Choose the release asked for
+        if: inputs.tag != ''
+        env:
+          ASKED_TAG: ${{ inputs.tag }}
+        run: echo "TAG=$ASKED_TAG" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the release's package and program, and verify them
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+          PROGRAM: ${{ matrix.program }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir release
+          cd release
+          # Node reads a Windows path from the environment, not Git Bash's own form of it.
+          here=$(pwd -W 2>/dev/null || pwd)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern "claude-dashboard-$TARGET-$version.vsix" \
+            --pattern "claude-dashboard-$PROGRAM.zip" --pattern "claude-dashboard-$PROGRAM.tar.xz"
+          for file in *; do
+            gh attestation verify "$file" --repo "$GITHUB_REPOSITORY" > /dev/null
+          done
+          echo "VSIX=$here/claude-dashboard-$TARGET-$version.vsix" >> "$GITHUB_ENV"
+          # The program the tests read their synthetic Claude Code folder with.
+          if [ -f "claude-dashboard-$PROGRAM.zip" ]; then
+            unzip -o -q "claude-dashboard-$PROGRAM.zip" claude-dashboard.exe
+            echo "CLAUDE_DASHBOARD_BIN=$here/claude-dashboard.exe" >> "$GITHUB_ENV"
+          else
+            tar -xJf "claude-dashboard-$PROGRAM.tar.xz" --strip-components 1 "claude-dashboard-$PROGRAM/claude-dashboard"
+            echo "CLAUDE_DASHBOARD_BIN=$here/claude-dashboard" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: End-to-end tests on the package
+        run: $WITH_DISPLAY node apps/vscode/scripts/e2e.mjs --vsix "$VSIX"
+        env:
+          E2E_STORAGE: ${{ runner.temp }}/e2e
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-vscode-screenshots-${{ matrix.target }}
+          path: ${{ runner.temp }}/e2e/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
