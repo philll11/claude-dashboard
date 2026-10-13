@@ -4,6 +4,7 @@ import {
   AUTOMATIC_KEY,
   CHECK_EVERY_MS,
   createUpdates,
+  RETRY_AFTER_MS,
   type Update,
   type UpdateApi,
 } from "./updates";
@@ -118,6 +119,31 @@ describe("updates", () => {
         reason: "The update server could not be reached.",
       });
     });
+  });
+
+  it("checks again an hour after a check that failed", async () => {
+    const newer = update("0.2.1");
+    const fake = api([new Error("The update server could not be reached."), newer]);
+    const updates = createUpdates(fake);
+    await vi.waitFor(() => {
+      expect(updates.state().kind).toBe("failed");
+    });
+    await vi.advanceTimersByTimeAsync(RETRY_AFTER_MS);
+    await vi.waitFor(() => {
+      expect(updates.state()).toEqual({ kind: "ready", version: "0.2.1" });
+    });
+    expect(fake.relaunch).not.toHaveBeenCalled();
+  });
+
+  it("checks no more after a failure once updates are no longer automatic", async () => {
+    const fake = api([new Error("The update server could not be reached."), update("0.2.1")]);
+    const updates = createUpdates(fake);
+    await vi.waitFor(() => {
+      expect(updates.state().kind).toBe("failed");
+    });
+    updates.setAutomatic(false);
+    await vi.advanceTimersByTimeAsync(RETRY_AFTER_MS);
+    expect(fake.check).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the choice, and checks once updates become automatic", async () => {
