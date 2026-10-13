@@ -3,10 +3,8 @@
 See how you use Claude Code: what it would cost at API prices, where the usage goes, and how close you are to your plan limits.
 It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS and Linux, with nothing else to install.
 
-> **Status: early development.**
-> The terminal UI and reports, the VS Code extension and the desktop app are ready to try.
 > It is made for personal use, and installed from the [releases](https://github.com/philll11/claude-dashboard/releases) rather than a marketplace.
-> Progress is tracked in the [milestones](https://github.com/philll11/claude-dashboard/milestones).
+> What each version keeps stable is under [Versions](#versions).
 
 ## What it is for
 
@@ -36,7 +34,8 @@ To update, install the package from a newer release.
 - The dashboard opens in an editor tab, in your colour theme: Overview, Sessions, Projects, Models, Limits and Settings.
 - Its walkthrough records your plan limits, brings in claude-usage history and chooses data folders.
 
-In a window connected to WSL, over SSH or in a container, it reads the Claude Code folder of that machine.
+In a window connected to WSL, over SSH or in a container, it runs on that machine and reads its Claude Code folder.
+Install it there from that window, with **Extensions: Install from VSIX…** and the package for that machine, such as `claude-dashboard-linux-x64-<version>.vsix` for WSL on an x64 computer: an extension installed in a local window does not run in remote ones until it is installed there too.
 `claudeDashboard.server.path` runs another `claude-dashboard` instead of the one that comes with the extension, such as a build of your own.
 
 ## On the desktop
@@ -185,6 +184,15 @@ Set `CLAUDE_DASHBOARD_HISTORY` to keep it in another file, `NO_COLOR` to turn co
 
 - [`CONTEXT.md`](CONTEXT.md) defines the words used throughout the project.
 - [`docs/adr`](docs/adr) records the architecture decisions and why they were made.
+
+## Versions
+
+Every surface has the same version, and the [changelog](CHANGELOG.md) lists what each release changes.
+Within version 1:
+
+- a later version reads the history an earlier one kept, and an earlier version reads a later one's until the later one changes something it cannot read, when it says to update;
+- reports keep their JSON fields and CSV columns, adding new ones at the end;
+- commands and their options stay as they are.
 
 ## Contributing and security
 

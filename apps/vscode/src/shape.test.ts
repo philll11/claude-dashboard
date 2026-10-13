@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import type { ModelRow, Overview, Status, Totals, WindowReading } from "@claude-dashboard/protocol";
 import { describe, expect, it } from "vitest";
 
-import { statusItem, type Summary, tree } from "./shape";
+import { spoken, statusItem, type Summary, tree } from "./shape";
 
 // 12:15 on Saturday 10 October 2026 in Auckland, the design's moment.
 const NOW = Date.parse("2026-10-09T23:15:00Z");
@@ -136,6 +136,17 @@ describe("the status bar item", () => {
     expect(statusItem(summary({ limits }), NOW).level).toBe("critical");
   });
 
+  it("tells a screen reader the level its colour shows", () => {
+    const critical = statusItem(summary({ limits: [window("five_hour", 93, NOW + HOUR)] }), NOW);
+    expect(critical.label).toBe(
+      "Five-hour window 93% used, over 90%, resets at 13:15. Open the usage dashboard.",
+    );
+    const warning = statusItem(summary({ limits: [window("five_hour", 71, NOW + HOUR)] }), NOW);
+    expect(warning.label).toBe(
+      "Five-hour window 71% used, over 70%, resets at 13:15. Open the usage dashboard.",
+    );
+  });
+
   it("marks a window over 70% in the tooltip, not in the text, and not once it has reset", () => {
     const over = statusItem(summary({ limits: [window("five_hour", 93, NOW + HOUR)] }), NOW);
     expect(over.text).toBe("5h 93% · 13:15");
@@ -244,6 +255,15 @@ describe("the sidebar tree", () => {
     expect(week?.show).toEqual({ section: "overview" });
     expect(projects?.show).toEqual({ section: "projects" });
     expect(projects?.children[0]?.show).toEqual({ section: "sessions", project: "C--a" });
+  });
+
+  it("tells a screen reader each row, and the level its icon shows in words", () => {
+    const [limits] = tree(summary(), NOW);
+    expect(limits?.children.map(spoken)).toEqual([
+      "Five-hour window, 42% · resets 14:20",
+      "Weekly, all models, 71% · resets Thu 09:00, over 70%",
+      "Weekly, Fable, 18% · resets Thu 09:00",
+    ]);
   });
 
   it("offers to connect the status line until plan limits are recorded", () => {

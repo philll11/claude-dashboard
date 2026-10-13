@@ -28,16 +28,19 @@ function send(response: ServerResponse, status: number, value: unknown): void {
 export function bridge(): Plugin {
   const running = new Map<string, Promise<Bridge>>();
 
-  const bridgeFor = async (name: string): Promise<Bridge> => {
+  // A scenario's bridge is noted before it starts, so that requests arriving together share it.
+  const bridgeFor = (name: string): Promise<Bridge> => {
     let started = running.get(name);
     if (!started) {
-      const [{ Bridge }, { SCENARIOS }] = await Promise.all([
-        import("./server.ts"),
-        import("./scenarios.ts"),
-      ]);
-      const scenario = SCENARIOS[name];
-      if (!scenario) throw new Error(`There is no scenario called ${name}.`);
-      started = Bridge.start(scenario);
+      started = (async () => {
+        const [{ Bridge }, { SCENARIOS }] = await Promise.all([
+          import("./server.ts"),
+          import("./scenarios.ts"),
+        ]);
+        const scenario = SCENARIOS[name];
+        if (!scenario) throw new Error(`There is no scenario called ${name}.`);
+        return Bridge.start(scenario);
+      })();
       running.set(name, started);
     }
     return started;
@@ -46,7 +49,12 @@ export function bridge(): Plugin {
   const stopAll = async () => {
     const bridges = [...running.values()];
     running.clear();
-    await Promise.all(bridges.map(async (started) => (await started).stop()));
+    await Promise.all(
+      bridges.map(async (started) => {
+        const bridge = await started.catch(() => undefined);
+        await bridge?.stop();
+      }),
+    );
   };
 
   const handle = (

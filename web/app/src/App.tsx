@@ -13,7 +13,7 @@ import { HostContext, StatusContext, useHost } from "./context";
 import { Store, StoreContext, useReadingProgress, useRequest } from "./data";
 import { ExportNotice, Exports, ExportsContext } from "./exports";
 import { ago, fullDate } from "./format";
-import type { Host, Updates } from "./host";
+import { errorCode, HISTORY_TOO_NEW, type Host, type Updates } from "./host";
 import { Limits } from "./sections/Limits";
 import { Models } from "./sections/Models";
 import { Overview } from "./sections/Overview";
@@ -165,6 +165,11 @@ function Shell() {
           <StatusContext.Provider value={status.data}>
             <Body />
           </StatusContext.Provider>
+        ) : status.error && errorCode(status.error) === HISTORY_TOO_NEW ? (
+          <Problem
+            title="Your history needs a newer claude-dashboard"
+            detail="A newer version has changed it in a way this one cannot read. Install the newest release to see it again."
+          />
         ) : status.error ? (
           <Problem
             title="The dashboard cannot reach claude-dashboard"

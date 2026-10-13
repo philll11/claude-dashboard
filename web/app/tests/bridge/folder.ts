@@ -5,14 +5,17 @@
 //
 // Node loads this file as it is, so it keeps to TypeScript that only needs its types removed.
 
-import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { Worker } from "node:worker_threads";
 
-import { NOW_MS, type Options, type Synthetic, TIME_ZONE, writeClaudeFolder } from "./synthetic.ts";
+import { NOW_MS, type Options, type Synthetic, TIME_ZONE } from "./synthetic.ts";
 
 /** What to write: the variant of the synthetic folder, or no Claude Code folder at all. */
 export interface Setup {
@@ -26,7 +29,8 @@ export interface Prepared {
   /** The Claude Code folder. */
   root: string;
   history: string;
-  /** A copy of claude-dashboard, which a build can replace the original of meanwhile. */
+  /** This process's copy of claude-dashboard, which a build can replace the original of
+   * meanwhile. */
   program: string;
   synthetic: Synthetic;
   /** The environment claude-dashboard runs in. */
@@ -107,21 +111,63 @@ function seed(history: string, synthetic: Synthetic): void {
     for (const folder of synthetic.folders) addFolder.run(folder, NOW_MS);
     if (synthetic.schema !== null)
       database.exec(`PRAGMA user_version = ${String(synthetic.schema)}`);
+    if (synthetic.readableFrom !== null)
+      database.exec(`UPDATE compatibility SET readable_from = ${String(synthetic.readableFrom)}`);
   } finally {
     database.close();
   }
 }
 
-/** Writes the Claude Code folder `setup` asks for and reads it into a new history. Remove
- * `folder` once done. */
-export function prepare(setup: Setup = {}): Prepared {
+const run = promisify(execFile);
+
+/** Writes the synthetic Claude Code folder at `root` on a thread of its own: writing one takes the
+ * best part of a second, which would otherwise hold up everything else the process does. */
+function writeFolder(root: string, options: Options | undefined): Promise<Synthetic> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./folder-writer.ts", import.meta.url), {
+      workerData: { root, options },
+    });
+    worker.once("message", (synthetic: Synthetic) => {
+      resolve(synthetic);
+    });
+    worker.once("error", reject);
+    worker.once("exit", (code) => {
+      if (code !== 0)
+        reject(new Error(`Writing the synthetic folder stopped with ${String(code)}.`));
+    });
+  });
+}
+
+/** This process's copy of claude-dashboard, made by the first folder prepared and removed as the
+ * process ends. */
+let copied: Promise<string> | undefined;
+function programCopy(): Promise<string> {
+  copied ??= (async () => {
+    const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
+    process.once("exit", () => {
+      try {
+        rmSync(folder, { recursive: true, force: true });
+      } catch {
+        // On Windows a program still running from it holds it; a later sweep removes it.
+      }
+    });
+    const program = join(folder, basename(binary()));
+    await copyFile(binary(), program);
+    return program;
+  })();
+  return copied;
+}
+
+/** Writes the Claude Code folder `setup` asks for and reads it into a new history, leaving the
+ * process free meanwhile, as a server answering other requests needs. Remove `folder` once done. */
+export async function prepare(setup: Setup = {}): Promise<Prepared> {
   sweep();
   const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
   const root = join(folder, ".claude");
   const history = join(folder, "history.sqlite");
   const synthetic: Synthetic = setup.empty
-    ? { readings: [], endpoint: null, folders: [], schema: null }
-    : writeClaudeFolder(root, setup.options);
+    ? { readings: [], endpoint: null, folders: [], schema: null, readableFrom: null }
+    : await writeFolder(root, setup.options);
   const env = {
     ...process.env,
     CLAUDE_CONFIG_DIR: root,
@@ -130,11 +176,15 @@ export function prepare(setup: Setup = {}): Prepared {
     TZ: TIME_ZONE,
     NO_COLOR: "1",
   };
-  const program = join(folder, basename(binary()));
-  copyFileSync(binary(), program);
-  const read = spawnSync(program, ["daily", "--json"], { env, encoding: "utf8" });
-  if (read.status !== 0) {
-    throw new Error(`claude-dashboard could not read the synthetic folder: ${read.stderr}`);
+  const program = await programCopy();
+  try {
+    await run(program, ["daily", "--json"], { env, maxBuffer: 64 * 1024 * 1024 });
+  } catch (error) {
+    const { stderr } = error as { stderr?: unknown };
+    throw new Error(
+      `claude-dashboard could not read the synthetic folder: ${typeof stderr === "string" && stderr ? stderr : String(error)}`,
+      { cause: error },
+    );
   }
   seed(history, synthetic);
   return { folder, root, history, program, synthetic, env };

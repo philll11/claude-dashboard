@@ -46,13 +46,22 @@ pub fn app(tauri: &mut tauri::App) -> Result<(), Box<dyn Error>> {
     tauri.manage(Exports::new(app.clone()));
     let window = window(tauri.handle())?;
     if !stays_hidden {
-        show_anyway(window);
+        show_anyway(tauri.handle().clone(), window);
     }
+    let product = tauri.package_info().name.clone();
     thread::spawn(move || {
         if let Err(reason) = statusline::refresh_copy(&app) {
             log::warn!("Cannot update the status line's copy of claude-dashboard: {reason}.");
         }
         record_location(&app);
+        if cfg!(windows) {
+            let removed = crate::updater::remove_downloads(&std::env::temp_dir(), &product);
+            if removed > 0 {
+                log::info!(
+                    "Removed {removed} installers the updater left in the temporary folder."
+                );
+            }
+        }
     });
     Ok(())
 }
@@ -83,11 +92,14 @@ pub fn window(app: &AppHandle) -> Result<WebviewWindow, Box<dyn Error>> {
         .build()?)
 }
 
-/// Shows the window if the dashboard has not drawn in it in time.
-fn show_anyway(window: WebviewWindow) {
+/// Shows the window if the dashboard has not drawn in it in time. A window hidden after the
+/// dashboard drew stays hidden, as when it closes to the notification area or an update about to
+/// install hides it.
+fn show_anyway(app: AppHandle, window: WebviewWindow) {
     thread::spawn(move || {
         thread::sleep(SHOW_ANYWAY_AFTER);
-        if !window.is_visible().unwrap_or(true) {
+        let drawn = app.try_state::<Life>().is_some_and(|life| life.drawn());
+        if !drawn && !window.is_visible().unwrap_or(true) {
             log::warn!("The dashboard did not draw in time; showing the window anyway.");
             let _ = window.show();
         }

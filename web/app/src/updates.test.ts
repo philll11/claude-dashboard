@@ -4,6 +4,8 @@ import {
   AUTOMATIC_KEY,
   CHECK_EVERY_MS,
   createUpdates,
+  reason,
+  RETRY_AFTER_MS,
   type Update,
   type UpdateApi,
 } from "./updates";
@@ -118,6 +120,51 @@ describe("updates", () => {
         reason: "The update server could not be reached.",
       });
     });
+  });
+
+  it("says what went wrong in plain words", () => {
+    const said: Record<string, string> = {
+      "error sending request for url (https://github.com/philll11/claude-dashboard/releases/latest/download/latest.json)":
+        "The update server could not be reached.",
+      "`Download request failed with status: 503 Service Unavailable`":
+        "The update server could not be reached.",
+      "Could not fetch a valid release JSON from the remote":
+        "The update server has no update information for this app right now.",
+      "the platform `windows-aarch64` was not found in the response `platforms` object":
+        "The newest release has no update for this system.",
+      "The signature AAAA could not be decoded, please check if it is a valid base64 string.":
+        "The update's signature could not be verified, so it was not installed.",
+      "failed to create temporary directory": "Failed to create temporary directory.",
+      "Failed to install .deb package": "Failed to install .deb package.",
+    };
+    for (const [message, words] of Object.entries(said)) {
+      expect(reason(new Error(message))).toBe(words);
+    }
+  });
+
+  it("checks again an hour after a check that failed", async () => {
+    const newer = update("0.2.1");
+    const fake = api([new Error("The update server could not be reached."), newer]);
+    const updates = createUpdates(fake);
+    await vi.waitFor(() => {
+      expect(updates.state().kind).toBe("failed");
+    });
+    await vi.advanceTimersByTimeAsync(RETRY_AFTER_MS);
+    await vi.waitFor(() => {
+      expect(updates.state()).toEqual({ kind: "ready", version: "0.2.1" });
+    });
+    expect(fake.relaunch).not.toHaveBeenCalled();
+  });
+
+  it("checks no more after a failure once updates are no longer automatic", async () => {
+    const fake = api([new Error("The update server could not be reached."), update("0.2.1")]);
+    const updates = createUpdates(fake);
+    await vi.waitFor(() => {
+      expect(updates.state().kind).toBe("failed");
+    });
+    updates.setAutomatic(false);
+    await vi.advanceTimersByTimeAsync(RETRY_AFTER_MS);
+    expect(fake.check).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the choice, and checks once updates become automatic", async () => {

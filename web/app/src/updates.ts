@@ -1,6 +1,7 @@
 // The desktop app's updates, from the project's GitHub releases. While they are automatic, the app
-// checks at start and every 6 hours: an update found at start installs straight away and the app
-// restarts, and one found later downloads and waits for the person to restart. A start at login,
+// checks at start, every 6 hours, and an hour after a check that failed: an update found at start
+// installs straight away and the app restarts, and one found later downloads and waits for the
+// person to restart. A start at login,
 // which keeps the window hidden, never restarts the app by itself: its update waits too, offered
 // in the app's item in the notification area. Tauri's updater checks each update's signature
 // before installing it.
@@ -9,6 +10,9 @@ import type { UpdateState, Updates } from "./host";
 
 /** How often the app checks for an update while it runs. */
 export const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
+
+/** How soon the app checks again after a check that failed, as when the network was down. */
+export const RETRY_AFTER_MS = 60 * 60 * 1000;
 
 /** Where the person's choice is kept, as `on` or `off`. */
 export const AUTOMATIC_KEY = "claude-dashboard.updates.automatic";
@@ -35,14 +39,34 @@ export interface UpdateApi {
   waiting?: (version: string | null) => void;
 }
 
-function reason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/**
+ * Why an update could not be checked for or installed, as a sentence for the person, from the
+ * message of Tauri's updater: the common causes in plain words, and any other message as it is.
+ */
+export function reason(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error)).trim();
+  // A download that failed, or a request that never had an answer.
+  if (/error sending request|timed out|connection|dns error|^`/i.test(message)) {
+    return "The update server could not be reached.";
+  }
+  if (/valid release JSON/i.test(message)) {
+    return "The update server has no update information for this app right now.";
+  }
+  if (/response `platforms` object/i.test(message)) {
+    return "The newest release has no update for this system.";
+  }
+  if (/signature/i.test(message)) {
+    return "The update's signature could not be verified, so it was not installed.";
+  }
+  const sentence = message.charAt(0).toUpperCase() + message.slice(1);
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
 }
 
 export function createUpdates(api: UpdateApi): Updates {
   let state: UpdateState = { kind: "idle" };
   let ready: Update | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<() => void>();
 
   const changed = () => {
@@ -82,11 +106,18 @@ export function createUpdates(api: UpdateApi): Updates {
       }
     } catch (error) {
       become({ kind: "failed", reason: reason(error) });
+      if (automatic()) {
+        clearTimeout(retry);
+        retry = setTimeout(() => {
+          void check(false);
+        }, RETRY_AFTER_MS);
+      }
     }
   }
 
   const schedule = () => {
     clearInterval(timer);
+    if (!automatic()) clearTimeout(retry);
     timer = automatic()
       ? setInterval(() => {
           void check(false);

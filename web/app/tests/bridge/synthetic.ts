@@ -47,6 +47,9 @@ export interface Options {
   unreadableFolder?: boolean;
   /** Leaves the history at a newer schema than this version knows, as a newer version would. */
   newerSchema?: boolean;
+  /** Leaves the history at a newer schema that this version cannot read, as a newer version whose
+   * change breaks older readers would. */
+  tooNewSchema?: boolean;
   /** Puts a claude-usage dashboard database, with July's requests, in the data folder. */
   claudeUsage?: boolean;
 }
@@ -68,6 +71,8 @@ export interface Synthetic {
   folders: string[];
   /** The schema version to leave the history at, when newer than this version's. */
   schema: number | null;
+  /** The oldest schema version that can still read the history, when this version cannot. */
+  readableFrom: number | null;
 }
 
 interface Project {
@@ -784,7 +789,8 @@ export function writeClaudeFolder(root: string, options: Options = {}): Syntheti
           nextAskMs: NOW_MS + 5 * MINUTE,
         },
     folders,
-    schema: options.newerSchema ? 99 : null,
+    schema: options.newerSchema || options.tooNewSchema ? 99 : null,
+    readableFrom: options.tooNewSchema ? 99 : null,
   };
 }
 

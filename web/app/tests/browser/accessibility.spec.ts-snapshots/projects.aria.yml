@@ -1,0 +1,108 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - heading "Projects" [level=1]
+  - text: /\d+ projects in the last \d+ days · \$\d+\.\d+ API-equivalent/
+  - 'button /Date range: Last \d+ days/'
+  - 'button "Model: All models"'
+  - button "Export"
+  - region "Projects":
+    - table:
+      - rowgroup:
+        - row /Project Daily cost, \d+ days Sessions Requests Tokens API-equivalent cost Share/:
+          - columnheader "Project"
+          - columnheader /Daily cost, \d+ days/
+          - columnheader "Sessions"
+          - columnheader "Requests"
+          - columnheader "Tokens"
+          - columnheader "API-equivalent cost"
+          - columnheader "Share"
+      - rowgroup:
+        - 'row /claude-dashboard ~\/code\/claude-dashboard Daily cost for claude-dashboard over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+,\d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ \+ unpriced \d+%/':
+          - rowheader "claude-dashboard ~/code/claude-dashboard":
+            - link "claude-dashboard ~/code/claude-dashboard":
+              - /url: "#project--home-you-code-claude-dashboard"
+          - 'cell /Daily cost for claude-dashboard over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for claude-dashboard over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+ \+ unpriced/
+          - cell /\d+%/
+        - 'row /api-gateway ~\/code\/api-gateway Daily cost for api-gateway over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+,\d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ \d+%/':
+          - rowheader "api-gateway ~/code/api-gateway":
+            - link "api-gateway ~/code/api-gateway":
+              - /url: "#project--home-you-code-api-gateway"
+          - 'cell /Daily cost for api-gateway over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for api-gateway over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell /\d+%/
+        - 'row /website ~\/code\/website Daily cost for website over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+,\d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ \d+%/':
+          - rowheader "website ~/code/website":
+            - link "website ~/code/website":
+              - /url: "#project--home-you-code-website"
+          - 'cell /Daily cost for website over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for website over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell /\d+%/
+        - 'row /infra ~\/code\/infra Daily cost for infra over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+,\d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ \d+%/':
+          - rowheader "infra ~/code/infra":
+            - link "infra ~/code/infra":
+              - /url: "#project--home-you-code-infra"
+          - 'cell /Daily cost for infra over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for infra over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell /\d+%/
+        - 'row /notes ~\/notes Daily cost for notes over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ 3%/':
+          - rowheader "notes ~/notes":
+            - link "notes ~/notes":
+              - /url: "#project--home-you-notes"
+          - 'cell /Daily cost for notes over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for notes over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "3%"
+        - 'row /blog ~\/code\/blog Daily cost for blog over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ 3 \d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ 2%/':
+          - rowheader "blog ~/code/blog":
+            - link "blog ~/code/blog":
+              - /url: "#project--home-you-code-blog"
+          - 'cell /Daily cost for blog over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for blog over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell "3"
+          - cell /\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "2%"
+        - 'row /Other projects 6 projects Daily cost for the other projects over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+ \d+ \d+ [\d,.]+[bkmBKM]+ \$\d+\.\d+ 4%/':
+          - rowheader "Other projects 6 projects"
+          - 'cell /Daily cost for the other projects over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/':
+            - 'img /Daily cost for the other projects over \d+ days: lowest \$\d+\.\d+, highest \$\d+\.\d+, last \$\d+\.\d+/'
+          - cell /\d+/
+          - cell /\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "4%"
+  - paragraph: A project is the folder a session ran in. "Other projects" groups the 6 projects with less than 2% each; choose one in Sessions to see them.

@@ -12,7 +12,7 @@ import type {
 } from "@claude-dashboard/protocol";
 import { ago, money, percent, when } from "@claude-dashboard/app/format";
 import { type Series, seriesOf } from "@claude-dashboard/app/models";
-import { inOrder, windowName } from "@claude-dashboard/app/windows";
+import { inOrder, LEVEL_TEXT, windowName } from "@claude-dashboard/app/windows";
 
 /** The server's answers that the status bar item and the tree are made from. */
 export interface Summary {
@@ -100,6 +100,11 @@ function reading(window: WindowReading, nowMs: number, timeZone: string, marked 
   return resetsAt == null ? used : `${used} · resets ${when(resetsAt, nowMs, timeZone)}`;
 }
 
+/** A window's level in words, for a sentence, as the dashboard writes it beside its mark. */
+function levelWords(level: Level): string | undefined {
+  return LEVEL_TEXT[level]?.toLowerCase();
+}
+
 /** Where the newest reading comes from, for a sentence: `official, status line`. */
 function source(window: WindowReading): string {
   return window.provenance === "official"
@@ -128,9 +133,10 @@ export function statusItem(summary: Summary, nowMs: number): StatusItem {
     const used = percent(fiveHour.usedPercentage);
     const resetsAt = fiveHour.resetsAtMs;
     const time = resetsAt == null ? undefined : when(resetsAt, nowMs, status.timeZone);
+    const words = levelWords(fiveHour.level);
     return {
       text: time ? `5h ${used} · ${time}` : `5h ${used}`,
-      label: `Five-hour window ${used} used${time ? `, resets at ${time}` : ""}. Open the usage dashboard.`,
+      label: `Five-hour window ${used} used${words ? `, ${words}` : ""}${time ? `, resets at ${time}` : ""}. Open the usage dashboard.`,
       level: fiveHour.level,
       lines,
       note,
@@ -144,6 +150,13 @@ export function statusItem(summary: Summary, nowMs: number): StatusItem {
     lines,
     note,
   };
+}
+
+/** What a screen reader says for a tree item: its label and description, and in words the level
+ * its icon shows. */
+export function spoken(node: Node): string {
+  const level = node.icon?.kind === "level" ? levelWords(node.icon.level) : undefined;
+  return [node.label, node.description, level].filter(Boolean).join(", ");
 }
 
 /** The sidebar tree: plan limits, today by model, this week, and this week's top projects. */

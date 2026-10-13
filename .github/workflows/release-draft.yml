@@ -1,0 +1,52 @@
+name: Release draft
+
+# Makes a release's GitHub Release as a draft, with the title and notes dist plans from the
+# changelog, before anything is attached to it. The desktop app's and the VS Code extension's
+# release builds attach their files to the draft, and dist's host job attaches the program's and
+# publishes it once every build has succeeded (create-release = false in dist-workspace.toml), so a
+# release goes public only when it is complete (docs/adr/0012-releases-go-public-complete.md).
+# The release workflow calls this as one of dist's local-artifacts-jobs. On a pull request the job
+# runs and makes nothing, so that dist's global build, which waits for it, runs there too.
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: dist's plan for the release, as JSON.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    name: Draft the release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      # The plan's values reach the shell only through the environment, never inside a script.
+      - name: Make the draft, or bring an existing draft up to date
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+          TITLE: ${{ fromJson(inputs.plan).announcement_title }}
+          NOTES: ${{ fromJson(inputs.plan).announcement_github_body }}
+          PRERELEASE: ${{ fromJson(inputs.plan).announcement_is_prerelease }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          # A run started again finds its own draft; a published release is never touched.
+          if draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$draft" != true ]; then
+              echo "::error::$TAG is already published."
+              exit 1
+            fi
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+              --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}"
+          fi

@@ -20,7 +20,7 @@ import { type Desktop, RELEASES, type UpdateState, type Updates } from "../host"
 import { Switch } from "../ui/controls";
 import { Check, Plus, Spinner, Warning } from "../ui/icons";
 import { useNow } from "../ui/time";
-import { Panel, Pill } from "../ui/panels";
+import { Panel, Pause, Pill } from "../ui/panels";
 import { SectionHead } from "./common";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
 
@@ -127,10 +127,12 @@ function FolderRow({ folder, onRemove }: { folder: Folder; onRemove: () => void 
     <li className="folder">
       <span className="folder-text">
         <span className="mono folder-path">{folder.path}</span>
+        <Pause />
         <span className="subtitle">
           {SOURCES[folder.source] ?? folder.source} · {detail}
         </span>
       </span>
+      <Pause />
       <span className="folder-state">
         {state.state === "found" ? (
           <span className="state-line">
@@ -159,6 +161,24 @@ function Facts({ children }: { children: ReactNode }) {
   return <dl className="facts">{children}</dl>;
 }
 
+/** One fact in `Facts`: its name, and what it is. */
+function Fact({
+  name,
+  mono = false,
+  children,
+}: {
+  name: string;
+  mono?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <dt>{name}</dt>
+      <dd className={mono ? "mono" : undefined}>{children}</dd>
+    </div>
+  );
+}
+
 function History({ health }: { health: Health }) {
   const status = useStatus();
   const host = useHost();
@@ -172,36 +192,28 @@ function History({ health }: { health: Health }) {
     <Panel title="History">
       <Facts>
         {health.historyPath && (
-          <>
-            <dt>Stored in</dt>
-            <dd className="mono">{health.historyPath}</dd>
-          </>
+          <Fact name="Stored in" mono>
+            {health.historyPath}
+          </Fact>
         )}
         {facts && (
-          <>
-            <dt>Covers</dt>
-            <dd>
-              {status.firstDay ? `${fullDate(status.firstDay)} to today` : "Nothing yet"} ·{" "}
-              {grouped(facts.requests)} {facts.requests === 1 ? "request" : "requests"} in{" "}
-              {grouped(facts.sessions)} {facts.sessions === 1 ? "session" : "sessions"} ·{" "}
-              {megabytes(facts.bytes)}
-            </dd>
-          </>
+          <Fact name="Covers">
+            {status.firstDay ? `${fullDate(status.firstDay)} to today` : "Nothing yet"} ·{" "}
+            {grouped(facts.requests)} {facts.requests === 1 ? "request" : "requests"} in{" "}
+            {grouped(facts.sessions)} {facts.sessions === 1 ? "session" : "sessions"} ·{" "}
+            {megabytes(facts.bytes)}
+          </Fact>
         )}
         {facts?.imported && (
-          <>
-            <dt>Imported</dt>
-            <dd>
-              {grouped(facts.imported.requests)} requests from the claude-usage dashboard on{" "}
-              {fullDate(new Date(facts.imported.importedMs).toISOString().slice(0, 10))}
-            </dd>
-          </>
+          <Fact name="Imported">
+            {grouped(facts.imported.requests)} requests from the claude-usage dashboard on{" "}
+            {fullDate(new Date(facts.imported.importedMs).toISOString().slice(0, 10))}
+          </Fact>
         )}
-        <dt>Claude Code clean-up</dt>
-        <dd>
+        <Fact name="Claude Code clean-up">
           Claude Code deletes transcripts after {grouped(health.cleanupDays)} days; everything read
           before then stays here.
-        </dd>
+        </Fact>
       </Facts>
       <div className="actions">
         {health.historyPath && host.reveal && (
@@ -371,14 +383,12 @@ function PricesPanel({ prices }: { prices: Prices }) {
   return (
     <Panel title="Prices">
       <Facts>
-        <dt>Price table</dt>
-        <dd>
+        <Fact name="Price table">
           {fullDate(prices.checked)}, from Anthropic's pricing page
           {prices.downloadedMs != null &&
             `, downloaded ${dayWords(prices.downloadedMs, now, timeZone)} from this project's repository`}
-        </dd>
-        <dt>Check</dt>
-        <dd>{check}</dd>
+        </Fact>
+        <Fact name="Check">{check}</Fact>
       </Facts>
       <PriceRefreshRow refresh={prices.refresh} />
     </Panel>

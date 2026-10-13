@@ -22,6 +22,7 @@ import { build } from "esbuild";
 import Mocha from "mocha";
 
 import { newAppFolders } from "./app-folders.mjs";
+import { install } from "./installer.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { values } = parseArgs({
@@ -84,7 +85,7 @@ async function edgeDriver() {
 }
 
 const nativeDriver = values["native-driver"] ?? (windows ? await edgeDriver() : undefined);
-const prepared = prepare();
+const prepared = await prepare();
 // The tests end the app by closing its window, so it quits then rather than keep running in the
 // notification area; the one test of keeping it running switches that on and off again itself.
 const history = new DatabaseSync(prepared.history);
@@ -97,39 +98,6 @@ mkdirSync(screenshots, { recursive: true });
 const exportFolder = join(prepared.folder, "exports");
 mkdirSync(exportFolder);
 
-/** Runs an NSIS installer or uninstaller, which takes a folder last and unquoted, spaces and all. */
-function nsis(program, ...options) {
-  execFileSync(program, options, {
-    stdio: "inherit",
-    windowsVerbatimArguments: true,
-    argv0: `"${program}"`,
-  });
-}
-
-/** Installs the app where the test can find it, and says how to remove it again. */
-function install() {
-  if (windows) {
-    const folder = join(prepared.folder, "app");
-    nsis(installer, "/S", `/D=${folder}`);
-    return {
-      app: join(folder, "claude-dashboard-desktop.exe"),
-      uninstall() {
-        // `_?=` runs the uninstaller in place until it has finished, rather than from a copy of
-        // itself that carries on after this returns.
-        nsis(join(folder, "uninstall.exe"), "/S", `_?=${folder}`);
-      },
-    };
-  }
-  const name = execFileSync("dpkg-deb", ["--field", installer, "Package"], { encoding: "utf8" });
-  execFileSync("sudo", ["dpkg", "-i", installer], { stdio: "inherit" });
-  return {
-    app: "/usr/bin/claude-dashboard-desktop",
-    uninstall() {
-      execFileSync("sudo", ["dpkg", "-r", name.trim()], { stdio: "inherit" });
-    },
-  };
-}
-
 // Whatever fails, the app is uninstalled again, with the folders it created.
 const created = newAppFolders();
 let installed;
@@ -137,7 +105,7 @@ let driver;
 let log = "";
 let failures = 1;
 try {
-  installed = install();
+  installed = install(installer, join(prepared.folder, "app"));
   if (!existsSync(installed.app)) throw new Error(`The installer put no app at ${installed.app}.`);
   // tauri-driver starts the app for each session, in its own environment; on Windows, Microsoft
   // Edge WebDriver gives each session a WebView2 profile of its own. The drivers keep their

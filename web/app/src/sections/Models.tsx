@@ -12,7 +12,7 @@ import { useRequest } from "../data";
 import { compact, fullDate, grouped, money, percent, price } from "../format";
 import { seriesFill } from "../models";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
-import { Panel, TableScroll } from "../ui/panels";
+import { Panel, Pause, TableScroll } from "../ui/panels";
 import {
   costText,
   ProjectMenu,
@@ -117,6 +117,7 @@ function DailyLines() {
             <li key={item.id}>
               <span className="line-swatch" style={{ background: lineColour(item.series) }} />
               <span>{item.name}</span>
+              <Pause />
               <span className="figure">{money(item.total)}</span>
             </li>
           ))}

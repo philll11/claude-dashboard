@@ -58,6 +58,20 @@ export interface Desktop {
 /** The JSON-RPC error code of an export that was cancelled. */
 export const EXPORT_CANCELLED = -32800;
 
+/** The JSON-RPC error code of a history that a newer claude-dashboard upgraded beyond what this
+ * one reads (the server's `Fault::HISTORY_TOO_NEW`). */
+export const HISTORY_TOO_NEW = -32001;
+
+/** The JSON-RPC error code that a refused request gave, if it gave one. */
+export function errorCode(error: unknown): number | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "number"
+    ? error.code
+    : undefined;
+}
+
 export interface Host {
   /** Where the dashboard runs, which decides its layout. */
   surface: "vscode" | "desktop";

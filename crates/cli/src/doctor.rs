@@ -49,7 +49,11 @@ pub fn run(app: &App) -> ExitCode {
     let history = app.open_history();
     match history {
         Ok(mut history) => {
-            if let Err(error) = progress::ingest(app, &mut history) {
+            // A history a newer version upgraded cannot take new transcripts, which its own line
+            // says.
+            if history.access() == Access::ReadWrite
+                && let Err(error) = progress::ingest(app, &mut history)
+            {
                 lines.push(failed(
                     "History",
                     format!("new transcripts cannot be read in: {error}"),
@@ -149,7 +153,7 @@ fn history_line(app: &App, history: &History) -> Line {
                 detail: format!("{size}schema {schema}, integrity check passed"),
             },
             Access::ReadOnly { schema } => Line {
-                mark: Mark::Warning,
+                mark: Mark::Failed,
                 label: "History",
                 path: None,
                 detail: format!(

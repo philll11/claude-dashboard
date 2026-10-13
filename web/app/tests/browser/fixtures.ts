@@ -77,12 +77,20 @@ export class Dashboard {
    * dialog open is captured as the window shows it, since the dialog's backdrop covers the window
    * rather than the whole page.
    */
-  async check(name: string) {
+  async check(name: string, { skip = [] }: { skip?: string[] } = {}) {
     await this.settled();
     await this.page.evaluate(() => document.fonts.ready);
     const modal = await this.page.evaluate(() => document.querySelector("dialog:modal") !== null);
     await expect(this.page).toHaveScreenshot(`${name}.png`, { fullPage: !modal });
+    await this.audit({ skip });
+  }
+
+  /** Checks the page, once settled, for problems against WCAG 2.2 AA that rules can find, but for
+   * the rules in `skip`. */
+  async audit({ skip = [] }: { skip?: string[] } = {}) {
+    await this.settled();
     const results = await new AxeBuilder({ page: this.page })
+      .disableRules(skip)
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(

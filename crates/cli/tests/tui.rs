@@ -31,7 +31,12 @@ struct Terminal {
 
 impl Terminal {
     /// Runs the dashboard over `fixture` in a terminal of `cols` by `rows`.
-    fn open(fixture: &Fixture, (cols, rows): (u16, u16)) -> Self {
+    fn open(fixture: &Fixture, size: (u16, u16)) -> Self {
+        Self::open_with(fixture, size, false)
+    }
+
+    /// Runs the dashboard as `open` does, with `NO_COLOR` set when `plain`.
+    fn open_with(fixture: &Fixture, (cols, rows): (u16, u16), plain: bool) -> Self {
         let pair = native_pty_system()
             .openpty(PtySize {
                 rows,
@@ -57,7 +62,11 @@ impl Terminal {
         ] {
             command.env(name, value);
         }
-        command.env_remove("NO_COLOR");
+        if plain {
+            command.env("NO_COLOR", "1");
+        } else {
+            command.env_remove("NO_COLOR");
+        }
         let child = pair
             .slave
             .spawn_command(command)
@@ -246,4 +255,29 @@ fn the_dashboard_opens_moves_between_screens_and_gives_the_terminal_back() {
         "the terminal's own screen is back"
     );
     assert!(!screen.hide_cursor(), "the cursor shows again");
+}
+
+#[test]
+fn without_colour_the_dashboard_keeps_to_the_terminals_own() {
+    let fixture = history();
+    let mut terminal = Terminal::open_with(&fixture, (120, 36), true);
+
+    terminal.wait_for("Cost per day by model · 30 days");
+    terminal.wait_for("Opus 5.5");
+    terminal.wait_for("Read just now");
+    let screen = terminal.screen.screen();
+    let (rows, cols) = screen.size();
+    for row in 0..rows {
+        for col in 0..cols {
+            let cell = screen.cell(row, col).expect("a cell on the screen");
+            assert_eq!(
+                (cell.fgcolor(), cell.bgcolor()),
+                (vt100::Color::Default, vt100::Color::Default),
+                "row {row}, column {col}"
+            );
+        }
+    }
+
+    terminal.press("q");
+    assert!(terminal.ended(), "the dashboard ends successfully");
 }

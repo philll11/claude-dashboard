@@ -20,6 +20,8 @@ use ratatui::style::Style;
 use super::canvas::{Canvas, fit, width};
 use super::state::{ExportNotice, Section, State};
 
+#[cfg(test)]
+pub use overlays::HELP_KEYS;
 pub use series::series_of;
 
 /// The key line's keys on most screens.

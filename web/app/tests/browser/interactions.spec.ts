@@ -69,6 +69,25 @@ test("every chart has a table", async ({ dashboard, page }) => {
   await expect(
     page.getByRole("group", { name: /API-equivalent cost per day by model/ }),
   ).toBeVisible();
+
+  await dashboard.section("Models");
+  await page.getByRole("button", { name: "Show as table" }).click();
+  await expect(page.getByRole("rowheader", { name: "Sat 10 Oct" }).first()).toBeVisible();
+
+  await dashboard.section("Limits");
+  const show = page.getByRole("button", { name: "Show as table" });
+  await expect(show).toHaveCount(2);
+  await show.first().click();
+  await show.first().click();
+  await expect(page.getByRole("columnheader", { name: "Reading" })).toHaveCount(2);
+  await expect(page.getByRole("rowheader", { name: "Today 12:13" })).toHaveCount(2);
+  await dashboard.check("limits-as-tables");
+
+  await dashboard.section("Sessions");
+  await page.getByRole("link", { name: /Price table for Claude 5 models/ }).click();
+  await page.getByRole("button", { name: "Show requests as a table" }).click();
+  await expect(page.getByRole("button", { name: "Show as chart" })).toBeVisible();
+  await expect(page.getByRole("group", { name: /Cumulative cost rises/ })).toBeHidden();
 });
 
 test("sessions can be searched, and one opened and left", async ({ dashboard, page }) => {

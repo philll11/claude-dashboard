@@ -32,16 +32,20 @@ The release workflow's plan job fails when `release.yml` differs from what dist 
 
 To cut a release:
 
-1. In a pull request, set the version in the workspace `Cargo.toml` and in `apps/vscode/package.json`, and add a section to `CHANGELOG.md` with a heading such as `## Version 0.1.2 (2026-10-20)`, which becomes the release's title and notes.
+1. In a pull request, set the version in the workspace `Cargo.toml` and in `apps/vscode/package.json`, and add a section to `CHANGELOG.md` with a heading such as `## Version 1.0.1 (2026-11-02)`, which becomes the release's title and notes.
    Every surface has the same version, as plain `major.minor.patch`, and each release becomes the latest release on GitHub, which the README's install links read.
    A suffix such as `-alpha.1` would make dist publish a pre-release instead, which those links skip.
 2. Once it is merged, tag the merge commit on `main` with `v` and the version, and push the tag.
-3. The release workflow builds and publishes the release, then:
-   - installs it on every operating system and runs it (`.github/workflows/install-check.yml`);
-   - packages the VS Code extension for every platform with the release's programs and attaches the packages to the release (`.github/workflows/vscode-release.yml`);
-   - builds the desktop app for every platform around the release's programs, signs its update bundles, and attaches its installers, the update bundles and `latest.json`, which the app's updater reads (`.github/workflows/desktop-release.yml`).
+3. The release workflow makes the release as a draft (`.github/workflows/release-draft.yml`) and builds the programs, then:
+   - packages the VS Code extension for every platform with them and attaches the packages to the draft (`.github/workflows/vscode-release.yml`);
+   - builds the desktop app for every platform around them, signs its update bundles, and attaches its installers, the update bundles and `latest.json`, which the app's updater reads (`.github/workflows/desktop-release.yml`);
+   - attaches the programs and publishes the release, only once every job before has succeeded ([ADR 0012](docs/adr/0012-releases-go-public-complete.md)).
+4. Once it is published:
+   - the install check installs its programs on every operating system and runs them (`.github/workflows/install-check.yml`);
+   - the release check verifies the attestation of every file it publishes, and runs the end-to-end tests on its own desktop installers and VS Code packages (`.github/workflows/release-check.yml`).
 
-   To check an existing release again, run the install check by hand with its tag; to package its extension or build its desktop app again, run the VS Code release or the desktop release workflow by hand from the tag.
+   To check a published release again, run the install check or the release check by hand with its tag.
+   A release that fails before it is published stays a draft; the runbook says what to do then.
 
 ## Terminal UI
 

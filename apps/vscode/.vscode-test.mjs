@@ -9,7 +9,7 @@ import { basename, join } from "node:path";
 import { prepare } from "@claude-dashboard/app/testing";
 import { defineConfig } from "@vscode/test-cli";
 
-const prepared = prepare();
+const prepared = await prepare();
 // The program goes where a package keeps it.
 mkdirSync(join(import.meta.dirname, "server"), { recursive: true });
 copyFileSync(prepared.program, join(import.meta.dirname, "server", basename(prepared.program)));

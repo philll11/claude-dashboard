@@ -62,6 +62,8 @@ export const SCENARIOS: Record<string, Scenario> = {
   "unreadable-folder": { options: { unreadableFolder: true } },
   /** A newer version of claude-dashboard has upgraded the history. */
   "newer-schema": { options: { newerSchema: true } },
+  /** A newer version of claude-dashboard has upgraded the history beyond what this one reads. */
+  "too-new-schema": { options: { tooNewSchema: true }, unreadable: true },
   /** The claude-usage dashboard's database holds July, which no transcript does. */
   "claude-usage": { options: { claudeUsage: true } },
   /** Servers of their own for the browser tests that change something. */

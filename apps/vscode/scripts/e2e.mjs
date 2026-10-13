@@ -44,7 +44,7 @@ const settings = join(storage, "e2e-settings.json");
 mkdirSync(storage, { recursive: true });
 copyFileSync(join(root, "test/e2e/settings.json"), settings);
 
-const prepared = prepare();
+const prepared = await prepare();
 for (const key of ["CLAUDE_CONFIG_DIR", "CLAUDE_DASHBOARD_HISTORY", "CLAUDE_DASHBOARD_NOW", "TZ"]) {
   process.env[key] = prepared.env[key];
 }

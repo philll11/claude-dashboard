@@ -1,0 +1,107 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Sessions":
+          - /url: "#sessions"
+      - listitem: Price table for Claude 5 models
+  - heading "Price table for Claude 5 models" [level=1]
+  - text: /claude-dashboard Sat \d+ Oct, \d+:\d+ to \d+:\d+ 2 h \d+ min Claude Code 2\.\d+\.\d+ · terminal/
+  - button "Copy session ID"
+  - button "Show transcript folder"
+  - button "Export"
+  - region "API-equivalent cost":
+    - heading "API-equivalent cost" [level=2]
+    - text: /\$\d+\.\d+ Estimate at list prices/
+  - region "Claude Code's own figure":
+    - heading "Claude Code's own figure" [level=2]
+    - text: /\$\d+\.\d+ Matches within 0\.1%/
+  - region "Requests":
+    - heading "Requests" [level=2]
+    - text: /\d+ \d+ in the session · \d+ by 2 subagents/
+  - region "Tokens":
+    - heading "Tokens" [level=2]
+    - text: /[\d,.]+[bkmBKM]+ \d+% read from the prompt cache/
+  - region "Cost over the session":
+    - heading "Cost over the session" [level=2]
+    - text: Cumulative API-equivalent cost · dots mark where subagents started
+    - button "Show requests as a table"
+    - group /Cumulative cost rises from \$0 at \d+:\d+ to \$\d+\.\d+ at \d+:\d+, with subagents starting at \d+:\d+, \d+:\d+\. The left and right arrow keys read along it\./
+  - region "Tokens by type":
+    - heading "Tokens by type" [level=2]
+    - table:
+      - rowgroup:
+        - row "Type Share of tokens Tokens Cost":
+          - columnheader "Type"
+          - columnheader "Share of tokens"
+          - columnheader "Tokens"
+          - columnheader "Cost"
+      - rowgroup:
+        - row /Cache reads \d+% [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Cache reads"
+          - cell /\d+%/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Cache writes, 1 hour 9% [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Cache writes, 1 hour"
+          - cell "9%"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Output 3% [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Output"
+          - cell "3%"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Input 0% \d+ \$\d+\.\d+/:
+          - rowheader "Input"
+          - cell "0%"
+          - cell /\d+/
+          - cell /\$\d+\.\d+/
+  - region "Models and subagents":
+    - heading "Models and subagents" [level=2]
+    - table:
+      - rowgroup:
+        - row "Who Model When Requests Cost":
+          - columnheader "Who"
+          - columnheader "Model"
+          - columnheader "When"
+          - columnheader "Requests"
+          - columnheader "Cost"
+      - rowgroup:
+        - row /The session Fable 5\.1 \d+:\d+ to \d+:\d+ \d+ \$\d+\.\d+/:
+          - rowheader "The session"
+          - cell "Fable 5.1"
+          - cell /\d+:\d+ to \d+:\d+/
+          - cell /\d+/
+          - cell /\$\d+\.\d+/
+        - row /Explore subagent Haiku 5\.5 \d+:\d+ to \d+:\d+ \d+ \$\d+\.\d+/:
+          - rowheader "Explore subagent"
+          - cell "Haiku 5.5"
+          - cell /\d+:\d+ to \d+:\d+/
+          - cell /\d+/
+          - cell /\$\d+\.\d+/
+        - row /price-checker subagent Haiku 5\.5 \d+:\d+ to \d+:\d+ 6 \$\d+\.\d+/:
+          - rowheader "price-checker subagent"
+          - cell "Haiku 5.5"
+          - cell /\d+:\d+ to \d+:\d+/
+          - cell "6"
+          - cell /\$\d+\.\d+/
+    - heading "Credited to skills and MCP servers" [level=3]
+    - list:
+      - listitem: /Skill research , \d+ requests · \$\d+\.\d+/
+      - listitem: /MCP server github search_code , 5 requests · \$\d+\.\d+/
+      - listitem: /Not credited to either , \d+ requests · \$\d+\.\d+/
