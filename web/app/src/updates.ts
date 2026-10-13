@@ -39,8 +39,27 @@ export interface UpdateApi {
   waiting?: (version: string | null) => void;
 }
 
-function reason(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+/**
+ * Why an update could not be checked for or installed, as a sentence for the person, from the
+ * message of Tauri's updater: the common causes in plain words, and any other message as it is.
+ */
+export function reason(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error)).trim();
+  // A download that failed, or a request that never had an answer.
+  if (/error sending request|timed out|connection|dns error|^`/i.test(message)) {
+    return "The update server could not be reached.";
+  }
+  if (/valid release JSON/i.test(message)) {
+    return "The update server has no update information for this app right now.";
+  }
+  if (/response `platforms` object/i.test(message)) {
+    return "The newest release has no update for this system.";
+  }
+  if (/signature/i.test(message)) {
+    return "The update's signature could not be verified, so it was not installed.";
+  }
+  const sentence = message.charAt(0).toUpperCase() + message.slice(1);
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
 }
 
 export function createUpdates(api: UpdateApi): Updates {
