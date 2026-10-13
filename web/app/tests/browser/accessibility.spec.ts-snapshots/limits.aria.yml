@@ -1,0 +1,74 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - heading "Limits" [level=1]
+  - text: Limits are shared between Claude Code and claude.ai Official · status line · 2 min ago
+  - button "Export"
+  - region "Five-hour window":
+    - heading "Five-hour window" [level=2]
+    - text: /\d+:\d+ to \d+:\d+ \d+% used · resets in 2 h \d+ min/
+    - meter /Five-hour window, \d+% used/
+    - paragraph: /At the pace of this window so far, about \d+% when it resets \(estimate\)/
+    - img /Five-hour window use rises from 0% at Today \d+:\d+ to \d+% at Today \d+:\d+\. At the same pace it reaches about \d+% when it resets\./
+  - region "Weekly, all models":
+    - heading "Weekly, all models" [level=2]
+    - text: /Thu 8 Oct \d+:\d+ to Thu \d+ Oct \d+:\d+ \d+% Over \d+% · resets in 5 days/
+    - meter /Weekly window, \d+% used/
+    - paragraph: /At the pace of the last \d+ hours, you reach the limit on Sunday around \d+:\d+ \(estimate\)/
+    - img /Weekly, all models use rises from 0% at Thu 8 Oct \d+:\d+ to \d+% at Today \d+:\d+\. At the same pace it reaches \d+% at Sun \d+ Oct \d+:\d+\./
+  - region "Weekly, Fable":
+    - heading "Weekly, Fable" [level=2]
+    - text: /Same week \d+% used · resets in 5 days/
+    - meter /Weekly Fable window, \d+% used/
+    - paragraph: A separate weekly limit for Fable.
+  - region "Where the limits come from":
+    - heading "Where the limits come from" [level=2]
+    - text: Claude Code's status line Connected
+    - button "Disconnect"
+    - paragraph: Official. Updates while Claude Code runs in a terminal; last reading 2 min ago.
+    - text: Anthropic's usage endpoint On Experimental
+    - button "Turn off"
+    - paragraph: Fills the gaps when no terminal session is running. It reads your Claude Code login without changing it and asks at most once every 5 minutes. The endpoint is undocumented, so it may stop working without notice. Last asked 5 min ago.
+  - region "Recent five-hour windows":
+    - heading "Recent five-hour windows" [level=2]
+    - table:
+      - rowgroup:
+        - row "Window Highest use API-equivalent cost":
+          - columnheader "Window"
+          - columnheader "Highest use"
+          - columnheader "API-equivalent cost"
+      - rowgroup:
+        - row /Today \d+:\d+ to \d+:\d+, in progress \d+% \$\d+\.\d+/:
+          - rowheader /Today \d+:\d+ to \d+:\d+, in progress/
+          - cell /\d+%/
+          - cell /\$\d+\.\d+/
+        - row /Fri 9 Oct \d+:\d+ to \d+:\d+ \d+% \$\d+\.\d+/:
+          - rowheader /Fri 9 Oct \d+:\d+ to \d+:\d+/
+          - cell /\d+%/
+          - cell /\$\d+\.\d+/
+        - row /Fri 9 Oct \d+:\d+ to \d+:\d+ \d+% \$\d+\.\d+/:
+          - rowheader /Fri 9 Oct \d+:\d+ to \d+:\d+/
+          - cell /\d+%/
+          - cell /\$\d+\.\d+/
+        - row /Thu 8 Oct \d+:\d+ to \d+:\d+ \d+% Over \d+% \$\d+\.\d+ \+ unpriced/:
+          - rowheader /Thu 8 Oct \d+:\d+ to \d+:\d+/
+          - cell /\d+% Over \d+%/:
+            - text: ""
+            - img /Over \d+%/
+          - cell /\$\d+\.\d+ \+ unpriced/
+        - row /Thu 8 Oct \d+:\d+ to \d+:\d+ \d+% \$\d+\.\d+/:
+          - rowheader /Thu 8 Oct \d+:\d+ to \d+:\d+/
+          - cell /\d+%/
+          - cell /\$\d+\.\d+/

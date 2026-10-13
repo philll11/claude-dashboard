@@ -365,8 +365,12 @@ a:hover {
 .segmented button[aria-pressed="true"] {
   background: var(--selected);
   color: var(--selected-ink);
-  outline: var(--selected-outline);
   font-weight: 500;
+}
+
+/* The focus ring wins over the selected outline. */
+.segmented button[aria-pressed="true"]:not(:focus-visible) {
+  outline: var(--selected-outline);
 }
 
 .picker {
@@ -911,6 +915,11 @@ a:hover {
   overflow: visible;
   text-align: center;
   white-space: nowrap;
+}
+
+/* A label along an axis with no room beside the others; it shows again once there is room. */
+.hidden-label {
+  visibility: hidden;
 }
 
 .tooltip {
@@ -1551,23 +1560,42 @@ a.project-link:hover .project-title {
 }
 
 .facts {
-  display: grid;
-  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
-  gap: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin: 0;
 }
 
+/* Each fact's value beside its name, or under it where the panel has no room for both. */
+.facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+}
+
 .facts dt {
+  flex: 0 0 200px;
   color: var(--muted);
 }
 
 .facts dd {
+  flex: 1 1 200px;
+  min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
 }
 
 .facts dd .state-line {
+  display: flex;
+  align-items: flex-start;
   font-size: inherit;
+}
+
+/* As tall as a line of the text, with the icon drawn in its middle, so that the icon stays level
+ * with the first line where the text runs onto more. */
+.facts dd .state-line > svg {
+  flex: none;
+  height: 1lh;
 }
 
 .setting-row {
@@ -1656,6 +1684,10 @@ a.project-link:hover .project-title {
 .switch[aria-checked="true"] {
   border-color: var(--primary);
   background: var(--primary);
+}
+
+/* The focus ring wins over the selected outline. */
+.switch[aria-checked="true"]:not(:focus-visible) {
   outline: var(--selected-outline);
   outline-offset: 1px;
 }
@@ -1675,6 +1707,12 @@ a.project-link:hover .project-title {
 
 .panel.window-card {
   gap: 12px;
+}
+
+/* Under a window's chart, the button that shows its readings as a table instead. */
+.chart-switch {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .window-figure {
@@ -2054,4 +2092,75 @@ a.project-link:hover .project-title {
 
 .dialog.notice .button.primary {
   border-color: transparent;
+}
+
+/* Windows contrast themes. The system's colours replace the dashboard's, which would leave what
+   draws data with colour alone as blank as the page, and what is chosen or on looking like the
+   rest. Data keeps its colours, edged in the system's text colour so that it shows on any
+   background, and what is chosen or on takes the system's colours for a selection. */
+@media (forced-colors: active) {
+  .segment,
+  .meter-fill,
+  .share-fill,
+  .progress-fill,
+  .swatch,
+  .line-swatch {
+    forced-color-adjust: none;
+  }
+
+  .segment {
+    box-shadow: inset 0 0 0 1px CanvasText;
+  }
+
+  .meter,
+  .share,
+  .progress {
+    border: 1px solid CanvasText;
+  }
+
+  .swatch,
+  .line-swatch {
+    outline: 1px solid CanvasText;
+  }
+
+  .guide-line {
+    stroke: CanvasText;
+  }
+
+  .section-links a[aria-current="page"],
+  .shell.desktop .section-links a[aria-current="page"],
+  .segmented button[aria-pressed="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .shell.desktop .section-links a[aria-current="page"] svg {
+    color: HighlightText;
+  }
+
+  .switch {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .switch-thumb {
+    background: CanvasText;
+  }
+
+  .switch[aria-checked="true"] {
+    border-color: Highlight;
+    background: Highlight;
+  }
+
+  .switch[aria-checked="true"] .switch-thumb {
+    background: HighlightText;
+  }
+
+  .section-links a:focus-visible,
+  .segmented button:focus-visible,
+  .switch:focus-visible {
+    outline-color: CanvasText;
+  }
 }

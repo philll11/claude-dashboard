@@ -158,6 +158,7 @@ function Project({
           height={28}
           stroke="var(--bar)"
           label={`Daily cost for ${row.project.name} over ${grouped(costs.length)} days`}
+          format={money}
         />
       </td>
       <td>{grouped(row.sessions)}</td>
@@ -218,6 +219,7 @@ function Others({
           height={28}
           stroke="var(--bar)"
           label={`Daily cost for the other projects over ${grouped(costs.length)} days`}
+          format={money}
         />
       </td>
       <td>{grouped(sum((row) => row.sessions))}</td>

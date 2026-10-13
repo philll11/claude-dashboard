@@ -3,6 +3,7 @@
 
 import { type KeyboardEvent, type PointerEvent, useRef, useState } from "react";
 
+import { useFitting } from "./axis";
 import { moneyTick, niceScale } from "./scale";
 
 export interface SeriesInfo {
@@ -46,6 +47,11 @@ export function StackedColumns({
   const scale = niceScale(Math.max(0, ...totals));
   const count = Math.max(1, columns.length);
   const labelEvery = count > 20 ? 5 : count > 10 ? 2 : 1;
+  const labels = columns.map((column, index) =>
+    index % labelEvery === 0 || index === count - 1 ? column.label : "",
+  );
+  const axis = useRef<HTMLDivElement>(null);
+  const fits = useFitting(axis, labels);
 
   const fromPointer = (event: PointerEvent) => {
     const box = plot.current?.getBoundingClientRect();
@@ -138,13 +144,14 @@ export function StackedColumns({
           })}
         </div>
         <div
+          ref={axis}
           className="column-labels"
           aria-hidden="true"
           style={{ gridTemplateColumns: `repeat(${String(count)}, minmax(0, 1fr))` }}
         >
           {columns.map((column, index) => (
-            <span key={column.key}>
-              {index % labelEvery === 0 || index === count - 1 ? column.label : ""}
+            <span key={column.key} className={fits?.[index] === false ? "hidden-label" : undefined}>
+              {labels[index]}
             </span>
           ))}
         </div>

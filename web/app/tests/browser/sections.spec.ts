@@ -1,5 +1,6 @@
-// Every section in VS Code's Dark Modern, Light Modern and High Contrast themes, and in the desktop
-// app's dark and light themes, against its screenshot and an accessibility check.
+// Every section in VS Code's Dark Modern, Light Modern and both High Contrast themes, and in the
+// desktop app's dark and light themes, against its screenshot and an accessibility check. WebKit,
+// which draws the desktop app on macOS and Linux, checks the desktop app's themes.
 
 import { expect, test } from "./fixtures.ts";
 
@@ -7,12 +8,17 @@ const THEMES = [
   "vscode-dark",
   "vscode-light",
   "vscode-high-contrast",
+  "vscode-high-contrast-light",
   "desktop-dark",
   "desktop-light",
 ] as const;
 
 for (const theme of THEMES) {
   test.describe(theme, () => {
+    test.skip(
+      ({ browserName }) => browserName === "webkit" && !theme.startsWith("desktop"),
+      "VS Code draws its webviews with Chromium",
+    );
     test("overview", async ({ dashboard, page }) => {
       await dashboard.open({ theme });
       await expect(

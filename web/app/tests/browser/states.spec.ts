@@ -1,6 +1,6 @@
 // The states the design asks for: a first read, no history, no plan limits, old plan limits, an
-// expired login, a folder that cannot be read, a read-only history, an import on offer, prices
-// that may be out of date, and new activity being read.
+// expired login, a folder that cannot be read, a read-only history, a history too new to read, an
+// import on offer, prices that may be out of date, and new activity being read.
 
 import { expect, test } from "./fixtures.ts";
 
@@ -67,6 +67,14 @@ test("a history a newer version upgraded is read-only", async ({ dashboard, page
   await dashboard.open({ scenario: "newer-schema" });
   await expect(page.getByText("Read-only until you update")).toBeVisible();
   await dashboard.check("state-newer-schema");
+});
+
+test("a history too new to read says to update", async ({ dashboard, page }) => {
+  await dashboard.open({ scenario: "too-new-schema" });
+  await expect(page.getByRole("alert")).toContainText(
+    "Your history needs a newer claude-dashboard",
+  );
+  await dashboard.check("state-too-new-schema");
 });
 
 test("the claude-usage dashboard's history is offered for import", async ({ dashboard, page }) => {

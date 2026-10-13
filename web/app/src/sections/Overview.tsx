@@ -258,21 +258,21 @@ function Tiles() {
         value={money(todays.cost)}
         note={`${compact(todays.tokens)} tokens · ${compared(todays.cost, yesterdays.cost, "yesterday")}`}
       >
-        <Sparkline values={spark(12)} label="Daily cost over the last 12 days" />
+        <Sparkline values={spark(12)} label="Daily cost over the last 12 days" format={money} />
       </Tile>
       <Tile
         label="This week"
         value={money(week.cost)}
         note={`${compact(week.tokens)} tokens · ${compared(week.cost, lastWeek.cost, "last week")}`}
       >
-        <Sparkline values={spark(18)} label="Daily cost over the last 18 days" />
+        <Sparkline values={spark(18)} label="Daily cost over the last 18 days" format={money} />
       </Tile>
       <Tile
         label="This month"
         value={money(month.cost)}
         note={`${compact(month.tokens)} tokens · month to date`}
       >
-        <Sparkline values={spark(30)} label="Daily cost over the last 30 days" />
+        <Sparkline values={spark(30)} label="Daily cost over the last 30 days" format={money} />
       </Tile>
     </div>
   );

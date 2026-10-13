@@ -16,8 +16,8 @@ import { Meter, ShareBar } from "../charts/small";
 import { useStatus } from "../context";
 import { useRequest, useStore } from "../data";
 import { ago, dayAndTime, dayLabel, duration, local, money, percent } from "../format";
-import { Warning } from "../ui/icons";
-import { Panel, Pill } from "../ui/panels";
+import { ChartIcon, TableIcon, Warning } from "../ui/icons";
+import { Panel, Pill, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { costText, SectionHead } from "./common";
 import { ExportMenu } from "../exports";
@@ -194,6 +194,7 @@ const LEVEL_COLOUR = {
 /** A window's use from its start to now, and where its pace takes it by the reset. */
 function UseChart({ view }: { view: WindowView }) {
   const status = useStatus();
+  const [asTable, setAsTable] = useState(false);
   const { reading, pace, startMs } = view;
   const resetsAtMs = reading.resetsAtMs;
   if (startMs === null || startMs === undefined || !resetsAtMs || view.series.length === 0) {
@@ -231,22 +232,74 @@ function UseChart({ view }: { view: WindowView }) {
       : ""
   }`;
   return (
-    <LineChart
-      lines={[
-        ...(projection
-          ? [{ id: "pace", colour: "var(--spark)", points: projection, projected: true }]
-          : []),
-        { id: "use", colour, points },
-      ]}
-      x={[startMs, resetsAtMs]}
-      yTop={100}
-      height={120}
-      ticks={[{ y: 0 }, { y: 50 }, { y: 100 }]}
-      guides={[{ y: 70, colour: "var(--status-warning)", label: "70%" }]}
-      dots={[{ x: last.x, y: last.y, colour }]}
-      xLabels={xLabels}
-      label={label}
-    />
+    <>
+      {asTable ? (
+        <UseTable view={view} />
+      ) : (
+        <LineChart
+          lines={[
+            ...(projection
+              ? [{ id: "pace", colour: "var(--spark)", points: projection, projected: true }]
+              : []),
+            { id: "use", colour, points },
+          ]}
+          x={[startMs, resetsAtMs]}
+          yTop={100}
+          height={120}
+          ticks={[{ y: 0 }, { y: 50 }, { y: 100 }]}
+          guides={[{ y: 70, colour: "var(--status-warning)", label: "70%" }]}
+          dots={[{ x: last.x, y: last.y, colour }]}
+          xLabels={xLabels}
+          label={label}
+        />
+      )}
+      <div className="chart-switch">
+        <button
+          type="button"
+          className="button small quiet"
+          onClick={() => {
+            setAsTable(!asTable);
+          }}
+        >
+          {asTable ? <ChartIcon /> : <TableIcon />}
+          {asTable ? "Show as chart" : "Show as table"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** The chart's line as a table: the last reading of each hour of the five-hour window, or of each
+ * day of a weekly one, so that the latest reading ends it. */
+function UseTable({ view }: { view: WindowView }) {
+  const status = useStatus();
+  const { reading } = view;
+  const fiveHour = reading.window === "five_hour";
+  const latestMs = view.series.at(-1)?.ms ?? 0;
+  const last = new Map<string, (typeof view.series)[number]>();
+  for (const point of view.series) {
+    const at = local(point.ms, status.timeZone);
+    last.set(fiveHour ? `${at.day} ${at.time.slice(0, 2)}` : at.day, point);
+  }
+  return (
+    <TableScroll label={`${windowName(reading)}, use by ${fiveHour ? "hour" : "day"}`}>
+      <table className="data">
+        <thead>
+          <tr>
+            <th scope="col">Reading</th>
+            <th scope="col">Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...last.values()].map((point) => (
+            <tr key={point.ms}>
+              <th scope="row">{dayAndTime(point.ms, latestMs, status.timeZone)}</th>
+              <td>{percent(point.used)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableScroll>
   );
 }
 
@@ -412,49 +465,51 @@ function RecentWindows({ recent }: { recent: readonly FiveHourWindow[] }) {
       {recent.length === 0 ? (
         <p className="note">No five-hour window has a reading yet.</p>
       ) : (
-        <table className="data">
-          <thead>
-            <tr>
-              <th scope="col">Window</th>
-              <th scope="col" className="left recent-share">
-                Highest use
-              </th>
-              <th scope="col">API-equivalent cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((window) => {
-              const start = local(window.startMs, status.timeZone);
-              const end = local(window.resetsAtMs, status.timeZone);
-              const running = window.startMs <= now && now < window.resetsAtMs;
-              const level =
-                window.highest >= 90 ? "critical" : window.highest >= 70 ? "warning" : "normal";
-              return (
-                <tr key={window.startMs}>
-                  <th scope="row" className="nowrap">
-                    {dayAndTime(window.startMs, now, status.timeZone)} to{" "}
-                    {end.day === start.day
-                      ? end.time
-                      : dayAndTime(window.resetsAtMs, now, status.timeZone)}
-                    {running ? ", in progress" : ""}
-                  </th>
-                  <td className="left">
-                    <span className="share-cell">
-                      <ShareBar share={window.highest / 100} fill={LEVEL_COLOUR[level]} />
-                      <span className="ink-2">{percent(window.highest)}</span>
-                      {level === "critical" && (
-                        <span role="img" aria-label="Over 90%" className="level-icon critical">
-                          <Warning size={13} />
-                        </span>
-                      )}
-                    </span>
-                  </td>
-                  <td>{window.totals.requests > 0 ? costText(window.totals) : money(0)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <TableScroll label="Recent five-hour windows">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col">Window</th>
+                <th scope="col" className="left recent-share nowrap">
+                  Highest use
+                </th>
+                <th scope="col">API-equivalent cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((window) => {
+                const start = local(window.startMs, status.timeZone);
+                const end = local(window.resetsAtMs, status.timeZone);
+                const running = window.startMs <= now && now < window.resetsAtMs;
+                const level =
+                  window.highest >= 90 ? "critical" : window.highest >= 70 ? "warning" : "normal";
+                return (
+                  <tr key={window.startMs}>
+                    <th scope="row" className="nowrap">
+                      {dayAndTime(window.startMs, now, status.timeZone)} to{" "}
+                      {end.day === start.day
+                        ? end.time
+                        : dayAndTime(window.resetsAtMs, now, status.timeZone)}
+                      {running ? ", in progress" : ""}
+                    </th>
+                    <td className="left">
+                      <span className="share-cell">
+                        <ShareBar share={window.highest / 100} fill={LEVEL_COLOUR[level]} />
+                        <span className="ink-2">{percent(window.highest)}</span>
+                        {level === "critical" && (
+                          <span role="img" aria-label="Over 90%" className="level-icon critical">
+                            <Warning size={13} />
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td>{window.totals.requests > 0 ? costText(window.totals) : money(0)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </TableScroll>
       )}
     </Panel>
   );

@@ -320,47 +320,55 @@ function TokensByType({ totals }: { totals: Totals }) {
   const largest = Math.max(...rows.map((row) => row.tokens), 0);
   return (
     <Panel title="Tokens by type">
-      <table className="data">
-        <thead>
-          <tr>
-            <th scope="col">Type</th>
-            <th scope="col" className="left share-column">
-              Share of tokens
-            </th>
-            <th scope="col">Tokens</th>
-            <th scope="col">Cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.name}>
-              <th scope="row">{row.name}</th>
-              <td className="left">
-                <span className="share-cell">
-                  <span
-                    className="bar"
-                    aria-hidden="true"
-                    style={{ width: `${String(largest > 0 ? (row.tokens / largest) * 100 : 0)}%` }}
-                  />
-                  <span className="share-text">
-                    {percent(all > 0 ? (row.tokens / all) * 100 : 0)}
-                  </span>
-                </span>
-              </td>
-              <td>{compact(row.tokens)}</td>
-              <td className="strong">{money(row.cost)}</td>
-            </tr>
-          ))}
-          {totals.webSearchRequests > 0 && (
+      <TableScroll label="Tokens by type">
+        <table className="data">
+          <thead>
             <tr>
-              <th scope="row">Web searches</th>
-              <td className="left" />
-              <td>{grouped(totals.webSearchRequests)}</td>
-              <td className="strong">{money(cost.webSearch)}</td>
+              <th scope="col">Type</th>
+              <th scope="col" className="left share-column nowrap">
+                Share of tokens
+              </th>
+              <th scope="col">Tokens</th>
+              <th scope="col">Cost</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.name}>
+                <th scope="row" className="nowrap">
+                  {row.name}
+                </th>
+                <td className="left">
+                  <span className="share-cell">
+                    <span
+                      className="bar"
+                      aria-hidden="true"
+                      style={{
+                        width: `${String(largest > 0 ? (row.tokens / largest) * 100 : 0)}%`,
+                      }}
+                    />
+                    <span className="share-text">
+                      {percent(all > 0 ? (row.tokens / all) * 100 : 0)}
+                    </span>
+                  </span>
+                </td>
+                <td>{compact(row.tokens)}</td>
+                <td className="strong">{money(row.cost)}</td>
+              </tr>
+            ))}
+            {totals.webSearchRequests > 0 && (
+              <tr>
+                <th scope="row" className="nowrap">
+                  Web searches
+                </th>
+                <td className="left" />
+                <td>{grouped(totals.webSearchRequests)}</td>
+                <td className="strong">{money(cost.webSearch)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </TableScroll>
     </Panel>
   );
 }
@@ -378,40 +386,44 @@ function WhoAndCredits({ detail, timeZone }: { detail: Detail; timeZone: string 
   };
   return (
     <Panel title="Models and subagents">
-      <table className="data">
-        <thead>
-          <tr>
-            <th scope="col">Who</th>
-            <th scope="col" className="left">
-              Model
-            </th>
-            <th scope="col">When</th>
-            <th scope="col">Requests</th>
-            <th scope="col">Cost</th>
-          </tr>
-        </thead>
-        <tbody>
-          {detail.who.map((row) => (
-            <tr key={`${row.subagent ?? "session"}-${row.model.id}`}>
-              <th scope="row" className={row.subagent ? undefined : "strong"}>
-                {row.subagent ? `${row.agentType ?? "Unnamed"} subagent` : "The session"}
+      <TableScroll label="Models and subagents">
+        <table className="data">
+          <thead>
+            <tr>
+              <th scope="col">Who</th>
+              <th scope="col" className="left">
+                Model
               </th>
-              <td className="left">
-                <span className="swatch-name">
-                  <span
-                    className="swatch"
-                    style={{ background: seriesFill(series.get(row.model.id) ?? "other") }}
-                  />
-                  <span className={unpriced(row.model) ? "mono" : undefined}>{row.model.name}</span>
-                </span>
-              </td>
-              <td className="nowrap">{span(row)}</td>
-              <td>{grouped(row.totals.requests)}</td>
-              <td className="strong">{costText(row.totals)}</td>
+              <th scope="col">When</th>
+              <th scope="col">Requests</th>
+              <th scope="col">Cost</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {detail.who.map((row) => (
+              <tr key={`${row.subagent ?? "session"}-${row.model.id}`}>
+                <th scope="row" className={row.subagent ? "nowrap" : "strong nowrap"}>
+                  {row.subagent ? `${row.agentType ?? "Unnamed"} subagent` : "The session"}
+                </th>
+                <td className="left nowrap">
+                  <span className="swatch-name">
+                    <span
+                      className="swatch"
+                      style={{ background: seriesFill(series.get(row.model.id) ?? "other") }}
+                    />
+                    <span className={unpriced(row.model) ? "mono" : undefined}>
+                      {row.model.name}
+                    </span>
+                  </span>
+                </td>
+                <td className="nowrap">{span(row)}</td>
+                <td>{grouped(row.totals.requests)}</td>
+                <td className="strong">{costText(row.totals)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
       <h3 className="minor-heading">Credited to skills and MCP servers</h3>
       <ul className="credits">
         {credits.map(({ kind, credit }) => (

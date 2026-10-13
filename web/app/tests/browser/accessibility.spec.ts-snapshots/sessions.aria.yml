@@ -1,0 +1,196 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - heading "Sessions" [level=1]
+  - text: /\d+ sessions in the last \d+ days · \$\d+\.\d+ API-equivalent Search sessions/
+  - searchbox "Search sessions"
+  - 'button /Date range: Last \d+ days/'
+  - 'button "Project: All projects"'
+  - 'button "Model: All models"'
+  - button "Export"
+  - region "Sessions":
+    - table:
+      - rowgroup:
+        - row "Session Started Duration Models Requests Subagents Tokens API-equivalent cost Claude Code's own figure":
+          - columnheader "Session"
+          - columnheader "Started"
+          - columnheader "Duration"
+          - columnheader "Models"
+          - columnheader "Requests"
+          - columnheader "Subagents"
+          - columnheader "Tokens"
+          - columnheader "API-equivalent cost"
+          - columnheader "Claude Code's own figure"
+      - rowgroup:
+        - row /Review the runbook Running claude-dashboard Today \d+:\d+ \d+ min Opus 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Not ended yet/:
+          - rowheader "Review the runbook Running claude-dashboard":
+            - link "Review the runbook Running claude-dashboard":
+              - /url: "#session-06469a20-0c28-4129-8023-40cc894f31b4"
+          - cell /Today \d+:\d+/
+          - cell /\d+ min/
+          - cell "Opus 5.5":
+            - img "Opus 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Not ended yet"
+        - row /Fix flaky date test website Today \d+:\d+ \d+ min Sonnet 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.3%/:
+          - rowheader "Fix flaky date test website":
+            - link "Fix flaky date test website":
+              - /url: "#session-b198743d-c29d-49b5-8104-0461eaf8b68b"
+          - cell /Today \d+:\d+/
+          - cell /\d+ min/
+          - cell "Sonnet 5.5":
+            - img "Sonnet 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.3%"
+        - row /Design the ingest lock claude-dashboard Today \d+:\d+ 1 h \d+ min Opus 5\.5 \d+ 1 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.1%/:
+          - rowheader "Design the ingest lock claude-dashboard":
+            - link "Design the ingest lock claude-dashboard":
+              - /url: "#session-ed0a7cb6-186f-4770-861f-a474c44a47ce"
+          - cell /Today \d+:\d+/
+          - cell /1 h \d+ min/
+          - cell "Opus 5.5":
+            - img "Opus 5.5"
+          - cell /\d+/
+          - cell "1"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.1%"
+        - row /Morning triage notes Today \d+:\d+ \d+ min Haiku 5\.5 9 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.6%/:
+          - rowheader "Morning triage notes":
+            - link "Morning triage notes":
+              - /url: "#session-adf29ebb-0df2-4d5c-8837-d21abe859ecc"
+          - cell /Today \d+:\d+/
+          - cell /\d+ min/
+          - cell "Haiku 5.5":
+            - img "Haiku 5.5"
+          - cell "9"
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.6%"
+        - row /Price table for Claude 5 models claude-dashboard Today \d+:\d+ 2 h \d+ min Fable 5\.1, Haiku 5\.5 \d+ 2 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.1%/:
+          - rowheader "Price table for Claude 5 models claude-dashboard":
+            - link "Price table for Claude 5 models claude-dashboard":
+              - /url: "#session-18583610-e6bb-4b40-8f2b-d5e73d7b8083"
+          - cell /Today \d+:\d+/
+          - cell /2 h \d+ min/
+          - cell "Fable 5.1, Haiku 5.5":
+            - img "Fable 5.1, Haiku 5.5"
+          - cell /\d+/
+          - cell "2"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.1%"
+        - row /Draft the release notes website Fri 9 Oct \d+:\d+ \d+ min Haiku 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.6%/:
+          - rowheader "Draft the release notes website":
+            - link "Draft the release notes website":
+              - /url: "#session-46d47e83-b9af-4c39-809d-932250472b5d"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /\d+ min/
+          - cell "Haiku 5.5":
+            - img "Haiku 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.6%"
+        - row /Rate limiter for the gateway api-gateway Fri 9 Oct \d+:\d+ 3 h \d+ min Opus 5\.5, Sonnet 5\.5, Haiku 5\.5 \d+ 4 [\d,.]+[bkmBKM]+ \$\d+\.\d+ 6% lower, prices may be out of date/:
+          - rowheader "Rate limiter for the gateway api-gateway":
+            - link "Rate limiter for the gateway api-gateway":
+              - /url: "#session-df44ff3a-4b56-4bf0-89ca-9ea2dc5f584e"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /3 h \d+ min/
+          - cell "Opus 5.5, Sonnet 5.5, Haiku 5.5":
+            - img "Opus 5.5, Sonnet 5.5, Haiku 5.5"
+          - cell /\d+/
+          - cell "4"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "6% lower, prices may be out of date"
+        - row /Upgrade the test runner claude-dashboard Fri 9 Oct \d+:\d+ \d+ min Haiku 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.3%/:
+          - rowheader "Upgrade the test runner claude-dashboard":
+            - link "Upgrade the test runner claude-dashboard":
+              - /url: "#session-fec885e6-09d1-4e20-8be4-5643f8199fab"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /\d+ min/
+          - cell "Haiku 5.5":
+            - img "Haiku 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.3%"
+        - row /Terraform module for the queue infra Fri 9 Oct \d+:\d+ 1 h \d+ min Sonnet 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.4%/:
+          - rowheader "Terraform module for the queue infra":
+            - link "Terraform module for the queue infra":
+              - /url: "#session-05f6268c-1614-4a06-884d-93604b6302c2"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /1 h \d+ min/
+          - cell "Sonnet 5.5":
+            - img "Sonnet 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.4%"
+        - row /Plan the next sprint blog Fri 9 Oct \d+:\d+ 1 h \d+ min Opus 5\.5 \d+ 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.6%/:
+          - rowheader "Plan the next sprint blog":
+            - link "Plan the next sprint blog":
+              - /url: "#session-27943324-baac-4a61-827a-274cfdb55b6f"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /1 h \d+ min/
+          - cell "Opus 5.5":
+            - img "Opus 5.5"
+          - cell /\d+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.6%"
+        - row /Rewrite the pricing page website Fri 9 Oct \d+:\d+ 2 h \d+ min Fable 5\.1, Opus 5\.5 \d+ 2 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.2%/:
+          - rowheader "Rewrite the pricing page website":
+            - link "Rewrite the pricing page website":
+              - /url: "#session-f89bad6b-a8c8-4795-856e-9ebde39b7eb1"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /2 h \d+ min/
+          - cell "Fable 5.1, Opus 5.5":
+            - img "Fable 5.1, Opus 5.5"
+          - cell /\d+/
+          - cell "2"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.2%"
+        - row /Tidy the logging setup website Fri 9 Oct \d+:\d+ 1 h \d+ min Sonnet 5\.5 5 0 [\d,.]+[bkmBKM]+ \$\d+\.\d+ Within 0\.1%/:
+          - rowheader "Tidy the logging setup website":
+            - link "Tidy the logging setup website":
+              - /url: "#session-8058c099-41a0-4f63-87aa-76939390c83c"
+          - cell /Fri 9 Oct \d+:\d+/
+          - cell /1 h \d+ min/
+          - cell "Sonnet 5.5":
+            - img "Sonnet 5.5"
+          - cell "5"
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell "Within 0.1%"
+    - text: /Showing 1 to \d+ of \d+ sessions/
+    - button "Previous" [disabled]
+    - button "Next"
+  - paragraph: "\"Claude Code's own figure\" compares our estimate with the session cost Claude Code records itself, which it writes as each of its processes ends. A figure that counts other requests than the history holds is not compared."

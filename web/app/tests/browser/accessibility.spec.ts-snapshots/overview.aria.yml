@@ -1,0 +1,121 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - heading "Overview" [level=1]
+  - group "Date range":
+    - button "Today"
+    - button "7 days"
+    - button /\d+ days/ [pressed]
+    - button "This month"
+    - button "All time"
+  - 'button "Project: All projects"'
+  - 'button "Model: All models"'
+  - button "Export"
+  - region "Plan limits":
+    - heading "Plan limits" [level=2]
+    - text: /Official · status line · 2 min ago Five-hour window \d+%/
+    - meter /Five-hour window, \d+% used/
+    - text: /Resets \d+:\d+, in 2 h \d+ min Weekly, all models \d+%/
+    - meter /Weekly window, \d+% used/
+    - text: /Over \d+% Resets Thu \d+ Oct, \d+:\d+ Weekly, Fable \d+%/
+    - meter /Weekly Fable window, \d+% used/
+    - text: /Resets Thu \d+ Oct, \d+:\d+/
+  - region "Today":
+    - heading "Today" [level=2]
+    - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · −\d+% on yesterday/
+    - img /Daily cost over the last \d+ days/
+  - region "This week":
+    - heading "This week" [level=2]
+    - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · \+\d+% on last week/
+    - img /Daily cost over the last \d+ days/
+  - region "This month":
+    - heading "This month" [level=2]
+    - text: /\$\d+\.\d+ [\d,.]+[bkmBKM]+ tokens · month to date/
+    - img /Daily cost over the last \d+ days/
+  - region "API-equivalent cost per day":
+    - heading "API-equivalent cost per day" [level=2]
+    - text: /Estimate at Anthropic's list prices · last \d+ days/
+    - button "Show as table"
+    - list "Legend":
+      - listitem: /Fable 5\.1 \$\d+\.\d+/
+      - listitem: /Opus 5\.5 \$\d+\.\d+/
+      - listitem: /Sonnet 5\.5 \$\d+\.\d+/
+      - listitem: /Haiku 5\.5 \$\d+\.\d+/
+    - 'group /API-equivalent cost per day by model, last \d+ days: \$\d+\.\d+ in all, highest \$\d+\.\d+ on Mon \d+ Sep\. The left and right arrow keys read each column\./'
+  - region "Top projects":
+    - heading "Top projects" [level=2]
+    - text: /API-equivalent cost · last \d+ days/
+    - list:
+      - listitem: /claude-dashboard \$\d+\.\d+/
+      - listitem: /api-gateway \$\d+\.\d+/
+      - listitem: /website \$\d+\.\d+/
+      - listitem: /infra \$\d+\.\d+/
+      - listitem: /notes \$\d+\.\d+/
+      - listitem: /Other projects \$\d+\.\d+/
+  - region /Models · last \d+ days/:
+    - heading /Models · last \d+ days/ [level=2]
+    - text: /\d+% of input read from cache/
+    - table:
+      - rowgroup:
+        - row "Model Requests Input Output Cache writes Cache reads API-equivalent cost":
+          - columnheader "Model"
+          - columnheader "Requests"
+          - columnheader "Input"
+          - columnheader "Output"
+          - columnheader "Cache writes"
+          - columnheader "Cache reads"
+          - columnheader "API-equivalent cost"
+      - rowgroup:
+        - row /Opus 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Opus 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Fable 5\.1 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Fable 5.1"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Sonnet 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Sonnet 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /Haiku 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ \$\d+\.\d+/:
+          - rowheader "Haiku 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+        - row /glm-4\.6 \d+ \d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ Unpriced/:
+          - rowheader "glm-4.6"
+          - cell /\d+/
+          - cell /\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "Unpriced"
+    - text: /Estimate Price table of \d+ October \d+ · within 0\.4% of Claude Code's own session costs/

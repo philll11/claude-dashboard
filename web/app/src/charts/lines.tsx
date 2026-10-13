@@ -3,6 +3,8 @@
 
 import { type KeyboardEvent, type PointerEvent, type ReactNode, useRef, useState } from "react";
 
+import { useFitting } from "./axis";
+
 export interface Line {
   id: string;
   /** A CSS colour. */
@@ -69,6 +71,11 @@ export function LineChart({
 }) {
   const [active, setActive] = useState<number | null>(null);
   const plot = useRef<HTMLDivElement>(null);
+  const axis = useRef<HTMLDivElement>(null);
+  const fits = useFitting(
+    axis,
+    xLabels.map((tick) => tick.text),
+  );
   const [x0, x1] = x;
   const toX = (value: number) => share(value, x0, x1) * WIDTH;
   const toY = (value: number) => height - share(value, 0, yTop) * height;
@@ -220,14 +227,15 @@ export function LineChart({
             )}
           </div>
         ))}
-        <div className="axis-times" aria-hidden="true">
+        <div ref={axis} className="axis-times" aria-hidden="true">
           {xLabels.map((tick, index) => {
             const place = share(tick.x, x0, x1) * 100;
             const edge = index === 0 && place < 1 ? "start" : place > 99 ? "end" : "middle";
+            const hidden = fits?.[index] === false;
             return (
               <span
                 key={`${tick.text}-${String(index)}`}
-                className={edge}
+                className={hidden ? `${edge} hidden-label` : edge}
                 style={edge === "end" ? { right: 0 } : { left: `${String(place)}%` }}
               >
                 {tick.text}

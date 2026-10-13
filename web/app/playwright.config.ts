@@ -1,8 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The built dashboard, served by Vite's preview with the bridge to the real server, in Chromium:
-// the engine of VS Code's webviews. Screenshots are compared with baselines made in the
-// Playwright container that CI also runs in, so that fonts and rendering match.
+// the engine of VS Code's webviews and of the desktop app on Windows. WebKit, the engine of the
+// desktop app on macOS and Linux, checks every section in the desktop app's themes. Screenshots are
+// compared with baselines made in the Playwright container that CI also runs in, so that fonts and
+// rendering match.
 export default defineConfig({
   testDir: "tests/browser",
   globalSetup: "./tests/browser/warm.ts",
@@ -26,6 +28,11 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
+    },
+    {
+      name: "webkit",
+      testMatch: "sections.spec.ts",
+      use: { ...devices["Desktop Safari"], viewport: { width: 1280, height: 900 } },
     },
   ],
   webServer: {

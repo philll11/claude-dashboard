@@ -1,0 +1,144 @@
+- navigation "Dashboard sections":
+  - link "Overview":
+    - /url: "#overview"
+  - link "Sessions":
+    - /url: "#sessions"
+  - link "Projects":
+    - /url: "#projects"
+  - link "Models":
+    - /url: "#models"
+  - link "Limits":
+    - /url: "#limits"
+  - link "Settings":
+    - /url: "#settings"
+  - text: /History since \d+ July \d+ · read just now/
+- main:
+  - heading "Models" [level=1]
+  - text: /5 models in the last \d+ days · \$\d+\.\d+ API-equivalent/
+  - 'button /Date range: Last \d+ days/'
+  - 'button "Project: All projects"'
+  - button "Export"
+  - region "API-equivalent cost per day, by model":
+    - heading "API-equivalent cost per day, by model" [level=2]
+    - text: /Estimate at Anthropic's list prices · last \d+ days/
+    - button "Show as table"
+    - list "Legend":
+      - listitem: /Fable 5\.1 \$\d+\.\d+/
+      - listitem: /Opus 5\.5 \$\d+\.\d+/
+      - listitem: /Sonnet 5\.5 \$\d+\.\d+/
+      - listitem: /Haiku 5\.5 \$\d+\.\d+/
+    - 'group /4 lines of API-equivalent cost per day, last \d+ days: Fable 5\.1 \$\d+\.\d+, Opus 5\.5 \$\d+\.\d+, Sonnet 5\.5 \$\d+\.\d+, Haiku 5\.5 \$\d+\.\d+\. The left and right arrow keys read along it\./'
+  - region /Tokens and cost · last \d+ days/:
+    - heading /Tokens and cost · last \d+ days/ [level=2]
+    - table:
+      - rowgroup:
+        - row "Model Requests Input Output Cache writes, 5 min Cache writes, 1 h Cache reads Fast mode API-equivalent cost":
+          - columnheader "Model"
+          - columnheader "Requests"
+          - columnheader "Input"
+          - columnheader "Output"
+          - columnheader "Cache writes, 5 min"
+          - columnheader "Cache writes, 1 h"
+          - columnheader "Cache reads"
+          - columnheader "Fast mode"
+          - columnheader "API-equivalent cost"
+      - rowgroup:
+        - row /Opus 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ 5% \$\d+\.\d+/:
+          - rowheader "Opus 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "5%"
+          - cell /\$\d+\.\d+/
+        - row /Fable 5\.1 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ 0% \$\d+\.\d+/:
+          - rowheader "Fable 5.1"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "0%"
+          - cell /\$\d+\.\d+/
+        - row /Sonnet 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ 0% \$\d+\.\d+/:
+          - rowheader "Sonnet 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "0%"
+          - cell /\$\d+\.\d+/
+        - row /Haiku 5\.5 \d+,\d+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ 0% \$\d+\.\d+/:
+          - rowheader "Haiku 5.5"
+          - cell /\d+,\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "0%"
+          - cell /\$\d+\.\d+/
+        - row /glm-4\.6 \d+ \d+ [\d,.]+[bkmBKM]+ 0 [\d,.]+[bkmBKM]+ [\d,.]+[bkmBKM]+ 0% Unpriced/:
+          - rowheader "glm-4.6"
+          - cell /\d+/
+          - cell /\d+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "0"
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell /[\d,.]+[bkmBKM]+/
+          - cell "0%"
+          - cell "Unpriced"
+  - region "Prices used · US dollars per million tokens":
+    - heading "Prices used · US dollars per million tokens" [level=2]
+    - text: /Price table of \d+ October \d+, from Anthropic's pricing page/
+    - table:
+      - rowgroup:
+        - row "Model Input Output Cache write, 5 min Cache write, 1 h Cache read":
+          - columnheader "Model"
+          - columnheader "Input"
+          - columnheader "Output"
+          - columnheader "Cache write, 5 min"
+          - columnheader "Cache write, 1 h"
+          - columnheader "Cache read"
+      - rowgroup:
+        - row /Opus 5\.5 \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+/:
+          - rowheader "Opus 5.5"
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+        - row /Fable 5\.1 \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+/:
+          - rowheader "Fable 5.1"
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+        - row /Sonnet 5\.5 \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+/:
+          - rowheader "Sonnet 5.5"
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+        - row /Haiku 5\.5, prompts up to [\d,.]+[bkmBKM]+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+/:
+          - rowheader /Haiku 5\.5, prompts up to [\d,.]+[bkmBKM]+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+        - row /Haiku 5\.5, longer prompts \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+ \$\d+\.\d+/:
+          - rowheader "Haiku 5.5, longer prompts"
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+          - cell /\$\d+\.\d+/
+    - paragraph: Fast mode, US-only inference (1.1 times) and web search are priced from the same table. A model missing from it shows as unpriced, never as free; Settings can check this project's repository for a newer table once a day.

@@ -2,16 +2,20 @@
 
 import type { Level } from "@claude-dashboard/protocol";
 
-/** A line of recent values ending in a dot, `width` by `height` pixels. */
+/** A line of recent values ending in a dot, `width` by `height` pixels, which tells a screen reader
+ * its lowest, highest and last value. */
 export function Sparkline({
   values,
   label,
+  format,
   width = 96,
   height = 32,
   stroke = "var(--spark)",
 }: {
   values: readonly number[];
   label: string;
+  /** How a value reads, such as `$5.10`. */
+  format: (value: number) => string;
   width?: number;
   height?: number;
   /** The line's colour. */
@@ -24,10 +28,14 @@ export function Sparkline({
     y: height - 2 - (max > 0 ? (value / max) * (height - 4) : 0),
   }));
   const last = points.at(-1);
+  const spoken =
+    values.length === 0
+      ? label
+      : `${label}: lowest ${format(Math.min(...values))}, highest ${format(max)}, last ${format(values.at(-1) ?? 0)}`;
   return (
     <svg
       role="img"
-      aria-label={label}
+      aria-label={spoken}
       className="sparkline"
       width={width}
       height={height}
