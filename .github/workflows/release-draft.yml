@@ -5,8 +5,8 @@ name: Release draft
 # release builds attach their files to the draft, and dist's host job attaches the program's and
 # publishes it once every build has succeeded (create-release = false in dist-workspace.toml), so a
 # release goes public only when it is complete (docs/adr/0012-releases-go-public-complete.md).
-# The release workflow calls this as one of dist's local-artifacts-jobs; on a pull request it makes
-# nothing.
+# The release workflow calls this as one of dist's local-artifacts-jobs. On a pull request the job
+# runs and makes nothing, so that dist's global build, which waits for it, runs there too.
 on:
   workflow_call:
     inputs:
@@ -21,13 +21,13 @@ permissions:
 jobs:
   draft:
     name: Draft the release
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       # The plan's values reach the shell only through the environment, never inside a script.
       - name: Make the draft, or bring an existing draft up to date
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ fromJson(inputs.plan).announcement_tag }}
