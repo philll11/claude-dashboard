@@ -30,6 +30,7 @@ The binaries are not signed.
 - Closing the desktop app's window to the notification area in its first five seconds keeps it closed, and an update found at start keeps the window hidden while its installer starts.
 - Settings puts each value under its name where the window is narrow, and charts leave out the dates that would overlap on a narrow chart.
 - A read that finds nothing new leaves out the folders that cannot hold transcripts, such as tool results.
+- In VS Code, an export can start as soon as the one before it has finished.
 
 ### Performance
 
