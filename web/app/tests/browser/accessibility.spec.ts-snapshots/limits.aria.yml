@@ -21,13 +21,15 @@
     - text: /\d+:\d+ to \d+:\d+ \d+% used · resets in 2 h \d+ min/
     - meter /Five-hour window, \d+% used/
     - paragraph: /At the pace of this window so far, about \d+% when it resets \(estimate\)/
-    - img /Five-hour window use rises from 0% at Today \d+:\d+ to \d+% at Today \d+:\d+\. At the same pace it reaches about \d+% when it resets\./
+    - img /Five-hour window use rises from 0% today at \d+:\d+ to \d+% today at \d+:\d+\. At the same pace it reaches about \d+% when it resets\./
+    - button "Show as table"
   - region "Weekly, all models":
     - heading "Weekly, all models" [level=2]
     - text: /Thu 8 Oct \d+:\d+ to Thu \d+ Oct \d+:\d+ \d+% Over \d+% · resets in 5 days/
     - meter /Weekly window, \d+% used/
     - paragraph: /At the pace of the last \d+ hours, you reach the limit on Sunday around \d+:\d+ \(estimate\)/
-    - img /Weekly, all models use rises from 0% at Thu 8 Oct \d+:\d+ to \d+% at Today \d+:\d+\. At the same pace it reaches \d+% at Sun \d+ Oct \d+:\d+\./
+    - img /Weekly, all models use rises from 0% on 8 October \d+ at \d+:\d+ to \d+% today at \d+:\d+\. At the same pace it reaches \d+% on Sunday around \d+:\d+\./
+    - button "Show as table"
   - region "Weekly, Fable":
     - heading "Weekly, Fable" [level=2]
     - text: /Same week \d+% used · resets in 5 days/

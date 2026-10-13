@@ -15,7 +15,7 @@ import { LineChart } from "../charts/lines";
 import { Meter, ShareBar } from "../charts/small";
 import { useStatus } from "../context";
 import { useRequest, useStore } from "../data";
-import { ago, dayAndTime, dayLabel, duration, local, money, percent } from "../format";
+import { ago, dayAndTime, dayLabel, dayWordsAt, duration, local, money, percent } from "../format";
 import { ChartIcon, TableIcon, Warning } from "../ui/icons";
 import { Panel, Pill, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
@@ -148,26 +148,22 @@ function PaceLine({ view }: { view: WindowView }) {
   if (!pace) return null;
   const since =
     Math.abs(reading.observedMs - pace.sinceMs - DAY) < 2 * HOUR
-      ? "the last 24 hours"
+      ? "of the last 24 hours"
       : reading.window === "five_hour"
-        ? "this window so far"
-        : `since ${dayAndTime(pace.sinceMs, now, status.timeZone)}`;
+        ? "of this window so far"
+        : `since ${dayWordsAt(pace.sinceMs, now, status.timeZone)}`;
   if (pace.limitReachedMs) {
-    const at = local(pace.limitReachedMs, status.timeZone);
-    const today = local(now, status.timeZone).day;
-    const when =
-      at.day === today
-        ? `around ${roundedTime(pace.limitReachedMs, status.timeZone)}`
-        : `on ${weekdayName(at.day)} around ${roundedTime(pace.limitReachedMs, status.timeZone)}`;
     return (
       <p className="window-note">
-        At the pace of {since}, you reach the limit {when} <span className="ink-2">(estimate)</span>
+        At the pace {since}, you reach the limit{" "}
+        {limitWhen(pace.limitReachedMs, now, status.timeZone)}{" "}
+        <span className="ink-2">(estimate)</span>
       </p>
     );
   }
   return (
     <p className="window-note">
-      At the pace of {since}, about {percent(pace.atReset)} when it resets{" "}
+      At the pace {since}, about {percent(pace.atReset)} when it resets{" "}
       <span className="ink-2">(estimate)</span>
     </p>
   );
@@ -183,6 +179,16 @@ function weekdayName(day: string): string {
 function roundedTime(ms: number, timeZone: string): string {
   const quarter = 15 * 60_000;
   return local(Math.round(ms / quarter) * quarter, timeZone).time;
+}
+
+/** When a window's limit is reached at its pace, for a sentence: `around 16:00`, or `on Sunday
+ * around 16:00` after today. */
+function limitWhen(ms: number, nowMs: number, timeZone: string): string {
+  const day = local(ms, timeZone).day;
+  const time = roundedTime(ms, timeZone);
+  return day === local(nowMs, timeZone).day
+    ? `around ${time}`
+    : `on ${weekdayName(day)} around ${time}`;
 }
 
 const LEVEL_COLOUR = {
@@ -222,12 +228,12 @@ function UseChart({ view }: { view: WindowView }) {
         const x = startMs + ((resetsAtMs - startMs) * index) / 4;
         return { x, text: dayLabel(local(x, status.timeZone).day).slice(0, 3) };
       });
-  const label = `${windowName(reading)} use rises from 0% at ${dayAndTime(startMs, last.x, status.timeZone)} to ${percent(
+  const label = `${windowName(reading)} use rises from 0% ${dayWordsAt(startMs, last.x, status.timeZone)} to ${percent(
     last.y,
-  )} at ${dayAndTime(last.x, last.x, status.timeZone)}.${
+  )} ${dayWordsAt(last.x, last.x, status.timeZone)}.${
     projection
       ? pace?.limitReachedMs
-        ? ` At the same pace it reaches 100% at ${dayAndTime(pace.limitReachedMs, last.x, status.timeZone)}.`
+        ? ` At the same pace it reaches 100% ${limitWhen(pace.limitReachedMs, last.x, status.timeZone)}.`
         : ` At the same pace it reaches about ${percent(pace?.atReset ?? 0)} when it resets.`
       : ""
   }`;
