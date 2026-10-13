@@ -5,12 +5,14 @@
 //
 // Node loads this file as it is, so it keeps to TypeScript that only needs its types removed.
 
-import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { NOW_MS, type Options, type Synthetic, TIME_ZONE, writeClaudeFolder } from "./synthetic.ts";
 
@@ -26,7 +28,8 @@ export interface Prepared {
   /** The Claude Code folder. */
   root: string;
   history: string;
-  /** A copy of claude-dashboard, which a build can replace the original of meanwhile. */
+  /** This process's copy of claude-dashboard, which a build can replace the original of
+   * meanwhile. */
   program: string;
   synthetic: Synthetic;
   /** The environment claude-dashboard runs in. */
@@ -107,20 +110,44 @@ function seed(history: string, synthetic: Synthetic): void {
     for (const folder of synthetic.folders) addFolder.run(folder, NOW_MS);
     if (synthetic.schema !== null)
       database.exec(`PRAGMA user_version = ${String(synthetic.schema)}`);
+    if (synthetic.readableFrom !== null)
+      database.exec(`UPDATE compatibility SET readable_from = ${String(synthetic.readableFrom)}`);
   } finally {
     database.close();
   }
 }
 
-/** Writes the Claude Code folder `setup` asks for and reads it into a new history. Remove
- * `folder` once done. */
-export function prepare(setup: Setup = {}): Prepared {
+const run = promisify(execFile);
+
+/** This process's copy of claude-dashboard, made by the first folder prepared and removed as the
+ * process ends. */
+let copied: Promise<string> | undefined;
+function programCopy(): Promise<string> {
+  copied ??= (async () => {
+    const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
+    process.once("exit", () => {
+      try {
+        rmSync(folder, { recursive: true, force: true });
+      } catch {
+        // On Windows a program still running from it holds it; a later sweep removes it.
+      }
+    });
+    const program = join(folder, basename(binary()));
+    await copyFile(binary(), program);
+    return program;
+  })();
+  return copied;
+}
+
+/** Writes the Claude Code folder `setup` asks for and reads it into a new history, leaving the
+ * process free meanwhile, as a server answering other requests needs. Remove `folder` once done. */
+export async function prepare(setup: Setup = {}): Promise<Prepared> {
   sweep();
   const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
   const root = join(folder, ".claude");
   const history = join(folder, "history.sqlite");
   const synthetic: Synthetic = setup.empty
-    ? { readings: [], endpoint: null, folders: [], schema: null }
+    ? { readings: [], endpoint: null, folders: [], schema: null, readableFrom: null }
     : writeClaudeFolder(root, setup.options);
   const env = {
     ...process.env,
@@ -130,11 +157,15 @@ export function prepare(setup: Setup = {}): Prepared {
     TZ: TIME_ZONE,
     NO_COLOR: "1",
   };
-  const program = join(folder, basename(binary()));
-  copyFileSync(binary(), program);
-  const read = spawnSync(program, ["daily", "--json"], { env, encoding: "utf8" });
-  if (read.status !== 0) {
-    throw new Error(`claude-dashboard could not read the synthetic folder: ${read.stderr}`);
+  const program = await programCopy();
+  try {
+    await run(program, ["daily", "--json"], { env, maxBuffer: 64 * 1024 * 1024 });
+  } catch (error) {
+    const { stderr } = error as { stderr?: unknown };
+    throw new Error(
+      `claude-dashboard could not read the synthetic folder: ${typeof stderr === "string" && stderr ? stderr : String(error)}`,
+      { cause: error },
+    );
   }
   seed(history, synthetic);
   return { folder, root, history, program, synthetic, env };

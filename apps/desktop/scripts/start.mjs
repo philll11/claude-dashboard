@@ -52,7 +52,7 @@ function built(target) {
     : join(release, `claude-dashboard-desktop${process.platform === "win32" ? ".exe" : ""}`);
 }
 
-const prepared = prepare();
+const prepared = await prepare();
 const installed =
   values.installer && install(resolve(values.installer), join(prepared.folder, "app"));
 const app = installed ? installed.app : values.app ? program(values.app) : built(values.target);

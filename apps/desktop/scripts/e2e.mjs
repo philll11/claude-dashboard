@@ -85,7 +85,7 @@ async function edgeDriver() {
 }
 
 const nativeDriver = values["native-driver"] ?? (windows ? await edgeDriver() : undefined);
-const prepared = prepare();
+const prepared = await prepare();
 // The tests end the app by closing its window, so it quits then rather than keep running in the
 // notification area; the one test of keeping it running switches that on and off again itself.
 const history = new DatabaseSync(prepared.history);

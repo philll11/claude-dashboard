@@ -36,6 +36,8 @@ export interface Scenario {
   empty?: boolean;
   /** Changes the server's answers, for a state that real data cannot hold still for a test. */
   patch?: (method: string, result: unknown) => unknown;
+  /** The server cannot read the history, so it answers every request with why. */
+  unreadable?: boolean;
 }
 
 type Listener = (method: string, params: unknown) => void;
@@ -68,10 +70,10 @@ export class Bridge {
 
   /** Writes the scenario's Claude Code folder, reads it into a new history, and starts a server
    * on them. */
-  static start(scenario: Scenario = {}): Promise<Bridge> {
+  static async start(scenario: Scenario = {}): Promise<Bridge> {
     const setup: Setup = { empty: scenario.empty ?? false };
     if (scenario.options) setup.options = scenario.options;
-    const { folder, root, history, program, synthetic, env } = prepare(setup);
+    const { folder, root, history, program, synthetic, env } = await prepare(setup);
 
     const server = spawn(program, ["serve", "--stdio"], {
       env,
@@ -112,7 +114,7 @@ export class Bridge {
       scenario,
       shown,
     );
-    return Promise.resolve(bridge);
+    return bridge;
   }
 
   async request(method: string, params: unknown): Promise<unknown> {
