@@ -78,10 +78,11 @@ jobs:
         shell: bash
     steps:
       # The tag reaches the shell only through the environment, never inside a script.
+      # GitHub reads a step's env before its if, so a run by hand reads an empty plan, not none.
       - name: Choose the release from dist's plan
         if: inputs.plan != ''
         env:
-          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
         run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
       - name: Choose the release asked for
         if: inputs.tag != ''
@@ -160,7 +161,7 @@ jobs:
       - name: Choose the release from dist's plan
         if: inputs.plan != ''
         env:
-          PLANNED_TAG: ${{ fromJson(inputs.plan).announcement_tag }}
+          PLANNED_TAG: ${{ fromJson(inputs.plan || '{}').announcement_tag }}
         run: echo "TAG=$PLANNED_TAG" >> "$GITHUB_ENV"
       - name: Choose the release asked for
         if: inputs.tag != ''
