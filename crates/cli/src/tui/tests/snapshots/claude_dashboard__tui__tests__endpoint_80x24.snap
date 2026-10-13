@@ -25,7 +25,7 @@ expression: shown(&state)
 20 ││ Usage endpoint  ▲ open Claude Code to sign in again                          ││
 21 │└──────────────────────────────────────────────────────────────────────────────┘│
 22 │                                                                                │
-23 │ q quit   ←→ sections   t table view   ? help                     Read just now │
+23 │ q quit   ←→ sections   t table view   e export   ? help          Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc │
@@ -51,7 +51,7 @@ styles
 20 │d aaaaaaaaaaaaaa  iieeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee                          d│
 21 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 22 │                                                                                │
-23 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbb                     bbbbbbbbbbbbb │
+23 │ k bbbb   kk bbbbbbbb   k bbbbbbbbbb   k bbbbbb   k bbbb          bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

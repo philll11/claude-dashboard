@@ -59,7 +59,7 @@ fn record(app: &App, input: &StatusLineInput) -> Option<f64> {
         let _ = ingest::ingest_transcripts(&mut history, &transcripts);
     }
     let day = app.now_zoned().date();
-    let models = report::by_model(&history, app.prices, Range::days(day, day, &app.zone)).ok()?;
+    let models = report::by_model(&history, &app.prices, Range::days(day, day, &app.zone)).ok()?;
     Some(models.iter().map(|model| model.totals.cost.total()).sum())
 }
 

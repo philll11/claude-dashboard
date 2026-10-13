@@ -31,7 +31,7 @@ expression: shown(&state)
 26 ││ ■ Sonnet 5.5                                   17.5M          $46.80         16%                 ││
 27 ││ ■ Haiku 5.5                                     2.9M           $7.73          3%                 ││
 28 │└──────────────────────────────────────────────────────────────────────────────────────────────────┘│
-29 │ q quit   ←→ sections   t table view   ? help                                         Read just now │
+29 │ q quit   ←→ sections   t table view   e export   ? help                              Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc cccccccccc cccccccc cccccccc                     │
@@ -63,7 +63,7 @@ styles
 26 │d j eeeeeeeeee                                   eeeee          aaaaaa         eee                 d│
 27 │d k eeeeeeeee                                     eeee           aaaaa          ee                 d│
 28 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-29 │ n cccc   nn cccccccc   n cccccccccc   n cccc                                         ccccccccccccc │
+29 │ n cccc   nn cccccccc   n cccccccccc   n cccccc   n cccc                              ccccccccccccc │
 
 a = #f0f2f5 bold
 b = #0b0d10 on #5cc8e8 bold

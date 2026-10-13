@@ -13,6 +13,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, globSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -84,9 +85,17 @@ async function edgeDriver() {
 
 const nativeDriver = values["native-driver"] ?? (windows ? await edgeDriver() : undefined);
 const prepared = prepare();
+// The tests end the app by closing its window, so it quits then rather than keep running in the
+// notification area; the one test of keeping it running switches that on and off again itself.
+const history = new DatabaseSync(prepared.history);
+history.prepare("INSERT INTO settings (name, value) VALUES ('keep_running', 'off')").run();
+history.close();
 const screenshots = join(root, "out/screenshots");
 rmSync(screenshots, { recursive: true, force: true });
 mkdirSync(screenshots, { recursive: true });
+// The app saves exports here without its save dialog, which a test cannot answer.
+const exportFolder = join(prepared.folder, "exports");
+mkdirSync(exportFolder);
 
 /** Runs an NSIS installer or uninstaller, which takes a folder last and unquoted, spaces and all. */
 function nsis(program, ...options) {
@@ -139,7 +148,13 @@ try {
     "tauri-driver",
     ["--port", "4444", ...(nativeDriver ? ["--native-driver", nativeDriver] : [])],
     {
-      env: { ...prepared.env, TEMP: temporary, TMP: temporary, TMPDIR: temporary },
+      env: {
+        ...prepared.env,
+        CLAUDE_DASHBOARD_EXPORT_TO: exportFolder,
+        TEMP: temporary,
+        TMP: temporary,
+        TMPDIR: temporary,
+      },
       stdio: ["ignore", "inherit", "pipe"],
     },
   );
@@ -157,6 +172,7 @@ try {
   process.env.E2E_FOLDER = prepared.folder;
   process.env.E2E_ROOT = prepared.root;
   process.env.E2E_SCREENSHOTS = screenshots;
+  process.env.E2E_EXPORTS = exportFolder;
   process.env.E2E_ENV = JSON.stringify(prepared.env);
   const mocha = new Mocha({ ui: "bdd", timeout: 120_000, reporter: "spec" });
   for (const file of globSync(tests).sort()) mocha.addFile(file);

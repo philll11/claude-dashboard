@@ -3,8 +3,10 @@
 mod breakdown;
 mod desktop;
 mod doctor;
+mod export;
 mod import;
 mod limits;
+mod prices;
 mod progress;
 mod prompt;
 mod report;
@@ -21,6 +23,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use claude_dashboard_core::report::Bucket;
 use claude_dashboard_server::app::App;
 use claude_dashboard_server::program;
+use claude_dashboard_server::protocol::ExportFormat;
 use jiff::civil::Date;
 
 use crate::report::Output;
@@ -97,6 +100,23 @@ enum Command {
         days: Days,
         #[command(flatten)]
         format: Format,
+    },
+    /// Write every request, or those of the days given, as CSV or JSON: to standard output, or to
+    /// a file made for spreadsheets.
+    Export {
+        #[command(flatten)]
+        days: Days,
+        #[command(flatten)]
+        format: Format,
+        /// The file to write, made for spreadsheets: CSV gets a byte order mark, and text that a
+        /// spreadsheet would take for a formula gets an apostrophe before it.
+        #[arg(long, value_name = "FILE")]
+        output: Option<PathBuf>,
+    },
+    /// The price table in use; switch the daily check for a newer one on or off, or check now.
+    Prices {
+        #[command(subcommand)]
+        action: Option<PricesAction>,
     },
     /// Check what claude-dashboard can find and read.
     Doctor,
@@ -184,6 +204,18 @@ enum LimitsAction {
 enum Switch {
     On,
     Off,
+}
+
+#[derive(Debug, Subcommand)]
+enum PricesAction {
+    /// Turn the daily check for a newer price table in claude-dashboard's repository on GitHub on
+    /// or off. A running dashboard checks once a day.
+    Refresh {
+        #[arg(value_enum)]
+        switch: Switch,
+    },
+    /// Check claude-dashboard's repository for a newer price table now.
+    Update,
 }
 
 #[derive(Debug, Subcommand)]
@@ -280,6 +312,26 @@ fn main() -> ExitCode {
         Command::Projects { days, format } => {
             breakdown::projects(&app, days.since, days.until, format.output())
         }
+        Command::Export {
+            days,
+            format,
+            output,
+        } => export::run(
+            &app,
+            days.since,
+            days.until,
+            if format.json {
+                ExportFormat::Json
+            } else {
+                ExportFormat::Csv
+            },
+            output.as_deref(),
+        ),
+        Command::Prices { action } => match action {
+            None => prices::status(&app),
+            Some(PricesAction::Refresh { switch }) => prices::switch(&app, switch == Switch::On),
+            Some(PricesAction::Update) => prices::update(&app),
+        },
         Command::Doctor => doctor::run(&app),
         Command::Statusline { action, then } => match action {
             None => statusline::run(&app, &then),

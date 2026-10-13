@@ -18,7 +18,7 @@ const WEEK_MS: i64 = 7 * DAY_MS;
 /// How far back a weekly window's pace is measured.
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 /// How far back the recent five-hour windows go.
-const RECENT_WINDOWS_MS: i64 = 7 * DAY_MS;
+pub(crate) const RECENT_WINDOWS_MS: i64 = 7 * DAY_MS;
 
 /// Every plan window with its readings since it started and its pace, the recent five-hour
 /// windows, and where the readings come from.
@@ -86,7 +86,7 @@ pub fn view(app: &App, history: &History) -> Result<Limits, HistoryError> {
         });
     }
     let recent =
-        limits::recent_five_hour_windows(history, app.prices, now_ms - RECENT_WINDOWS_MS, now_ms)?
+        limits::recent_five_hour_windows(history, &app.prices, now_ms - RECENT_WINDOWS_MS, now_ms)?
             .into_iter()
             .map(|(window, window_totals)| FiveHourWindow {
                 start_ms: window.start_ms,

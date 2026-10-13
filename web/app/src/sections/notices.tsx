@@ -288,15 +288,28 @@ function PriceDrift({ prices }: { prices: Prices }) {
       icon={<Warning size={18} stroke={1.75} />}
       title={`Our estimate is ${String(share)}% ${below ? "lower" : "higher"} than Claude Code's own figure`}
       actions={
-        <button
-          type="button"
-          className="button quiet link"
-          onClick={() => {
-            change({ section: "sessions", model: first.model.id, session: null });
-          }}
-        >
-          Show the sessions
-        </button>
+        <>
+          <button
+            type="button"
+            className="button quiet link"
+            onClick={() => {
+              change({ section: "sessions", model: first.model.id, session: null });
+            }}
+          >
+            Show the sessions
+          </button>
+          {!prices.refresh.enabled && (
+            <button
+              type="button"
+              className="button quiet link"
+              onClick={() => {
+                change({ section: "settings", session: null });
+              }}
+            >
+              Check for newer prices
+            </button>
+          )}
+        </>
       }
     >
       This applies to {grouped(sessions)} {sessions === 1 ? "session" : "sessions"}

@@ -5,8 +5,9 @@
 // its own and a Claude Code folder of its own, so it never reads or changes the person's.
 
 import { spawn } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
   createMessageConnection,
@@ -23,6 +24,7 @@ export const SHOWN_ROOT = "/home/you/.claude";
 export const SHOWN_HISTORY = "/home/you/.local/share/claude-dashboard/history.sqlite";
 export const SHOWN_PROGRAM = "/home/you/.local/bin/claude-dashboard";
 export const SHOWN_ADDED_FOLDER = "//wsl.localhost/Ubuntu/home/you/.claude";
+export const SHOWN_DOWNLOADS = "/home/you/Downloads";
 /** The version the dashboard is shown, whatever the program's, so that screenshots stay the same
  * from one release to the next. */
 export const SHOWN_VERSION = "0.1.0-alpha.1";
@@ -52,6 +54,8 @@ export class Bridge {
 
   private constructor(
     private readonly folder: string,
+    /** Where exports are saved, as a save dialog would. */
+    private readonly downloads: string,
     private readonly connection: MessageConnection,
     private readonly stopServer: () => Promise<void>,
     private readonly scenario: Scenario,
@@ -78,7 +82,10 @@ export class Bridge {
       new StreamMessageWriter(server.stdin),
     );
     connection.listen();
+    const downloads = join(folder, "Downloads");
+    mkdirSync(downloads, { recursive: true });
     const shown: [string, string][] = [
+      ...spellings(downloads).map((path): [string, string] => [path, SHOWN_DOWNLOADS]),
       ...spellings(program).map((path): [string, string] => [path, SHOWN_PROGRAM]),
       ...spellings(history).map((path): [string, string] => [path, SHOWN_HISTORY]),
       ...synthetic.folders.flatMap((folder) =>
@@ -93,6 +100,7 @@ export class Bridge {
     );
     const bridge = new Bridge(
       folder,
+      downloads,
       connection,
       async () => {
         connection.dispose();
@@ -115,6 +123,18 @@ export class Bridge {
         ? { ...patched, version: SHOWN_VERSION }
         : patched;
     return this.shownAs(versioned);
+  }
+
+  /** Saves an export in the Downloads folder under the name the server suggests, as a person
+   * accepting the save dialog would. */
+  async exportTo(params: unknown): Promise<unknown> {
+    const { name } = await this.connection.sendRequest<{ name: string }>("export/name", params);
+    const path = join(this.downloads, name);
+    return this.shownAs(await this.connection.sendRequest("export/save", { export: params, path }));
+  }
+
+  async cancelExport(): Promise<void> {
+    await this.connection.sendRequest("export/cancel", null);
   }
 
   onNotification(listener: Listener): () => void {

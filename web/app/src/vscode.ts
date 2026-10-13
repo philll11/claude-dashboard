@@ -3,6 +3,7 @@
 
 import type {
   Backend,
+  Exported,
   FromExtension,
   Method,
   Params,
@@ -36,6 +37,10 @@ export function vscodeHost(): Host | undefined {
   >();
   const listeners = new Map<string, Set<(params: unknown) => void>>();
   const picking = new Map<number, (path: string | undefined) => void>();
+  const exporting = new Map<
+    number,
+    { resolve: (value: Exported | undefined) => void; reject: (error: Error) => void }
+  >();
   const showing = new Set<(show: Show) => void>();
   // A section the extension asks for before the dashboard listens is shown once it does.
   let waitingShow: Show | undefined;
@@ -55,6 +60,14 @@ export function vscodeHost(): Host | undefined {
     } else if (message.type === "show") {
       if (showing.size === 0) waitingShow = message.show;
       for (const listener of showing) listener(message.show);
+    } else if (message.type === "exported") {
+      const waiting = exporting.get(message.id);
+      exporting.delete(message.id);
+      if (message.error) {
+        waiting?.reject(new RequestError(message.error.message, message.error.code));
+      } else {
+        waiting?.resolve(message.result);
+      }
     } else {
       for (const listener of listeners.get(message.method) ?? []) listener(message.params);
     }
@@ -109,6 +122,17 @@ export function vscodeHost(): Host | undefined {
       return () => {
         showing.delete(listener);
       };
+    },
+    exportTo: (params) => {
+      nextId += 1;
+      const id = nextId;
+      return new Promise((resolve, reject) => {
+        exporting.set(id, { resolve, reject });
+        api.postMessage({ type: "export", id, params });
+      });
+    },
+    cancelExport: () => {
+      api.postMessage({ type: "cancelExport" });
     },
   };
 }

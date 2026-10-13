@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use claude_dashboard_core::history::{self, History, HistoryError, ProjectKey};
 use claude_dashboard_core::import;
 use claude_dashboard_core::limits::{self, LimitSnapshot, Source};
-use claude_dashboard_core::pricing;
+use claude_dashboard_core::price_refresh;
+use claude_dashboard_core::pricing::{self, PriceTable};
 use claude_dashboard_core::reconcile;
 use claude_dashboard_core::report::{self, Filter, Range};
 use claude_dashboard_core::roots::{self, RootSource, RootStatus};
@@ -23,10 +24,10 @@ use crate::names::{model_name, project_names};
 use crate::protocol::{
     Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, EndpointParams, FastPrices,
     Folder, FolderParams, FolderState, Health, HistoryFacts, ImportDone, ImportOffer, Imported,
-    Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams, PriceDrift, PriceRow,
-    Prices, PricesParams, Project, ProjectRow, Provenance, SessionDetail, SessionParams,
-    SessionRow, SessionsPage, SessionsParams, Settings, SettingsChange, Status, StatusLineApply,
-    StatusLineParams, StatusLinePlan, Tokens, Totals, WhoRow, WindowReading,
+    Level, LongPrompt, Model, ModelDay, ModelRow, Overview, OverviewParams, PriceDrift,
+    PriceRefresh, PriceRow, Prices, PricesParams, Project, ProjectRow, Provenance, SessionDetail,
+    SessionParams, SessionRow, SessionsPage, SessionsParams, Settings, SettingsChange, Status,
+    StatusLineApply, StatusLineParams, StatusLinePlan, Tokens, Totals, WhoRow, WindowReading,
 };
 use crate::statusline;
 use crate::workers::Triggers;
@@ -49,6 +50,9 @@ impl Fault {
     pub const INVALID_PARAMS: i32 = -32602;
     /// JSON-RPC's code for a failure inside the server.
     pub const INTERNAL_ERROR: i32 = -32603;
+    /// The Language Server Protocol's code for a request that was cancelled, which JSON-RPC
+    /// leaves to the application.
+    pub const REQUEST_CANCELLED: i32 = -32800;
 
     fn invalid(message: impl Into<String>) -> Self {
         Self {
@@ -120,7 +124,7 @@ impl Answers {
             "statusLine/apply" => parse(params)
                 .and_then(|p| apply_status_line(&app, &p))
                 .and_then(json),
-            "settings" => json(settings(&app)),
+            "settings" => self.settings(&app).and_then(json),
             "settings/set" => parse(params)
                 .and_then(|p| self.set_settings(&p))
                 .and_then(json),
@@ -133,6 +137,9 @@ impl Answers {
             "import/offer" => self.import_offer(&app).and_then(json),
             "import/run" => self.run_import(&app).and_then(json),
             "import/dismiss" => self.dismiss_import().and_then(json),
+            "export/name" => parse(params)
+                .and_then(|p| crate::export::name(&app, &p).map_err(Fault::internal))
+                .and_then(|name| json(crate::protocol::ExportName { name })),
             other => Err(Fault {
                 code: Fault::METHOD_NOT_FOUND,
                 message: format!("claude-dashboard has no method {other}"),
@@ -179,7 +186,7 @@ impl Answers {
         let totals_of = |first: Date| {
             report::totals(
                 history,
-                app.prices,
+                &app.prices,
                 Range::days(first, today, &app.zone),
                 &Filter::default(),
             )
@@ -219,7 +226,7 @@ impl Answers {
         let history = self.history()?;
         let names = project_names(history);
         let filter = filter(&names, &params.filters)?;
-        let summary = report::summary(history, app.prices, range, &filter, &app.zone)?;
+        let summary = report::summary(history, &app.prices, range, &filter, &app.zone)?;
         Ok(Overview {
             days: params.days.clone(),
             totals: totals(&summary.totals),
@@ -271,57 +278,13 @@ impl Answers {
     fn sessions(&mut self, app: &App, params: &SessionsParams) -> Result<SessionsPage, Fault> {
         let range = range(app, &params.days)?;
         let history = self.history()?;
-        let names = project_names(history);
-        let filter = filter(&names, &params.filters)?;
-        let stored: HashMap<_, _> = history
-            .sessions()?
-            .into_iter()
-            .map(|session| (session.key, (session.session_id, session.title)))
-            .collect();
-        let reported = reconcile::reported(history)?;
-        let search = params
-            .search
-            .as_deref()
-            .map(str::trim)
-            .filter(|search| !search.is_empty())
-            .map(str::to_lowercase);
-        let mut matching: Vec<SessionRow> =
-            report::sessions_matching(history, app.prices, range, &filter)?
-                .into_iter()
-                .filter_map(|session| {
-                    let (id, title) = stored.get(&session.session)?.clone();
-                    let project = project_of(&names, session.project);
-                    let found = search.as_deref().is_none_or(|search| {
-                        [
-                            Some(id.as_str()),
-                            title.as_deref(),
-                            Some(project.name.as_str()),
-                        ]
-                        .into_iter()
-                        .flatten()
-                        .any(|text| text.to_lowercase().contains(search))
-                    });
-                    let (reported_usd, drift) =
-                        own_figure(reported.get(&session.session), &session.models);
-                    found.then(|| SessionRow {
-                        id,
-                        title,
-                        project,
-                        first_ms: session.first_ms,
-                        last_ms: session.last_ms,
-                        models: session
-                            .models
-                            .iter()
-                            .map(|model| model_of(app, &model.model))
-                            .collect(),
-                        subagents: session.subagent_count,
-                        totals: totals(&session.totals),
-                        reported_usd,
-                        drift,
-                    })
-                })
-                .collect();
-        matching.sort_by(|a, b| b.first_ms.cmp(&a.first_ms).then_with(|| a.id.cmp(&b.id)));
+        let matching = matching_sessions(
+            app,
+            history,
+            range,
+            &params.filters,
+            params.search.as_deref(),
+        )?;
         let limit = params.limit.clamp(1, LONGEST_PAGE) as usize;
         Ok(SessionsPage {
             total: matching.len() as u64,
@@ -329,6 +292,7 @@ impl Answers {
                 .into_iter()
                 .skip(params.offset as usize)
                 .take(limit)
+                .map(|session| session.row)
                 .collect(),
         })
     }
@@ -340,7 +304,7 @@ impl Answers {
             .into_iter()
             .find(|session| session.session_id == params.id)
             .ok_or_else(|| Fault::invalid(format!("The history holds no session {}", params.id)))?;
-        let detail = report::session_detail(history, app.prices, stored.key)?
+        let detail = report::session_detail(history, &app.prices, stored.key)?
             .ok_or_else(|| Fault::invalid(format!("Session {} has no requests", params.id)))?;
         let names = project_names(history);
         let (reported_usd, drift) = own_figure(
@@ -433,6 +397,19 @@ impl Answers {
         Ok(Value::Null)
     }
 
+    fn settings(&mut self, app: &App) -> Result<Settings, Fault> {
+        let shared = self.history()?.settings()?;
+        let chosen = app.zone.iana_name().unwrap_or("UTC");
+        let system = app.system_zone.iana_name().unwrap_or("UTC");
+        Ok(Settings {
+            time_zone: (app.zone != app.system_zone).then(|| chosen.to_owned()),
+            system_time_zone: system.to_owned(),
+            week_start: week_start_name(app).to_owned(),
+            tray: app::shows_tray(&shared),
+            keep_running: app::keeps_running(&shared),
+        })
+    }
+
     fn set_settings(&mut self, change: &SettingsChange) -> Result<Value, Fault> {
         let zone = match change.time_zone.as_deref() {
             None => None,
@@ -462,9 +439,24 @@ impl Answers {
                         .map(|(name, _)| *name);
                     w.set_setting(app::WEEK_START_SETTING, name)?;
                 }
+                if let Some(on) = change.tray {
+                    w.set_setting(app::TRAY_SETTING, Some(if on { "on" } else { "off" }))?;
+                }
+                if let Some(on) = change.keep_running {
+                    w.set_setting(
+                        app::KEEP_RUNNING_SETTING,
+                        Some(if on { "on" } else { "off" }),
+                    )?;
+                }
                 Ok(())
             })
             .map_err(Fault::from)?;
+        if let Some(on) = change.price_refresh {
+            price_refresh::switch(self.history_mut()?, on).map_err(Fault::from)?;
+            if on {
+                let _ = self.triggers.prices.send(());
+            }
+        }
         Ok(Value::Null)
     }
 
@@ -561,7 +553,7 @@ impl Answers {
 
     fn prices(&mut self, app: &App, params: &PricesParams) -> Result<Prices, Fault> {
         let history = self.history()?;
-        let reconciliation = reconcile::reconcile(history, app.prices, app.now.as_millisecond())?;
+        let reconciliation = reconcile::reconcile(history, &app.prices, app.now.as_millisecond())?;
         let mut seen = HashSet::new();
         let models = params
             .models
@@ -613,6 +605,7 @@ impl Answers {
                 })
             })
             .collect();
+        let state = price_refresh::state(&history.settings()?);
         Ok(Prices {
             checked: app.prices.checked().to_string(),
             source: app.prices.source().to_owned(),
@@ -620,6 +613,15 @@ impl Answers {
             drift: reconciliation.drift(),
             sessions_compared: reconciliation.sessions,
             out_of_line,
+            downloaded_ms: state
+                .downloaded_ms
+                .filter(|_| !PriceTable::is_bundled(&app.prices)),
+            refresh: PriceRefresh {
+                enabled: state.enabled,
+                checked_ms: state.checked_ms,
+                outcome: state.outcome.map(|outcome| outcome.as_str().to_owned()),
+                detail: state.detail,
+            },
         })
     }
 
@@ -698,7 +700,7 @@ fn json(value: impl Serialize) -> Result<Value, Fault> {
     serde_json::to_value(value).map_err(|error| Fault::internal(error.to_string()))
 }
 
-fn range(app: &App, days: &Days) -> Result<Range, Fault> {
+pub(crate) fn range(app: &App, days: &Days) -> Result<Range, Fault> {
     let day = |text: &str| {
         text.parse::<Date>()
             .map_err(|_| Fault::invalid(format!("{text} is not a day such as 2026-10-11")))
@@ -710,9 +712,9 @@ fn range(app: &App, days: &Days) -> Result<Range, Fault> {
     Ok(Range::days(first, last, &app.zone))
 }
 
-type Names = HashMap<ProjectKey, (String, Option<String>, String)>;
+pub(crate) type Names = HashMap<ProjectKey, (String, Option<String>, String)>;
 
-fn filter(names: &Names, filters: &crate::protocol::Filters) -> Result<Filter, Fault> {
+pub(crate) fn filter(names: &Names, filters: &crate::protocol::Filters) -> Result<Filter, Fault> {
     let project = match &filters.project {
         None => None,
         Some(id) => Some(
@@ -732,17 +734,7 @@ fn filter(names: &Names, filters: &crate::protocol::Filters) -> Result<Filter, F
 /// The shared setting that records an import the person chose not to make.
 const IMPORT_DISMISSED_SETTING: &str = "import_dismissed";
 
-fn settings(app: &App) -> Settings {
-    let chosen = app.zone.iana_name().unwrap_or("UTC");
-    let system = app.system_zone.iana_name().unwrap_or("UTC");
-    Settings {
-        time_zone: (app.zone != app.system_zone).then(|| chosen.to_owned()),
-        system_time_zone: system.to_owned(),
-        week_start: week_start_name(app).to_owned(),
-    }
-}
-
-fn week_start_name(app: &App) -> &'static str {
+pub(crate) fn week_start_name(app: &App) -> &'static str {
     app::WEEKDAYS
         .iter()
         .find(|(_, day)| *day == app.week_start)
@@ -791,7 +783,83 @@ fn apply_status_line(app: &App, params: &StatusLineApply) -> Result<Value, Fault
     Ok(Value::Null)
 }
 
-fn project_of(names: &Names, key: ProjectKey) -> Project {
+/// A session that matches, with what its row leaves out.
+pub(crate) struct Matching {
+    pub row: SessionRow,
+    /// Requests its subagents made.
+    pub subagent_requests: u64,
+}
+
+/// The sessions with requests in `range` that `filters` admit and whose title, id or project name
+/// contains `search`, the one started last first.
+pub(crate) fn matching_sessions(
+    app: &App,
+    history: &History,
+    range: Range,
+    filters: &crate::protocol::Filters,
+    search: Option<&str>,
+) -> Result<Vec<Matching>, Fault> {
+    let names = project_names(history);
+    let filter = filter(&names, filters)?;
+    let stored: HashMap<_, _> = history
+        .sessions()?
+        .into_iter()
+        .map(|session| (session.key, (session.session_id, session.title)))
+        .collect();
+    let reported = reconcile::reported(history)?;
+    let search = search
+        .map(str::trim)
+        .filter(|search| !search.is_empty())
+        .map(str::to_lowercase);
+    let mut matching: Vec<Matching> =
+        report::sessions_matching(history, &app.prices, range, &filter)?
+            .into_iter()
+            .filter_map(|session| {
+                let (id, title) = stored.get(&session.session)?.clone();
+                let project = project_of(&names, session.project);
+                let found = search.as_deref().is_none_or(|search| {
+                    [
+                        Some(id.as_str()),
+                        title.as_deref(),
+                        Some(project.name.as_str()),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|text| text.to_lowercase().contains(search))
+                });
+                let (reported_usd, drift) =
+                    own_figure(reported.get(&session.session), &session.models);
+                found.then(|| Matching {
+                    row: SessionRow {
+                        id,
+                        title,
+                        project,
+                        first_ms: session.first_ms,
+                        last_ms: session.last_ms,
+                        models: session
+                            .models
+                            .iter()
+                            .map(|model| model_of(app, &model.model))
+                            .collect(),
+                        subagents: session.subagent_count,
+                        totals: totals(&session.totals),
+                        reported_usd,
+                        drift,
+                    },
+                    subagent_requests: session.subagents.requests,
+                })
+            })
+            .collect();
+    matching.sort_by(|a, b| {
+        b.row
+            .first_ms
+            .cmp(&a.row.first_ms)
+            .then_with(|| a.row.id.cmp(&b.row.id))
+    });
+    Ok(matching)
+}
+
+pub(crate) fn project_of(names: &Names, key: ProjectKey) -> Project {
     names.get(&key).map_or_else(
         || Project {
             id: String::new(),

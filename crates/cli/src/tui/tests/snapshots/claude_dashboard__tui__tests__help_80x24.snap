@@ -16,10 +16,10 @@ expression: shown(&state)
 11 ││  $20     │  /                  search the sessions                │█ $110.76 ││
 12 ││          │  r  p  m            range, project, model              │░  $64.12 ││
 13 ││          │  t                  charts or tables                   │░  $43.72 ││
-14 ││          │  R                  read new transcripts now           │░  $34.98 ││
-15 ││  $10     │  ?                  this help                          │░  $14.57 ││
-16 ││      █  █│  q  Ctrl-C          quit                               │░  $23.32 ││
-17 ││      █  █│                                                        │          ││
+14 ││          │  e                  export the section                 │░  $34.98 ││
+15 ││  $10     │  R                  read new transcripts now           │░  $14.57 ││
+16 ││      █  █│  ?                  this help                          │░  $23.32 ││
+17 ││      █  █│  q  Ctrl-C          quit                               │          ││
 18 ││      ████│                                                        │          ││
 19 ││   $0 ████│                                                        │          ││
 20 ││      11  └────────────────────────────────────────────────────────┘          ││
@@ -44,8 +44,8 @@ styles
 13 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
 14 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
 15 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
-16 │aaaaaaaaaaaaccdddddddddcccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
-17 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+16 │aaaaaaaaaaaaccdcccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
+17 │aaaaaaaaaaaaccdddddddddcccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
 18 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
 19 │aaaaaaaaaaaaccccccccccccccccccccccccccccccccccccccccccccccccccccccccaaaaaaaaaaaa│
 20 │aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa│

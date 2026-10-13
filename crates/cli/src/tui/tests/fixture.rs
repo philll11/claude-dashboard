@@ -5,9 +5,9 @@
 use claude_dashboard_server::protocol::{
     Access, Choices, Cost, CostPoint, Credit, Day, DayCost, Days, Endpoint, FastPrices,
     FiveHourWindow, Folder, FolderState, Health, HistoryFacts, ImportOffer, Level, Limits,
-    LongPrompt, Model, ModelDay, ModelRow, Overview, Pace, PriceDrift, PriceRow, Prices, Progress,
-    Project, ProjectRow, Provenance, SessionDetail, SessionRow, SessionsPage, Status, StatusLine,
-    Tokens, Totals, UsePoint, WhoRow, WindowReading, WindowView,
+    LongPrompt, Model, ModelDay, ModelRow, Overview, Pace, PriceDrift, PriceRefresh, PriceRow,
+    Prices, Progress, Project, ProjectRow, Provenance, SessionDetail, SessionRow, SessionsPage,
+    Status, StatusLine, Tokens, Totals, UsePoint, WhoRow, WindowReading, WindowView,
 };
 use jiff::civil::{Date, date};
 use jiff::tz::TimeZone;
@@ -771,6 +771,13 @@ impl Fixture {
                 }]
             } else {
                 Vec::new()
+            },
+            downloaded_ms: None,
+            refresh: PriceRefresh {
+                enabled: false,
+                checked_ms: None,
+                outcome: None,
+                detail: None,
             },
         }
     }

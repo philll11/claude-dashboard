@@ -37,7 +37,7 @@ expression: shown(&mono)
 32 ││                                                                                                                      ││
 33 ││ Prices of 10 Oct 2026 · within 0.4% of Claude Code's own session costs · 82% of input read from cache                ││
 34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+35 │ q quit   ←→ sections   t table view   e export   ? help             Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb                                                                                 │
@@ -75,7 +75,7 @@ styles
 32 │                                                                                                                        │
 33 │                                                                                                                        │
 34 │                                                                                                                        │
-35 │ a        aa            a              a                                                                                │
+35 │ a        aa            a              a          a                                                                     │
 
 a = bold
 b = bold reverse

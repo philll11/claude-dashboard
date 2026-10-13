@@ -11,6 +11,7 @@ import type { Status } from "@claude-dashboard/protocol";
 
 import { HostContext, StatusContext, useHost } from "./context";
 import { Store, StoreContext, useReadingProgress, useRequest } from "./data";
+import { ExportNotice, Exports, ExportsContext } from "./exports";
 import { ago, fullDate } from "./format";
 import type { Host, Updates } from "./host";
 import { Limits } from "./sections/Limits";
@@ -18,6 +19,7 @@ import { Models } from "./sections/Models";
 import { Overview } from "./sections/Overview";
 import { Projects } from "./sections/Projects";
 import { Sessions } from "./sections/Sessions";
+import { KeepRunningNotice } from "./sections/dialogs";
 import { Settings } from "./sections/Settings";
 import {
   LimitsIcon,
@@ -45,6 +47,7 @@ const STARTS_OVER: readonly (keyof View)[] = ["section", "range", "project", "mo
 
 export function App({ host }: { host: Host }) {
   const store = useMemo(() => new Store(host.backend), [host]);
+  const exports = useMemo(() => new Exports(host), [host]);
   const [view, setView] = useState(() => rememberedView(host.memory.read()));
   const viewState = useMemo(
     () => ({
@@ -73,9 +76,11 @@ export function App({ host }: { host: Host }) {
   return (
     <HostContext.Provider value={host}>
       <StoreContext.Provider value={store}>
-        <ViewContext.Provider value={viewState}>
-          <Shell />
-        </ViewContext.Provider>
+        <ExportsContext.Provider value={exports}>
+          <ViewContext.Provider value={viewState}>
+            <Shell />
+          </ViewContext.Provider>
+        </ExportsContext.Provider>
       </StoreContext.Provider>
     </HostContext.Provider>
   );
@@ -167,6 +172,8 @@ function Shell() {
           />
         ) : null}
       </main>
+      <ExportNotice />
+      {host.desktop && <KeepRunningNotice desktop={host.desktop} />}
     </div>
   );
 }

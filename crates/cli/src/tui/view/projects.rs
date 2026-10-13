@@ -178,9 +178,9 @@ pub fn draw(c: &mut Canvas, state: &State) {
         &[
             ("q", "quit"),
             ("←→", "sections"),
-            ("↑↓", "move"),
             ("Enter", "filter"),
             ("t", "table view"),
+            ("e", "export"),
             ("?", "help"),
         ],
         None,

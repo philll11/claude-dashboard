@@ -1,0 +1,52 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+       ....wwwwwwwwwwwwwwwwwwwwwwwwww....       
+     ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..     
+    ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..    
+   .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.   
+  .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.  
+ ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.. 
+ .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww. 
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+wwwwwwwwwpppppppppppppppwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwpppppppppppppppwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwpppppppppppppppwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwpppwwwwwwppppppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwpppwwwwwwppppppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwpppwwwwwwppppppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwpppwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwpppwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwpppwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwwwwpppwwwwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppppppppwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppppppppwwwwwwwww
+wwwwwwwwwwwwpppwwwwwwwwwwwwwwwpppppppppwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.
+ .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww. 
+ ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.. 
+  .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.  
+   .wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww.   
+    ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..    
+     ..wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww..     
+       ....wwwwwwwwwwwwwwwwwwwwwwwwww....

@@ -6,6 +6,8 @@ use std::process::ExitCode;
 use claude_dashboard_core::history::{Access, History};
 use claude_dashboard_core::import::{self, CLAUDE_USAGE};
 use claude_dashboard_core::limits::Source;
+use claude_dashboard_core::price_refresh::{self, Outcome};
+use claude_dashboard_core::pricing::PriceTable;
 use claude_dashboard_core::reconcile;
 use claude_dashboard_core::report::{self, Range};
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, RootSource, RootStatus};
@@ -17,6 +19,7 @@ use claude_dashboard_server::names::model_name;
 use claude_dashboard_server::statusline::{self, Connection};
 
 use crate::limits;
+use crate::prices;
 use crate::progress;
 use crate::style::Paint;
 
@@ -54,6 +57,7 @@ pub fn run(app: &App) -> ExitCode {
             }
             lines.push(history_line(app, &history));
             lines.push(prices_line(app, &history));
+            lines.push(price_check_line(app, &history));
             lines.extend(limits_lines(app, &history));
             lines.extend(import_line(app, &history));
         }
@@ -166,12 +170,19 @@ fn history_line(app: &App, history: &History) -> Line {
 }
 
 fn prices_line(app: &App, history: &History) -> Line {
-    let table = format!("table of {}", short_date(app.prices.checked()));
+    let table = if PriceTable::is_bundled(&app.prices) {
+        format!("table of {}", short_date(app.prices.checked()))
+    } else {
+        format!(
+            "table of {} from claude-dashboard's repository",
+            short_date(app.prices.checked())
+        )
+    };
     let all_time = Range {
         from_ms: i64::MIN,
         to_ms: i64::MAX,
     };
-    let models = match report::by_model(history, app.prices, all_time) {
+    let models = match report::by_model(history, &app.prices, all_time) {
         Ok(models) => models,
         Err(error) => return failed("Prices", format!("cannot be checked: {error}")),
     };
@@ -194,7 +205,7 @@ fn prices_line(app: &App, history: &History) -> Line {
             unpriced.join(", ")
         )
     };
-    let reconciliation = reconcile::reconcile(history, app.prices, app.now.as_millisecond());
+    let reconciliation = reconcile::reconcile(history, &app.prices, app.now.as_millisecond());
     let (mark, comparison) = match &reconciliation {
         Ok(result) => match (result.out_of_line().next(), result.drift()) {
             (Some(model), _) => (
@@ -231,14 +242,42 @@ fn prices_line(app: &App, history: &History) -> Line {
     let mut detail = format!("{table}, {coverage}, {comparison}");
     if age_days > OLD_PRICE_TABLE_DAYS {
         mark = Mark::Warning;
-        let _ = write!(
-            detail,
-            "; the table is {age_days} days old, so a newer claude-dashboard may have newer prices"
-        );
+        let _ = write!(detail, "; the table is {age_days} days old");
+    }
+    if mark == Mark::Warning {
+        detail.push_str("; claude-dashboard prices update looks for newer prices");
     }
     Line {
         mark,
         label: "Prices",
+        path: None,
+        detail,
+    }
+}
+
+/// The daily check for a newer price table: whether it is on, and what came of it last.
+fn price_check_line(app: &App, history: &History) -> Line {
+    let state = price_refresh::state(&history.settings().unwrap_or_default());
+    let last = prices::last_check(app, &state);
+    let (mark, detail) = if state.enabled {
+        let mark = match state.outcome {
+            Some(Outcome::Unreachable | Outcome::NewerFormat | Outcome::Refused) => Mark::Warning,
+            _ => Mark::Good,
+        };
+        let detail = last.map_or_else(
+            || "on, not checked yet; a running dashboard checks once a day".to_owned(),
+            |last| format!("on, {last}"),
+        );
+        (mark, detail)
+    } else {
+        (
+            Mark::Off,
+            "off; claude-dashboard prices refresh on checks once a day".to_owned(),
+        )
+    };
+    Line {
+        mark,
+        label: "Price check",
         path: None,
         detail,
     }

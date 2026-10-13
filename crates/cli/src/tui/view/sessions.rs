@@ -167,17 +167,17 @@ fn keys(state: &State) -> &'static [(&'static str, &'static str)] {
         &[
             ("q", "quit"),
             ("←→", "sections"),
-            ("↑↓", "move"),
             ("Enter", "open"),
             ("/", "search"),
+            ("e", "export"),
             ("?", "help"),
         ]
     } else {
         &[
             ("q", "quit"),
-            ("↑↓", "move"),
             ("Enter", "open"),
             ("Esc", "clear the search"),
+            ("e", "export"),
             ("?", "help"),
         ]
     }

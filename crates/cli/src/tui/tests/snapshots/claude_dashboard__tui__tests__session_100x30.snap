@@ -31,7 +31,7 @@ expression: shown(&state)
 26 ││ Output                                                                       96K          $7.20  ││
 27 ││ Cache writes, 5 minutes                                                     210K          $3.94  ││
 28 ││ Cache writes, 1 hour                                                         40K          $1.20  ││
-29 │ Esc back   ↑↓ scroll   t table view   ? help                                         Read just now │
+29 │ Esc back   ↑↓ scroll   t table view   e export   ? help                              Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb                     │
@@ -63,7 +63,7 @@ styles
 26 │e dddddd                                                                       ddd          aaaaa  e│
 27 │e ddddddddddddddddddddddd                                                     dddd          aaaaa  e│
 28 │e dddddddddddddddddddd                                                         ddd          aaaaa  e│
-29 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                                         bbbbbbbbbbbbb │
+29 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb                              bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

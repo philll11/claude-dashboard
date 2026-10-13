@@ -1,0 +1,44 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+      ...cccccccccccccccccccccc...      
+    ..cccccccccccccccccccccccccccc..    
+   .cccccccccccccccccccccccccccccccc.   
+  .cccccccccccccccccccccccccccccccccc.  
+ .cccccccccccccccccccccccccccccccccccc. 
+ .cccccccccccccccccccccccccccccccccccc. 
+.cccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccc.
+cccccccccccccccccccccccccccccccccccccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+ccccccccWWccccccccWWcccccccccccccWWccccc
+ccccccccWWccccccccWWcccccccccccccWWccccc
+ccccccccWWccccccccWWcccccccccccccWWccccc
+ccccccccWWccccccccWWcccccccccccccWWccccc
+ccccccccWWccccccccWWcccccccccccccWWccccc
+ccccccccccWWWWWWWWWWcccccWWWWWWWWccccccc
+ccccccccccWWWWWWWWWWcccccWWWWWWWWccccccc
+ccccccccccccccccccWWcccccccccccccWWccccc
+ccccccccccccccccccWWcccccccccccccWWccccc
+ccccccccccccccccccWWcccccccccccccWWccccc
+ccccccccccccccccccWWcccccccccccccWWccccc
+ccccccccccccccccccWWcccccccccccccWWccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+ccccccccccWWWWWWWWcccccWWWWWWWWWWccccccc
+cccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccc
+cccccccccccccccccccccccccccccccccccccccc
+.cccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccc.
+.cccccccccccccccccccccccccccccccccccccc.
+ .cccccccccccccccccccccccccccccccccccc. 
+ .cccccccccccccccccccccccccccccccccccc. 
+  .cccccccccccccccccccccccccccccccccc.  
+   .cccccccccccccccccccccccccccccccc.   
+    ..cccccccccccccccccccccccccccc..    
+      ...cccccccccccccccccccccc...

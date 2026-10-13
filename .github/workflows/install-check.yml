@@ -86,6 +86,10 @@ jobs:
           grep -q "Opus 5.5" today.txt
           "$bin" daily --json | tee daily.json
           grep -Eq '"output": ?640' daily.json
+          # An export saved for a spreadsheet starts with UTF-8's byte order mark.
+          "$bin" export --csv --output "$RUNNER_TEMP/requests.csv"
+          head -c 3 "$RUNNER_TEMP/requests.csv" | od -An -tx1 | grep -q "ef bb bf"
+          grep -q "claude-opus-5-5" "$RUNNER_TEMP/requests.csv"
           printf '%s' '{"model":{"id":"claude-opus-5-5","display_name":"Opus"},"rate_limits":{"five_hour":{"used_percentage":42,"resets_at":1999999999}}}' \
             | "$bin" statusline | tee line.txt
           grep -q "5h 42%" line.txt

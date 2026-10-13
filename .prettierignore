@@ -12,3 +12,5 @@ pnpm-lock.yaml
 .github/workflows/release.yml
 # Laid out for review line by line.
 pricing/prices.json
+# The bytes the CLI's tests compare their output with; formatting them would fail the tests.
+crates/cli/tests/goldens/

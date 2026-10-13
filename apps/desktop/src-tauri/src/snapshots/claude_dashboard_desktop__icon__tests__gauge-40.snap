@@ -1,0 +1,44 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+      ...llllllllllllllllllllll...      
+    ..llllllllllllllllllllllllllll..    
+   .lll++++++++++++++++++++++++++lll.   
+  .ll++pppppppppppppppppppppppppp++ll.  
+ .ll++pppppppppppppppppppppppppppp++ll. 
+ .l++pppppppppppppppppppppppppppppp++l. 
+.ll+pppppppppppppppppppppppppppppppp+ll.
+.l+pppppppppppppppppppppppppppppppppp+l.
+.l+pppppppppppppppppppppppppppppppppp+l.
+ll+pppppppppppppppppppppppppppppppppp+ll
+ll+pppppppppppppppppppppppppppppppppp+ll
+ll+pppppppppppppppppppppppppppppppppp+ll
+ll+pppppppppppppppppppppppppppppppppp+ll
+ll+pppppppppppppppppppppppppppppppppp+ll
+ll+ppppppppppppp++++++++ppppppppppppp+ll
+ll+pppppppppp+++mmmmmmmm+++pppppppppp+ll
+ll+ppppppppp++mmmmmmmmmmmm++ppppppppp+ll
+ll+pppppppp+mmmmmmmmmmmmmmmm+pppppppp+ll
+ll+ppppppp+mmmmm++++++++++++m+ppppppp+ll
+ll+pppppp+mmmm++ppppppp++ii+mm+pppppp+ll
+ll+ppppp+mmmm++ppppppp++iii+mmm+ppppp+ll
+ll+ppppp+mmm++pppppppp+iiii+mmm+ppppp+ll
+ll+pppp+mmmm+pppppppp+iiii++mmmm+pppp+ll
+ll+pppp+mmm+pppppppp+iiii+pp+mmm+pppp+ll
+ll+pppp+mmm+ppppppp++iii++pp+mmm+pppp+ll
+ll+ppp+mmmmppppppp++iii++ppppmmmm+ppp+ll
+ll+ppp+mmm+ppppppp+iiii+ppppp+mmm+ppp+ll
+ll+ppp+mmm+pppppppiiii+pppppp+mmm+ppp+ll
+ll+ppp++mm+ppppppp+ii+ppppppp+mm++ppp+ll
+ll+pppp+++pppppppp++++pppppppp+++pppp+ll
+ll+pppppppppppppppppppppppppppppppppp+ll
+.l+pppppppppppppppppppppppppppppppppp+l.
+.l+pppppppppppppppppppppppppppppppppp+l.
+.ll+pppppppppppppppppppppppppppppppp+ll.
+ .l++pppppppppppppppppppppppppppppp++l. 
+ .ll++pppppppppppppppppppppppppppp++ll. 
+  .ll++pppppppppppppppppppppppppp++ll.  
+   .lll++++++++++++++++++++++++++lll.   
+    ..llllllllllllllllllllllllllll..    
+      ...llllllllllllllllllllll...

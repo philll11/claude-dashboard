@@ -1,6 +1,8 @@
 // Serves the bridge to the dashboard while Vite runs it for a preview or a browser test:
 //
 //   POST /__bridge/request?scenario=NAME   {"method", "params"} → {"result"} or {"error"}
+//   POST /__bridge/export?scenario=NAME    {"params"} → {"result"} or {"error"}, saved in Downloads
+//   POST /__bridge/cancel?scenario=NAME    cancels the export under way
 //   GET  /__bridge/events?scenario=NAME    the server's notifications, as server-sent events
 //
 // Each scenario gets its own server the first time a page asks for it.
@@ -58,14 +60,11 @@ export function bridge(): Plugin {
       return;
     }
     const scenario = url.searchParams.get("scenario") ?? "default";
-    if (url.pathname === "/__bridge/request" && request.method === "POST") {
+    const answer = (work: (bridge: Bridge, sent: unknown) => Promise<unknown>) => {
       void (async () => {
         try {
-          const { method, params } = JSON.parse(await body(request)) as {
-            method: string;
-            params: unknown;
-          };
-          const result = await (await bridgeFor(scenario)).request(method, params);
+          const sent: unknown = JSON.parse((await body(request)) || "null");
+          const result = await work(await bridgeFor(scenario), sent);
           send(response, 200, { result: result ?? null });
         } catch (error) {
           const { code, message } = error as { code?: unknown; message?: unknown };
@@ -77,6 +76,20 @@ export function bridge(): Plugin {
           });
         }
       })();
+    };
+    if (url.pathname === "/__bridge/request" && request.method === "POST") {
+      answer((started, sent) => {
+        const { method, params } = sent as { method: string; params: unknown };
+        return started.request(method, params);
+      });
+      return;
+    }
+    if (url.pathname === "/__bridge/export" && request.method === "POST") {
+      answer((started, sent) => started.exportTo((sent as { params: unknown }).params));
+      return;
+    }
+    if (url.pathname === "/__bridge/cancel" && request.method === "POST") {
+      answer((started) => started.cancelExport());
       return;
     }
     if (url.pathname === "/__bridge/events" && request.method === "GET") {

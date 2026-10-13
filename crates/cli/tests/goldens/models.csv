@@ -1,0 +1,4 @@
+model,requests,input_tokens,output_tokens,cache_write_5m_tokens,cache_write_1h_tokens,cache_read_tokens,cost_usd,unpriced_requests,price_table,name
+claude-opus-5-5,3,9,1920,1500,3000,126000,0.13,0,2026-10-10,Claude Opus 5.5
+claude-sonnet-5-5,3,9,1920,1500,3000,126000,0.07,0,2026-10-10,Claude Sonnet 5.5
+claude-orion-1,1,3,640,500,1000,42000,0.00,1,2026-10-10,

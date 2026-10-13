@@ -6,7 +6,15 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as os from "node:os";
 
-import type { Method, Notifications, Params, Result } from "@claude-dashboard/protocol";
+import type {
+  Exported,
+  ExportParams,
+  ExportSave,
+  Method,
+  Notifications,
+  Params,
+  Result,
+} from "@claude-dashboard/protocol";
 import * as vscode from "vscode";
 import {
   createMessageConnection,
@@ -30,10 +38,20 @@ export interface Notification {
   params: unknown;
 }
 
+/** The requests only the extension makes, to save an export where the person chose in its save
+ * dialog. The dashboard cannot ask for them. */
+export interface ExtensionRequests {
+  "export/save": [ExportSave, Exported];
+  "export/content": [ExportParams, Exported];
+  "export/cancel": [null, null];
+}
+
 const NOTIFICATIONS: (keyof Notifications)[] = [
   "ingest/progress",
   "history/changed",
   "limits/changed",
+  "settings/changed",
+  "export/progress",
 ];
 
 /** Crashes within this long count towards giving up. */
@@ -124,11 +142,23 @@ export class Server implements vscode.Disposable {
   }
 
   request<M extends Method>(method: M, params: Params<M>): Promise<Result<M>> {
+    return this.#send<Result<M>>(method, params);
+  }
+
+  /** Makes one of the requests only the extension makes, which the dashboard cannot ask for. */
+  extensionRequest<M extends keyof ExtensionRequests>(
+    method: M,
+    params: ExtensionRequests[M][0],
+  ): Promise<ExtensionRequests[M][1]> {
+    return this.#send<ExtensionRequests[M][1]>(method, params);
+  }
+
+  #send<R>(method: string, params: unknown): Promise<R> {
     const connection = this.#connection;
     if (!connection || this.#state.kind !== "running") {
       return Promise.reject(new Unreachable("claude-dashboard is not running."));
     }
-    return connection.sendRequest<Result<M>>(method, params);
+    return connection.sendRequest<R>(method, params);
   }
 
   dispose(): void {

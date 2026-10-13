@@ -49,7 +49,7 @@ expression: shown(&state)
 44 ││                                                                              ││                                                                              ││
 45 ││ Not credited to a skill or an MCP server: $13.19                             ││                                                                              ││
 46 │└──────────────────────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────────────────────────┘│
-47 │ Esc back   ↑↓ scroll   t table view   ? help                                                                Read just now · costs are API-equivalent estimates │
+47 │ Esc back   ↑↓ scroll   t table view   e export   ? help                                                     Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -99,7 +99,7 @@ styles
 44 │e                                                                              ee                                                                              e│
 45 │e bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbaaaaaa                             ee                                                                              e│
 46 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
-47 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                                                                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+47 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb                                                     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

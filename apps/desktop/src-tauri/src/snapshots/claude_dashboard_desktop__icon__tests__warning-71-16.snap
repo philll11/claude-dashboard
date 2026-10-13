@@ -1,0 +1,20 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+ ..wwwwwwwwww.. 
+..wwwwwwwwwwww..
+.wwwwwwwwwwwwww.
+wwwwwwwwwwwwwwww
+wwwpppppwwwpwwww
+wwwwwwwpwwppwwww
+wwwwwwpwwwwpwwww
+wwwwwpwwwwwpwwww
+wwwwpwwwwwwpwwww
+wwwwpwwwwwwpwwww
+wwwwpwwwwwpppwww
+wwwwwwwwwwwwwwww
+wwwwwwwwwwwwwwww
+.wwwwwwwwwwwwww.
+..wwwwwwwwwwww..
+ ..wwwwwwwwww..

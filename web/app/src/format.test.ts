@@ -5,6 +5,8 @@ import {
   ago,
   compact,
   dayAndTime,
+  dayWords,
+  dayWordsAt,
   dayLabel,
   duration,
   grouped,
@@ -78,5 +80,14 @@ describe("the formats every surface shares", () => {
     for (const [atMs, text] of examples.dayAndTime.examples) {
       expect(dayAndTime(Number(atMs), nowMs, timeZone)).toBe(text);
     }
+  });
+
+  it("says on which day something happened", () => {
+    const zone = "Pacific/Auckland";
+    // 12:15 on Saturday 10 October 2026 in Auckland.
+    const now = Date.parse("2026-10-09T23:15:00Z");
+    expect(dayWordsAt(Date.parse("2026-10-09T19:00:00Z"), now, zone)).toBe("today at 08:00");
+    expect(dayWordsAt(Date.parse("2026-10-08T19:00:00Z"), now, zone)).toBe("yesterday at 08:00");
+    expect(dayWords(Date.parse("2026-10-07T19:00:00Z"), now, zone)).toBe("on 8 October 2026");
   });
 });

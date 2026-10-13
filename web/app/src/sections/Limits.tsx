@@ -20,6 +20,8 @@ import { Warning } from "../ui/icons";
 import { Panel, Pill } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { costText, SectionHead } from "./common";
+import { ExportMenu } from "../exports";
+import { grouped } from "../format";
 import { ConsentDialog, StatusLineDialog } from "./dialogs";
 import { inOrder, LEVEL_TEXT, meterName, windowName } from "../windows";
 import { LevelIcon, Provenance } from "./provenance";
@@ -36,6 +38,15 @@ export function Limits() {
     <div className="section">
       <SectionHead title="Limits" summary="Limits are shared between Claude Code and claude.ai">
         <Provenance readings={status.limits} nowMs={now} />
+        {limits && limits.recent.length > 0 && (
+          <ExportMenu
+            what={{ dataset: "five-hour-windows", filters: {} }}
+            scope={`The ${grouped(limits.recent.length)} five-hour ${
+              limits.recent.length === 1 ? "window" : "windows"
+            } of the last 7 days`}
+            className="button export-button"
+          />
+        )}
       </SectionHead>
       {limits && views.length > 0 && (
         <div className="window-cards">

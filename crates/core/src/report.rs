@@ -434,7 +434,9 @@ pub struct Filter {
 }
 
 impl Filter {
-    fn admits(&self, request: &StoredRequest<'_>) -> bool {
+    /// Whether the filter counts `request`.
+    #[must_use]
+    pub fn admits(&self, request: &StoredRequest<'_>) -> bool {
         self.project
             .is_none_or(|project| project == request.project)
             && self

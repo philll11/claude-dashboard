@@ -25,7 +25,7 @@ expression: shown(&state)
 20 ││ Usage endpoint  off  claude-dashboard limits endpoint on                     ││
 21 │└──────────────────────────────────────────────────────────────────────────────┘│
 22 │                                                                                │
-23 │ q quit   ←→ sections   t table view   ? help                     Read just now │
+23 │ q quit   ←→ sections   t table view   e export   ? help          Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb bbbbbbbb cccccccc │
@@ -51,7 +51,7 @@ styles
 20 │d aaaaaaaaaaaaaa  eeeeefffffffffffffffffffffffffffffffffff                     d│
 21 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 22 │                                                                                │
-23 │ g bbbb   gg bbbbbbbb   g bbbbbbbbbb   g bbbb                     bbbbbbbbbbbbb │
+23 │ g bbbb   gg bbbbbbbb   g bbbbbbbbbb   g bbbbbb   g bbbb          bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

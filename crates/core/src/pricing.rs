@@ -5,7 +5,7 @@
 //! A model the table does not list is unpriced, never free.
 
 use std::collections::HashSet;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use jiff::Timestamp;
 use jiff::civil::Date;
@@ -14,13 +14,20 @@ use serde::Deserialize;
 
 use crate::tokens::Tokens;
 
-static BUNDLED: LazyLock<PriceTable> = LazyLock::new(|| {
-    PriceTable::parse(include_str!("../../../pricing/prices.json"))
-        .expect("a test checks that the bundled price table is valid")
+static BUNDLED: LazyLock<Arc<PriceTable>> = LazyLock::new(|| {
+    Arc::new(
+        PriceTable::parse(include_str!("../../../pricing/prices.json"))
+            .expect("a test checks that the bundled price table is valid"),
+    )
 });
 
+/// The newest format of `pricing/prices.json` this version reads. A change to the format that an
+/// older version would misread raises it, so that the older version reports that it needs
+/// updating rather than a broken table.
+pub const FORMAT: u32 = 1;
+
 /// The prices of every model on Anthropic's pricing page, as checked on one date.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PriceTable {
     source: String,
     checked: Date,
@@ -29,7 +36,7 @@ pub struct PriceTable {
     models: Vec<Model>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Model {
     name: String,
     ids: Vec<String>,
@@ -37,7 +44,7 @@ struct Model {
     periods: Vec<Period>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct Period {
     from: Option<Date>,
     standard: Rates,
@@ -45,13 +52,13 @@ struct Period {
     long_prompt: Option<LongPrompt>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct Fast {
     input: f64,
     output: f64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct LongPrompt {
     above: u64,
     rates: Rates,
@@ -133,6 +140,8 @@ pub enum PriceTableError {
     Json(#[from] serde_json::Error),
     #[error("the price table is invalid: {0}")]
     Invalid(String),
+    #[error("the price table is in format {0}, which needs a newer claude-dashboard")]
+    NewerFormat(u32),
 }
 
 impl PriceTable {
@@ -142,14 +151,34 @@ impl PriceTable {
         &BUNDLED
     }
 
+    /// The price table this version of claude-dashboard ships with, to share.
+    #[must_use]
+    pub fn bundled_shared() -> Arc<Self> {
+        Arc::clone(&BUNDLED)
+    }
+
+    /// Whether `table` is the one this version ships with.
+    #[must_use]
+    pub fn is_bundled(table: &Arc<Self>) -> bool {
+        Arc::ptr_eq(table, &BUNDLED)
+    }
+
     /// Reads a price table in the format of `pricing/prices.json`.
     ///
     /// # Errors
     ///
-    /// [`PriceTableError`] when the table is not valid JSON in that format, or breaks one of its
-    /// rules: every model has an id and prices from the start, ids are unique, later prices are
-    /// in date order, and prices are not negative.
+    /// [`PriceTableError`] when the table is in a newer format than [`FORMAT`], is not valid JSON
+    /// in its format, or breaks one of its rules: every model has an id and prices from the
+    /// start, ids are unique, later prices are in date order, and prices are not negative.
     pub fn parse(json: &str) -> Result<Self, PriceTableError> {
+        // The format comes first, read on its own, since a newer one may hold anything.
+        let format = serde_json::from_str::<Format>(json)?.format;
+        if format > FORMAT {
+            return Err(PriceTableError::NewerFormat(format));
+        }
+        if format == 0 {
+            return Err(PriceTableError::Invalid("its format is 0".to_owned()));
+        }
         let raw: RawTable = serde_json::from_str(json)?;
         let invalid = |message: String| Err(PriceTableError::Invalid(message));
         let mut seen = HashSet::new();
@@ -207,6 +236,37 @@ impl PriceTable {
             us_only_inference_multiplier: raw.us_only_inference_multiplier,
             models,
         })
+    }
+
+    /// Whether this table keeps everything `older` holds: the same prices for every model and
+    /// period it has, adding only models, ids and later periods.
+    ///
+    /// # Errors
+    ///
+    /// What this table changes or leaves out.
+    #[expect(
+        clippy::float_cmp,
+        reason = "prices are kept exactly as the table writes them"
+    )]
+    pub fn keeps(&self, older: &Self) -> Result<(), String> {
+        if self.web_search_per_thousand != older.web_search_per_thousand
+            || self.us_only_inference_multiplier != older.us_only_inference_multiplier
+        {
+            return Err("it changes the price of web search or of US-only inference".to_owned());
+        }
+        for model in &older.models {
+            let Some(kept) = self
+                .models
+                .iter()
+                .find(|new| model.ids.iter().all(|id| new.ids.contains(id)))
+            else {
+                return Err(format!("it leaves out {}", model.name));
+            };
+            if !kept.periods.starts_with(&model.periods) {
+                return Err(format!("it changes the prices {} had", model.name));
+            }
+        }
+        Ok(())
     }
 
     /// The page the prices come from.
@@ -348,8 +408,21 @@ fn base_id(model_id: &str) -> &str {
 }
 
 #[derive(Deserialize)]
+struct Format {
+    #[serde(default = "first_format")]
+    format: u32,
+}
+
+fn first_format() -> u32 {
+    1
+}
+
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawTable {
+    #[serde(default = "first_format")]
+    #[expect(dead_code, reason = "read on its own before the rest of the table")]
+    format: u32,
     source: String,
     checked: Date,
     web_search_per_thousand: f64,

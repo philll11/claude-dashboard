@@ -34,6 +34,12 @@ export type CostPoint = { ms: number, usd: number, };
 export type Credit = { name: string, tool?: string | null, totals: Totals, };
 
 /**
+ * What an export holds, one row per day, week, month, model, project, session, five-hour window
+ * or request.
+ */
+export type Dataset = "days" | "weeks" | "months" | "models" | "projects" | "sessions" | "five-hour-windows" | "requests";
+
+/**
  * One day's totals, with each model's part, highest cost first.
  */
 export type Day = { date: string, totals: Totals, models: Array<ModelDay>, };
@@ -70,6 +76,71 @@ consent: Array<string>, };
  * `endpoint/set` parameters: turning Anthropic's usage endpoint on or off.
  */
 export type EndpointParams = { enabled: boolean, };
+
+/**
+ * How an export is written.
+ */
+export type ExportFormat = "csv" | "json";
+
+/**
+ * `export/name`: the file name to suggest for an export.
+ */
+export type ExportName = { name: string, };
+
+/**
+ * What to export: a dataset, for the days, filters and search a section shows.
+ */
+export type ExportParams = { dataset: Dataset, format: ExportFormat, 
+/**
+ * The days to export; every day the history holds when absent. Five-hour windows without
+ * days are the recent ones the Limits section shows.
+ */
+days?: Days | null, filters: Filters, 
+/**
+ * For sessions: text the session's title, id or project name contains, in any case.
+ */
+search?: string | null, 
+/**
+ * For requests: only those of this session, by Claude Code's session id.
+ */
+session?: string | null, };
+
+/**
+ * `export/progress`: how far an export has got.
+ */
+export type ExportProgress = { written: number, 
+/**
+ * The rows it will write; 0 when that is not known.
+ */
+total: number, 
+/**
+ * The file it writes, where the server writes it.
+ */
+path?: string | null, };
+
+/**
+ * `export/save` parameters: an export, and the file the person chose for it. Only the VS Code
+ * extension sends it, after its own save dialog; the dashboard never does.
+ */
+export type ExportSave = { export: ExportParams, path: string, };
+
+/**
+ * What an export wrote.
+ */
+export type Exported = { rows: number, 
+/**
+ * What the rows are, such as `214 sessions`.
+ */
+what: string, 
+/**
+ * The file it was saved to.
+ */
+path?: string | null, 
+/**
+ * For `export/content`: what to save, for the VS Code extension to write where the server
+ * cannot.
+ */
+content?: string | null, };
 
 /**
  * A model's fast-mode prices, in US dollars per million tokens.
@@ -267,6 +338,27 @@ export type PriceDrift = { model: Model,
 drift: number, sessions: number, };
 
 /**
+ * The daily check for a newer price table in claude-dashboard's repository.
+ */
+export type PriceRefresh = { 
+/**
+ * Whether the person has switched the daily check on.
+ */
+enabled: boolean, 
+/**
+ * When a check last ended.
+ */
+checkedMs?: number | null, 
+/**
+ * What came of it: `updated`, `up-to-date`, `unreachable`, `newer-format` or `refused`.
+ */
+outcome?: string | null, 
+/**
+ * What went wrong, for an outcome that needs it.
+ */
+detail?: string | null, };
+
+/**
  * A model's prices, in US dollars per million tokens.
  */
 export type PriceRow = { model: Model, input: number, output: number, cacheWrite5m: number, cacheWrite1h: number, cacheRead: number, 
@@ -296,7 +388,16 @@ drift?: number | null, sessionsCompared: number,
 /**
  * The models whose prices may be out of date.
  */
-outOfLine: Array<PriceDrift>, };
+outOfLine: Array<PriceDrift>, 
+/**
+ * When the table in use was downloaded from claude-dashboard's repository; `None` for the
+ * table this version ships with.
+ */
+downloadedMs?: number | null, 
+/**
+ * The daily check for a newer table.
+ */
+refresh: PriceRefresh, };
 
 /**
  * `prices` parameters: the models whose prices to show.
@@ -436,7 +537,16 @@ systemTimeZone: string,
 /**
  * The first day of the week, such as `monday`.
  */
-weekStart: string, };
+weekStart: string, 
+/**
+ * Whether the desktop app shows the five-hour window in the notification area or the menu
+ * bar.
+ */
+tray: boolean, 
+/**
+ * Whether the desktop app keeps running when its window closes.
+ */
+keepRunning: boolean, };
 
 /**
  * `settings/set` parameters: what to change; whatever is left out stays as it is.
@@ -449,7 +559,11 @@ timeZone?: string,
 /**
  * A day of the week, such as `sunday`.
  */
-weekStart?: string, };
+weekStart?: string, tray?: boolean, keepRunning?: boolean, 
+/**
+ * Switches the daily check for a newer price table on or off.
+ */
+priceRefresh?: boolean, };
 
 /**
  * `status`: what every view's header, the status bar and the tree show.

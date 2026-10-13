@@ -1,10 +1,12 @@
 // The dashboard in the desktop app: requests go to the server in the app's own process through one
 // Tauri command, and its notifications come back as one event (ADR 0008). The app's window follows
 // the system's light or dark theme, in the page's colour, and stays hidden until the dashboard has
-// drawn in it.
+// drawn in it, or longer after a start at login. Exports go through the app's own save dialog, so
+// the dashboard never names a file.
 
 import type {
   Backend,
+  Exported,
   Method,
   Notifications,
   Params,
@@ -33,8 +35,6 @@ export interface DesktopApi extends UpdateApi {
   listen(event: string, handler: (payload: unknown) => void): Promise<() => void>;
   theme(): Promise<Theme | null>;
   onThemeChanged(handler: (theme: Theme) => void): Promise<() => void>;
-  /** Shows the window. */
-  show(): Promise<void>;
   pickFolder(): Promise<string | undefined>;
   reveal(path: string): Promise<void>;
   /** Puts the dashboard in the desktop's light or dark theme. */
@@ -49,6 +49,14 @@ function refused(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
+/** What the app says about itself: whether it has its item in the notification area, where that
+ * is, and whether this start keeps the window hidden. */
+interface DesktopFacts {
+  tray: boolean;
+  trayPlace: string;
+  hidden: boolean;
+}
+
 /** The desktop host, made from `api`. */
 export async function desktopHost(api: DesktopApi): Promise<Host> {
   api.applyTheme((await api.theme()) ?? "dark");
@@ -60,6 +68,16 @@ export async function desktopHost(api: DesktopApi): Promise<Host> {
   await api.listen("notification", (payload) => {
     const { method, params } = payload as { method: string; params: unknown };
     for (const listener of listeners.get(method) ?? []) listener(params);
+  });
+
+  const facts = ((await api.invoke("desktop")) as DesktopFacts | null) ?? {
+    tray: false,
+    trayPlace: "notification area",
+    hidden: false,
+  };
+  const closeAsked = new Set<() => void>();
+  await api.listen("closeAsked", () => {
+    for (const listener of closeAsked) listener();
   });
 
   const showing = new Set<(show: Show) => void>();
@@ -89,6 +107,17 @@ export async function desktopHost(api: DesktopApi): Promise<Host> {
       return () => set.delete(wrapped);
     },
   };
+
+  const updates = createUpdates({
+    ...api,
+    installAtStart: !facts.hidden,
+    waiting: (version) => {
+      void api.invoke("update_waiting", { version });
+    },
+  });
+  await api.listen("installUpdate", () => {
+    updates.install();
+  });
 
   return {
     surface: "desktop",
@@ -123,9 +152,40 @@ export async function desktopHost(api: DesktopApi): Promise<Host> {
       };
     },
     ready: () => {
-      void api.show();
+      void api.invoke("ready");
     },
-    updates: createUpdates(api),
+    updates,
+    async exportTo(params) {
+      try {
+        return ((await api.invoke("export", { params })) as Exported | null) ?? undefined;
+      } catch (error) {
+        throw refused(error);
+      }
+    },
+    cancelExport: () => {
+      void api.invoke("export_cancel");
+    },
+    desktop: {
+      tray: facts.tray,
+      trayPlace: facts.trayPlace,
+      autostart: async () => Boolean(await api.invoke("autostart")),
+      setAutostart: async (on) => {
+        try {
+          await api.invoke("set_autostart", { on });
+        } catch (error) {
+          throw refused(error);
+        }
+      },
+      onCloseAsked(listener) {
+        closeAsked.add(listener);
+        return () => {
+          closeAsked.delete(listener);
+        };
+      },
+      closeChoice: (keepRunning) => {
+        void api.invoke("close_choice", { keepRunning });
+      },
+    },
   };
 }
 
@@ -153,7 +213,6 @@ export async function tauriHost(): Promise<Host | undefined> {
       window.onThemeChanged(({ payload }) => {
         handler(payload);
       }),
-    show: () => window.show(),
     pickFolder: async () => (await open({ directory: true, multiple: false })) ?? undefined,
     reveal: (path) => revealItemInDir(path),
     applyTheme(theme) {

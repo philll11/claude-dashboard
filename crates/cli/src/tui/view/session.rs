@@ -128,6 +128,7 @@ pub fn draw(c: &mut Canvas, state: &State) {
             ("Esc", "back"),
             ("↑↓", "scroll"),
             ("t", "table view"),
+            ("e", "export"),
             ("?", "help"),
         ],
         None,

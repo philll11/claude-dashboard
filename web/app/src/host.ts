@@ -1,7 +1,7 @@
 // What the dashboard needs from the surface it runs in: VS Code, the desktop app, or a page that
 // provides `window.claudeDashboardHost`, as the browser tests do.
 
-import type { Backend, Show } from "@claude-dashboard/protocol";
+import type { Backend, ExportParams, Exported, Show } from "@claude-dashboard/protocol";
 
 /** Where every version of claude-dashboard is published, with its installers and packages. */
 export const RELEASES = "https://github.com/philll11/claude-dashboard/releases";
@@ -37,6 +37,27 @@ export interface Updates {
   install: () => void;
 }
 
+/** What only the desktop app does: its item in the notification area or the menu bar, opening at
+ * login, and what happens the first time its window closes. */
+export interface Desktop {
+  /** Whether the app has its item in the notification area or the menu bar; a Linux desktop
+   * without one leaves the app without it. */
+  tray: boolean;
+  /** The words for where the item is: `notification area`, or `menu bar` on macOS. */
+  trayPlace: string;
+  /** Whether the app opens at login, as the operating system has it. */
+  autostart: () => Promise<boolean>;
+  setAutostart: (on: boolean) => Promise<void>;
+  /** Calls `listener` when the window first closes while the app would keep running, until the
+   * returned function is called; the person's answer goes to `closeChoice`. */
+  onCloseAsked: (listener: () => void) => () => void;
+  /** Keeps the app running with its window hidden, or quits it, and remembers the choice. */
+  closeChoice: (keepRunning: boolean) => void;
+}
+
+/** The JSON-RPC error code of an export that was cancelled. */
+export const EXPORT_CANCELLED = -32800;
+
 export interface Host {
   /** Where the dashboard runs, which decides its layout. */
   surface: "vscode" | "desktop";
@@ -52,6 +73,12 @@ export interface Host {
   /** Called once the dashboard has drawn for the first time, for a surface that waits for it. */
   ready?: () => void;
   updates?: Updates;
+  /** Saves an export where the person chooses in the surface's save dialog, reporting progress
+   * as `export/progress` notifications; `undefined` when they choose no file. It fails with
+   * `EXPORT_CANCELLED` when `cancelExport` stops it. */
+  exportTo?: (params: ExportParams) => Promise<Exported | undefined>;
+  cancelExport?: () => void;
+  desktop?: Desktop;
 }
 
 /** A request the server refused, with the JSON-RPC error code it gave. */

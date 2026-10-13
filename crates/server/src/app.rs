@@ -1,10 +1,13 @@
 //! What every surface works with: the history, the data roots, the time zone and the prices.
 
+use std::collections::HashMap;
 use std::ffi::OsString;
+use std::hash::BuildHasher;
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use claude_dashboard_core::history::{self, History};
+use claude_dashboard_core::price_refresh;
 use claude_dashboard_core::pricing::PriceTable;
 use claude_dashboard_core::report::Bucket;
 use claude_dashboard_core::roots::{self, CONFIG_DIR_ENV, DataRoot};
@@ -60,6 +63,31 @@ pub const WEEK_START_SETTING: &str = "week_start";
 /// opens.
 pub const DESKTOP_APP_SETTING: &str = "desktop_app";
 
+/// The shared setting that holds whether the desktop app shows the five-hour window in the
+/// notification area or the menu bar, as `on` or `off`; without it, it does.
+pub const TRAY_SETTING: &str = "tray";
+
+/// The shared setting that holds whether the desktop app keeps running when its window closes,
+/// as `on` or `off`; without it, it does on Windows and macOS, and on Linux, where a desktop may
+/// show no notification area to come back from, it quits.
+pub const KEEP_RUNNING_SETTING: &str = "keep_running";
+
+/// Whether the desktop app shows the five-hour window in the notification area or the menu bar.
+#[must_use]
+pub fn shows_tray<S: BuildHasher>(settings: &HashMap<String, String, S>) -> bool {
+    settings
+        .get(TRAY_SETTING)
+        .is_none_or(|value| value != "off")
+}
+
+/// Whether the desktop app keeps running when its window closes.
+#[must_use]
+pub fn keeps_running<S: BuildHasher>(settings: &HashMap<String, String, S>) -> bool {
+    settings
+        .get(KEEP_RUNNING_SETTING)
+        .map_or(cfg!(not(target_os = "linux")), |value| value == "on")
+}
+
 #[derive(Clone)]
 pub struct App {
     pub history_path: Option<PathBuf>,
@@ -74,7 +102,9 @@ pub struct App {
     /// The first day of the week.
     pub week_start: Weekday,
     pub now: Timestamp,
-    pub prices: &'static PriceTable,
+    /// The price table in use: the one this version ships with, or a newer one from the
+    /// repository.
+    pub prices: Arc<PriceTable>,
     /// The `claude-dashboard` program that a status line connected from here runs a copy of,
     /// kept next to the history, because an update moves the program itself: this program for
     /// `serve --status-line-copy`, and the desktop app's bundled one. Without it, the status line
@@ -109,14 +139,14 @@ impl App {
             zone,
             week_start: Weekday::Monday,
             now: now(),
-            prices: PriceTable::bundled(),
+            prices: PriceTable::bundled_shared(),
             status_line_copy: None,
         }
     }
 
     /// The app with the settings every surface shares, kept in the history: the data folders the
-    /// person added, the time zone and the first day of the week. Without a history yet, there
-    /// is nothing to apply.
+    /// person added, the time zone, the first day of the week and the price table. Without a
+    /// history yet, there is nothing to apply.
     #[must_use]
     pub fn with_shared_settings(self) -> Self {
         match &self.history_path {
@@ -144,6 +174,7 @@ impl App {
             .get(WEEK_START_SETTING)
             .and_then(|name| weekday(name))
             .unwrap_or(Weekday::Monday);
+        app.prices = price_refresh::in_use(&settings);
         app
     }
 

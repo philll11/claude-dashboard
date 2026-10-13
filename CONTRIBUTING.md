@@ -54,6 +54,7 @@ The design's terminal boards on the canvas are what each screen is drawn to matc
 - `crates/cli/tests/tui.rs` runs the program in a pseudo-terminal, Windows' pseudo console on Windows, and moves through its screens as a person would.
 - `design/tokens.json` holds the terminal palettes, for a dark and a light background; the colour tests hold their text to 4.5:1 and their marks to 3:1, on white, GNOME Terminal's and Solarized Light's backgrounds as well as the dark one.
 - `design/formats.json` and `design/buckets.json` hold the examples that the Rust and the TypeScript formats, weeks and months are both tested against, so that every surface writes them the same.
+- `design/glance.json` holds what the desktop app's item and VS Code's status bar say, which the server library's and the extension's tests both check.
 
 ## Web dashboard
 
@@ -114,7 +115,7 @@ The tests:
 - `pnpm --filter claude-dashboard test` checks what the status bar and the sidebar show, with Vitest.
 - `pnpm --filter claude-dashboard test:integration` runs the extension in VS Code over the browser tests' generated Claude Code folder.
   It downloads the latest VS Code; set `VSCODE_VERSION=1.126.0` for the oldest the extension supports, or `VSCODE_PATH` to the program of a VS Code you have installed.
-- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, and look at the status bar, the sidebar and inside the dashboard, leaving a screenshot of each default theme in `screenshots` in the folder `E2E_STORAGE` names, or in `claude-dashboard-e2e` in your system's temporary folder:
+- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, look at the status bar, the sidebar and inside the dashboard, and export the sessions it lists, leaving a screenshot of each default theme in `screenshots` in the folder `E2E_STORAGE` names, or in `claude-dashboard-e2e` in your system's temporary folder:
 
   ```sh
   node apps/vscode/scripts/package.mjs --target win32-x64 --program target/debug/claude-dashboard.exe --out apps/vscode/claude-dashboard.vsix
@@ -130,6 +131,8 @@ On Linux, run the integration and end-to-end tests under `xvfb-run -a`, which gi
 `apps/desktop` is the desktop app: a Tauri 2 window with the dashboard from `web/app`, answered by the server library in the app's own process ([ADR 0008](docs/adr/0008-the-desktop-app-runs-the-server-in-process.md)).
 It brings the `claude-dashboard` program next to its own, and a status line connected from the app runs a copy of that program kept next to the history.
 On Linux it builds against WebKitGTK; on Debian and Ubuntu, install `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`.
+Its item in the notification area loads the AppIndicator library when the app starts, and the app runs without the item where there is none.
+The item's icons are drawn in code, and `cargo test -p claude-dashboard-desktop` compares each level and size with its text snapshot in `apps/desktop/src-tauri/src/snapshots`.
 
 To try your changes, with the dashboard reloading as you change it:
 
@@ -151,8 +154,11 @@ They land in `apps/desktop/out/bundles`, named as the release names them.
 
 The tests:
 
-- The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, and uninstall it again, leaving nothing behind but a screenshot of each section in `apps/desktop/out/screenshots`.
-  Install the driver with `cargo install tauri-driver --locked --version 2.1.0`, and close the app if you have it open, since a second copy hands over to the first.
+- The end-to-end tests install the app from its installer into a folder of their own, drive it with [tauri-driver](https://v2.tauri.app/develop/tests/webdriver/) over the browser tests' generated Claude Code folder, export the sessions it lists, and uninstall it again, leaving nothing behind but a screenshot of each section in `apps/desktop/out/screenshots`.
+  Install the driver with `cargo install tauri-driver --locked --version 2.1.0`, and close the app if you have it open, quitting it from its item, since a second copy hands over to the first.
+  The tests switch keeping the app running off, because they end it by closing its window, and one test on Windows switches it on to close the window and bring it back.
+  The native save dialog cannot be driven, so `CLAUDE_DASHBOARD_EXPORT_TO`, which only tests set, names a folder that exports go to without asking; the VS Code extension honours it too, and its end-to-end tests set it.
+  Each suite checks that the saved file is what `claude-dashboard sessions` reports for the same days.
   On Windows the tests download the Microsoft Edge WebDriver that matches your WebView2 runtime.
   On Linux they install the `.deb` package with `sudo` and need `webkit2gtk-driver`; without a desktop, run them under `xvfb-run -a dbus-run-session --`, which gives them a display and the D-Bus session bus a desktop has.
 
@@ -175,6 +181,11 @@ When Anthropic's [pricing page](https://platform.claude.com/docs/en/about-claude
    Never edit a period that is already in a release, because earlier requests keep the prices they were billed at.
 3. Set `checked` to the date you compared the table with the page.
 4. Update the copy of the page's table in `crates/core/tests/pricing.rs` from the page itself, not from `prices.json`, so the test catches a slip in either.
+
+The table on `main` reaches every installed version whose daily price check is on ([ADR 0011](docs/adr/0011-newer-prices-come-from-this-repository.md)), so a change merged there is a change to everyone's costs.
+Those versions use it only if it keeps every model and period their own table has and was checked no earlier, so a correction to a period that is in a release reaches people only with a new release.
+`format` names the table's shape: raise it only for a change that an older version would misread, such as a new field, and that version then says it needs updating rather than using the table.
+The export goldens in `crates/cli/tests/goldens` carry the table's date and prices; `UPDATE_GOLDENS=1 cargo test -p claude-dashboard --test export` writes them again, and Git keeps them byte for byte.
 
 ## Performance
 

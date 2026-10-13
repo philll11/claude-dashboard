@@ -25,7 +25,7 @@ expression: shown(&state)
 20 ││                                                                              ││
 21 │└──────────────────────────────────────────────────────────────────────────────┘│
 22 │  ↓ tokens by type, skills and MCP tools                                        │
-23 │ Esc back   ↑↓ scroll   t table view   ? help                     Read just now │
+23 │ Esc back   ↑↓ scroll   t table view   e export   ? help          Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb │
@@ -51,7 +51,7 @@ styles
 20 │e                                                                              e│
 21 │eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee│
 22 │  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                        │
-23 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb                     bbbbbbbbbbbbb │
+23 │ jjj bbbb   jj bbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb          bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

@@ -18,15 +18,16 @@ use ratatui::layout::Rect;
 use ratatui::style::Style;
 
 use super::canvas::{Canvas, fit, width};
-use super::state::{Section, State};
+use super::state::{ExportNotice, Section, State};
 
 pub use series::series_of;
 
 /// The key line's keys on most screens.
-pub const KEYS: [(&str, &str); 4] = [
+pub const KEYS: [(&str, &str); 5] = [
     ("q", "quit"),
     ("←→", "sections"),
     ("t", "table view"),
+    ("e", "export"),
     ("?", "help"),
 ];
 
@@ -66,6 +67,9 @@ pub fn draw(buf: &mut Buffer, state: &State) {
             Section::Models => models::draw(c, state),
             Section::Limits => limits::draw(c, state),
         }
+    }
+    if let Some(export) = &state.export {
+        export_notice(c, export);
     }
     if let Some(overlay) = &state.overlay {
         overlays::draw(c, state, overlay);
@@ -189,14 +193,74 @@ pub fn footer(c: &mut Canvas, state: &State, keys: &[(&str, &str)], note: Option
         (shown, style)
     };
     let note_start = c.right(c.w - 1, y, &shown, style);
+    // The keys close up to two spaces apart before any is left out.
+    let all: i32 = keys
+        .iter()
+        .map(|(key, label)| width(key) + 1 + width(label))
+        .sum::<i32>()
+        + 3 * (i32::try_from(keys.len()).unwrap_or(1) - 1);
+    let gap = if 1 + all > note_start - 2 { 2 } else { 3 };
     let mut x = 1;
     for (key, label) in keys {
         if x + width(key) + 1 + width(label) > note_start - 2 {
             continue;
         }
         x = c.text(x, y, key, theme.key());
-        x = c.text(x + 1, y, label, theme.muted()) + 3;
+        x = c.text(x + 1, y, label, theme.muted()) + gap;
     }
+}
+
+/// Where the last export stands, on the line under the header: under way, saved with as much of
+/// its path as fits, keeping its end, or why it failed.
+fn export_notice(c: &mut Canvas, export: &ExportNotice) {
+    let theme = c.theme;
+    c.clear(0, 1, c.w, 1);
+    match export {
+        ExportNotice::Running(what) => {
+            c.text(1, 1, &fit(&format!("{what}…"), c.w - 2), theme.muted());
+        }
+        ExportNotice::Saved { what, path } => {
+            let x = c.text(1, 1, "✓ ", theme.good());
+            let x = c.text(x, 1, &format!("Saved {what} to "), theme.text());
+            c.text(
+                x,
+                1,
+                &tail(&super::canvas::clean(path), c.w - 1 - x),
+                theme.muted(),
+            );
+        }
+        ExportNotice::Failed(reason) => {
+            let x = c.text(1, 1, "▲ ", theme.warn());
+            c.text(
+                x,
+                1,
+                &fit(
+                    &format!("Cannot export: {}", super::canvas::clean(reason)),
+                    c.w - 1 - x,
+                ),
+                theme.text(),
+            );
+        }
+    }
+}
+
+/// As much of `text` as fits in `cells`, keeping its end: `…rd-sessions-2026-10-10.csv`.
+pub fn tail(text: &str, cells: i32) -> String {
+    if width(text) <= cells {
+        return text.to_owned();
+    }
+    let mut kept: Vec<char> = Vec::new();
+    let mut used = 1;
+    for c in text.chars().rev() {
+        let cell = width(&c.to_string());
+        if used + cell > cells {
+            break;
+        }
+        used += cell;
+        kept.push(c);
+    }
+    kept.reverse();
+    format!("…{}", kept.into_iter().collect::<String>())
 }
 
 /// When the history was last read, or how far the read under way has got.

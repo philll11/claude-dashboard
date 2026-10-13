@@ -1,13 +1,16 @@
 //! The interface's state, changed only by events: keys, answers, notifications and the passing of
 //! time. Drawing is a function of the state alone.
 
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use claude_dashboard_core::report::Bucket;
 use claude_dashboard_server::app::weekday;
+use claude_dashboard_server::export;
+use claude_dashboard_server::fmt::grouped;
 use claude_dashboard_server::protocol::{
-    Choices, Days, Health, ImportOffer, Limits, Overview, Prices, Progress, SessionDetail,
-    SessionsPage, Status,
+    Choices, Dataset, Days, ExportFormat, ExportParams, Exported, Filters, Health, ImportOffer,
+    Limits, Overview, Prices, Progress, SessionDetail, SessionsPage, Status,
 };
 use jiff::civil::{Date, Weekday};
 use jiff::tz::TimeZone;
@@ -38,6 +41,8 @@ pub enum Event {
     },
     /// A minute has passed, or about to: the times shown move on.
     Tick(Timestamp),
+    /// An export ended: what it saved, or why it could not.
+    Exported(Result<Exported, String>),
     /// The terminal is going away, or the process is asked to end, as only signals outside
     /// Windows say.
     #[cfg_attr(not(unix), allow(dead_code))]
@@ -126,6 +131,18 @@ impl Range {
         }
     }
 
+    /// The range in a sentence, after what it covers: `in the last 30 days`, `this month`;
+    /// nothing for all time.
+    pub fn phrase(self) -> &'static str {
+        match self {
+            Self::Today => " today",
+            Self::SevenDays => " in the last 7 days",
+            Self::ThirtyDays => " in the last 30 days",
+            Self::ThisMonth => " this month",
+            Self::AllTime => "",
+        }
+    }
+
     /// The days the range covers, as of the server's today.
     pub fn days(self, status: &Status) -> Days {
         let today = day(&status.today);
@@ -160,6 +177,29 @@ pub enum Overlay {
     Range { hover: usize },
     Project { hover: usize, filter: String },
     Model { hover: usize, filter: String },
+    Export(Box<ExportBox>),
+}
+
+/// The box that exports the section shown: its format, where to save it, and what it holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExportBox {
+    pub params: ExportParams,
+    /// `Export the sessions`.
+    pub title: String,
+    /// `All 214 sessions in the last 30 days that match.`
+    pub scope: String,
+    /// The file to save to, as typed.
+    pub path: String,
+    /// Set while asking whether to replace the file that is there already.
+    pub replacing: bool,
+}
+
+/// Where the last export stands, said on the line under the header until the next key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExportNotice {
+    Running(String),
+    Saved { what: String, path: String },
+    Failed(String),
 }
 
 /// The sessions' search: what is typed, and what was last asked.
@@ -231,7 +271,11 @@ pub struct State {
     pub progress: Option<Progress>,
     /// The time the screen shows, moved on once a minute.
     pub now: Timestamp,
+    /// Where the last export stands.
+    pub export: Option<ExportNotice>,
     commands: Vec<Ask>,
+    /// An export to start, with the file to save it to.
+    exporting: Option<(ExportParams, PathBuf)>,
 }
 
 impl State {
@@ -255,7 +299,9 @@ impl State {
             answers: Answers::default(),
             progress: None,
             now,
+            export: None,
             commands: Vec::new(),
+            exporting: None,
         }
     }
 
@@ -541,6 +587,11 @@ impl State {
         asks
     }
 
+    /// The export to start now, if one was asked for.
+    pub fn take_export(&mut self) -> Option<(ExportParams, PathBuf)> {
+        self.exporting.take()
+    }
+
     /// When the search is next due to be asked.
     pub fn deadline(&self) -> Option<Instant> {
         self.search.due
@@ -573,6 +624,15 @@ impl State {
             Event::Answer { id, result } => self.answers.answered(id, result),
             Event::Notification { method, params } => self.notified(&method, &params),
             Event::Tick(now) => self.now = now,
+            Event::Exported(result) => {
+                self.export = Some(match result {
+                    Ok(exported) => ExportNotice::Saved {
+                        what: exported.what,
+                        path: exported.path.unwrap_or_default(),
+                    },
+                    Err(reason) => ExportNotice::Failed(reason),
+                });
+            }
             Event::Quit | Event::Failed(_) => return Flow::Quit,
         }
         Flow::Continue
@@ -619,6 +679,10 @@ impl State {
             } else {
                 Flow::Continue
             };
+        }
+        // What the last export said stays until the next key.
+        if !matches!(self.export, Some(ExportNotice::Running(_))) {
+            self.export = None;
         }
         if let Some(overlay) = self.overlay.take() {
             self.overlay_key(overlay, key.code, text);
@@ -695,6 +759,11 @@ impl State {
             't' => {
                 self.tables = !self.tables;
                 self.table_top = 0;
+            }
+            'e' => {
+                if let Some(export) = self.export_box() {
+                    self.overlay = Some(Overlay::Export(Box::new(export)));
+                }
             }
             'R' => {
                 let refresh = self.answers.command("refresh", Value::Null);
@@ -946,7 +1015,176 @@ impl State {
                     self.filtered();
                 }
             }
+            Overlay::Export(export) => self.export_key(*export, code, text),
         }
+    }
+
+    /// What exporting the section shown would save, and where, unless an export is under way or
+    /// the section has nothing to export yet.
+    fn export_box(&self) -> Option<ExportBox> {
+        if matches!(self.export, Some(ExportNotice::Running(_))) {
+            return None;
+        }
+        let (params, title, scope, span) = self.export_what()?;
+        let folder = dirs::download_dir()
+            .filter(|folder| folder.is_dir())
+            .or_else(std::env::home_dir)
+            .unwrap_or_default();
+        let path = folder.join(export::file_name(&params, span));
+        Some(ExportBox {
+            params,
+            title: title.to_owned(),
+            scope,
+            path: path.display().to_string(),
+            replacing: false,
+        })
+    }
+
+    /// What exporting the section shown holds: the request for it, the box's title, what it holds
+    /// in words, and the days it covers.
+    fn export_what(&self) -> Option<ExportWhat> {
+        let today = day(&self.status()?.today);
+        let days = self.days()?;
+        let span = Some((day(&days.first), day(&days.last)));
+        let phrase = self.range.phrase();
+        let params =
+            |dataset, days, project: Option<&String>, model: Option<&String>| ExportParams {
+                dataset,
+                format: ExportFormat::Csv,
+                days,
+                filters: Filters {
+                    project: project.cloned(),
+                    model: model.cloned(),
+                },
+                search: None,
+                session: None,
+            };
+        let (project, model) = (self.project.as_ref(), self.model.as_ref());
+        Some(match self.section {
+            Section::Overview => (
+                params(Dataset::Days, Some(days), project, model),
+                "Export the days",
+                format!("Every day with requests{phrase}."),
+                span,
+            ),
+            Section::Sessions if self.session.is_some() => {
+                let detail = self.session_detail()?;
+                (
+                    ExportParams {
+                        session: Some(detail.id.clone()),
+                        ..params(Dataset::Requests, None, None, None)
+                    },
+                    "Export the session's requests",
+                    format!(
+                        "All {} of this session, its subagents' included.",
+                        counted(detail.totals.requests, "request", "requests")
+                    ),
+                    None,
+                )
+            }
+            Section::Sessions => (
+                ExportParams {
+                    search: (!self.search.applied.is_empty()).then(|| self.search.applied.clone()),
+                    ..params(Dataset::Sessions, Some(days), project, model)
+                },
+                "Export the sessions",
+                format!(
+                    "All {}{phrase} that match.",
+                    counted(self.sessions_page()?.total, "session", "sessions")
+                ),
+                span,
+            ),
+            Section::Projects => (
+                params(Dataset::Projects, Some(days), None, model),
+                "Export the projects",
+                format!(
+                    "All {}{phrase}.",
+                    counted(
+                        self.overview(&self.projects_request()?)?.projects.len(),
+                        "project",
+                        "projects"
+                    )
+                ),
+                span,
+            ),
+            Section::Models => (
+                params(Dataset::Models, Some(days), project, None),
+                "Export the models",
+                format!(
+                    "All {}{phrase}.",
+                    counted(
+                        self.overview(&self.models_request()?)?.models.len(),
+                        "model",
+                        "models"
+                    )
+                ),
+                span,
+            ),
+            Section::Limits => (
+                params(Dataset::FiveHourWindows, None, None, None),
+                "Export the five-hour windows",
+                format!(
+                    "The {} of the last 7 days.",
+                    counted(
+                        self.limits()?.recent.len(),
+                        "five-hour window",
+                        "five-hour windows"
+                    )
+                ),
+                Some((today.checked_sub(7.days()).unwrap_or(today), today)),
+            ),
+        })
+    }
+
+    /// A key in the export box: the format, the path, and saving or cancelling.
+    fn export_key(&mut self, mut export: ExportBox, code: KeyCode, text: Option<char>) {
+        if export.replacing {
+            match (code, text) {
+                (_, Some('y' | 'Y')) => self.start_export(export),
+                (KeyCode::Esc, _) | (_, Some('n' | 'N')) => {
+                    export.replacing = false;
+                    self.overlay = Some(Overlay::Export(Box::new(export)));
+                }
+                _ => self.overlay = Some(Overlay::Export(Box::new(export))),
+            }
+            return;
+        }
+        match (code, text) {
+            (KeyCode::Esc, _) => return,
+            (KeyCode::Enter, _) if !export.path.trim().is_empty() => {
+                if Path::new(export.path.trim()).exists() {
+                    export.replacing = true;
+                } else {
+                    self.start_export(export);
+                    return;
+                }
+            }
+            (KeyCode::Up | KeyCode::Down, _) => {
+                let (format, from, to) = match export.params.format {
+                    ExportFormat::Csv => (ExportFormat::Json, ".csv", ".json"),
+                    ExportFormat::Json => (ExportFormat::Csv, ".json", ".csv"),
+                };
+                export.params.format = format;
+                if let Some(stem) = export.path.strip_suffix(from) {
+                    export.path = format!("{stem}{to}");
+                }
+            }
+            (KeyCode::Backspace, _) => {
+                export.path.pop();
+            }
+            (_, Some(c)) => export.path.push(c),
+            _ => {}
+        }
+        self.overlay = Some(Overlay::Export(Box::new(export)));
+    }
+
+    fn start_export(&mut self, export: ExportBox) {
+        self.export = Some(ExportNotice::Running(export.title.replacen(
+            "Export",
+            "Exporting",
+            1,
+        )));
+        self.exporting = Some((export.params, PathBuf::from(export.path.trim())));
     }
 }
 
@@ -977,6 +1215,16 @@ fn picker_key(
         (KeyCode::End, _) => Some((len.saturating_sub(1), filter)),
         _ => Some((hover, filter)),
     }
+}
+
+/// What exporting a section holds: the request for it, the export box's title, what it holds in
+/// words, and the days it covers, for its file's name.
+type ExportWhat = (ExportParams, &'static str, String, Option<(Date, Date)>);
+
+/// A count and what it counts: `214 sessions`, `1 model`.
+fn counted(count: impl TryInto<u64>, one: &str, many: &str) -> String {
+    let count = count.try_into().unwrap_or(u64::MAX);
+    format!("{} {}", grouped(count), if count == 1 { one } else { many })
 }
 
 pub fn status_request() -> Request {

@@ -37,7 +37,7 @@ expression: shown(&state)
 32 ││                                                                                                                      ││
 33 ││ Prices of 10 Oct 2026 · within 0.4% of Claude Code's own session costs · 82% of input read from cache                ││
 34 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-35 │ q quit   ←→ sections   t table view   ? help                        Read just now · costs are API-equivalent estimates │
+35 │ q quit   ←→ sections   t table view   e export   ? help             Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc cccccccccc cccccccc cccccccc     ccccccccccccccccccccccccccccccccccc │
@@ -75,7 +75,7 @@ styles
 32 │d                                                                                                                      d│
 33 │d ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                d│
 34 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-35 │ n cccc   nn cccccccc   n cccccccccc   n cccc                        cccccccccccccccccccccccccccccccccccccccccccccccccc │
+35 │ n cccc   nn cccccccc   n cccccccccc   n cccccc   n cccc             cccccccccccccccccccccccccccccccccccccccccccccccccc │
 
 a = #f0f2f5 bold
 b = #0b0d10 on #5cc8e8 bold

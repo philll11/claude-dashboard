@@ -1,0 +1,30 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: picture(&template(size))
+---
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+              ........              
+           ...bbbbbbbb...           
+          ..bbbbbbbbbbbb..          
+        ..bbbbbb....bbbbbb..        
+       ..bbbb..      ..bbbb..       
+       .bbb..         .bbbbb.       
+      .bbb..         ..bbbbbb.      
+     ..bb..         ..bbb..bb..     
+     .bbb.          .bbb. .bbb.     
+     .bb.          .bbb.   .bb.     
+    .bbb.         .bbb..   .bbb.    
+    .bbb         ..bb..     bbb.    
+    .bb.        ..bbb.      .bb.    
+    .bb.        .bbb.       .bb.    
+    .bb.        .bb.        .bb.    
+    ....        ....        ....

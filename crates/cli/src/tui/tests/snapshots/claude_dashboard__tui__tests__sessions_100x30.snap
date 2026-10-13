@@ -31,7 +31,7 @@ expression: shown(&state)
 26 ││   Light terminal palette                            website           9 Oct 01:02        $4.60   ││
 27 ││ 1–21 of 214 · PgDn for more                                                                      ││
 28 │└──────────────────────────────────────────────────────────────────────────────────────────────────┘│
-29 │ q quit   ←→ sections   ↑↓ move   Enter open   / search   ? help                      Read just now │
+29 │ q quit   ←→ sections   Enter open   / search   e export   ? help                     Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb                     │
@@ -63,7 +63,7 @@ styles
 26 │d   kkkkkkkkkkkkkkkkkkkkkk                            bbbbbbb           bbbbbbbbbbb        aaaaa   d│
 27 │d bbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                      d│
 28 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-29 │ e bbbb   ee bbbbbbbb   ee bbbb   eeeee bbbb   e bbbbbb   e bbbb                      bbbbbbbbbbbbb │
+29 │ e bbbb   ee bbbbbbbb   eeeee bbbb   e bbbbbb   e bbbbbb   e bbbb                     bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

@@ -19,8 +19,10 @@ import {
   tokensOf,
   useDays,
   useFilters,
+  useExportScope,
   useRangeText,
 } from "./common";
+import { ExportMenu } from "../exports";
 import { costPerDay } from "./series";
 
 /** Projects with a smaller share of the cost than this are grouped together. */
@@ -41,11 +43,17 @@ export function Projects() {
       } · ${money(total)} API-equivalent`
     : undefined;
   const largest = Math.max(...shown.map((row) => row.totals.cost.total), 0);
+  const exportScope = useExportScope(rows.length, "project", "projects");
   return (
     <div className="section">
       <SectionHead title="Projects" summary={summary}>
         <RangeMenu />
         <ModelMenu />
+        <ExportMenu
+          what={{ dataset: "projects", days, filters: { ...filters, project: null } }}
+          scope={exportScope}
+          className="button export-button"
+        />
       </SectionHead>
       <section aria-label="Projects" className="panel list">
         <TableScroll label="Projects">

@@ -15,6 +15,7 @@ import { ChartIcon, Copy, Folder, TableIcon } from "../ui/icons";
 import { Panel, Problem, Tile, TableScroll } from "../ui/panels";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
+import { ExportMenu } from "../exports";
 import { cacheShare, costText, tokensOf, useSeries } from "./common";
 import { OwnFigure, RUNNING_MS, unpriced } from "./Sessions";
 
@@ -175,6 +176,13 @@ function Heading({ detail }: { detail: Detail }) {
             Show transcript folder
           </button>
         )}
+        <ExportMenu
+          what={{ dataset: "requests", filters: {}, session: detail.id }}
+          scope={`All ${grouped(detail.totals.requests)} ${
+            detail.totals.requests === 1 ? "request" : "requests"
+          } of this session, its subagents' included`}
+          className="button export-button"
+        />
       </div>
     </div>
   );

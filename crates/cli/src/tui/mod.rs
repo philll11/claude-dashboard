@@ -17,11 +17,18 @@ mod view;
 mod tests;
 
 use std::io::IsTerminal;
+use std::ops::ControlFlow;
+use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use claude_dashboard_server::app::{self, App};
-use crossbeam_channel::{RecvTimeoutError, unbounded};
+use claude_dashboard_server::export;
+use claude_dashboard_server::protocol::ExportParams;
+use crossbeam_channel::{RecvTimeoutError, Sender, unbounded};
 
 use self::data::Data;
 use self::state::{Event, Flow, State};
@@ -61,6 +68,12 @@ pub fn run(app: App) -> ExitCode {
     input::keys(events.clone());
     input::minutes(events.clone());
     input::signals(events.clone());
+    let exporter = Exporter {
+        app: app.clone(),
+        events: events.clone(),
+        running: None,
+    };
+    let mut exporter = exporter;
     let data = Data::start(app, events);
     let mut state = State::new(theme, size, app::now());
     let mut failure = None;
@@ -73,6 +86,9 @@ pub fn run(app: App) -> ExitCode {
         }
         for ask in state.asks() {
             data.ask(ask);
+        }
+        if let Some((params, path)) = state.take_export() {
+            exporter.start(params, path);
         }
         if let Err(error) = terminal.draw(|frame| view::draw(frame.buffer_mut(), &state)) {
             failure = Some(format!("Cannot draw in this terminal: {error}"));
@@ -109,6 +125,7 @@ pub fn run(app: App) -> ExitCode {
         }
     }
     ratatui::restore();
+    exporter.stop();
     data.stop(STOP_PATIENCE);
     match failure {
         Some(reason) => {
@@ -116,5 +133,46 @@ pub fn run(app: App) -> ExitCode {
             ExitCode::FAILURE
         }
         None => ExitCode::SUCCESS,
+    }
+}
+
+/// Exports on a thread of their own, through a connection of their own to the history, so that
+/// the dashboard keeps answering while one writes.
+struct Exporter {
+    app: App,
+    events: Sender<Event>,
+    running: Option<(Arc<AtomicBool>, JoinHandle<()>)>,
+}
+
+impl Exporter {
+    fn start(&mut self, params: ExportParams, path: PathBuf) {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let (app, events, stop) = (
+            self.app.clone(),
+            self.events.clone(),
+            Arc::clone(&cancelled),
+        );
+        let handle = thread::spawn(move || {
+            let mut progress = |_, _| {
+                if stop.load(Ordering::Relaxed) {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            };
+            let result = export::save(&app, &params, &path, &mut progress)
+                .map_err(|error| error.to_string());
+            let _ = events.send(Event::Exported(result));
+        });
+        self.running = Some((cancelled, handle));
+    }
+
+    /// Cancels the export under way and waits for it, so that quitting never leaves a file
+    /// behind.
+    fn stop(mut self) {
+        if let Some((cancelled, handle)) = self.running.take() {
+            cancelled.store(true, Ordering::Relaxed);
+            let _ = handle.join();
+        }
     }
 }

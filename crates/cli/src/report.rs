@@ -12,11 +12,13 @@ use jiff::{Timestamp, ToSpan};
 use serde::Serialize;
 
 use claude_dashboard_server::app::App;
+use claude_dashboard_server::export::{self, DayRow};
 use claude_dashboard_server::fmt::{
     ago, compact, grouped, long_day, money, month_year, short_date, weekday_name, when,
 };
 use claude_dashboard_server::limits::login_note;
 use claude_dashboard_server::names::model_name;
+use claude_dashboard_server::protocol::{Dataset, ExportFormat};
 
 use crate::limits;
 use crate::progress;
@@ -50,7 +52,7 @@ pub fn today(app: &App, output: Output) -> ExitCode {
     limits::refresh(app, &mut history);
     let day = app.now_zoned().date();
     let range = Range::days(day, day, &app.zone);
-    let models = match report::by_model(&history, app.prices, range) {
+    let models = match report::by_model(&history, &app.prices, range) {
         Ok(models) => models,
         Err(error) => {
             eprintln!("Cannot read the history: {error}");
@@ -92,7 +94,7 @@ pub fn today(app: &App, output: Output) -> ExitCode {
                 models: models.clone(),
             };
             let today = TodayJson {
-                day: day_json(app, &totals),
+                day: DayRow::of(app, &totals),
                 limits: limits
                     .iter()
                     .filter(|limit| !limit.expired(app.now.as_millisecond()))
@@ -107,7 +109,9 @@ pub fn today(app: &App, output: Output) -> ExitCode {
                 totals: sum(&models),
                 models,
             };
-            print!("{}", days_csv(app, &[totals]));
+            let mut csv = Vec::new();
+            let _ = export::write_days(app, &[totals], ExportFormat::Csv, &mut csv);
+            print!("{}", String::from_utf8_lossy(&csv));
         }
     }
     ExitCode::SUCCESS
@@ -125,9 +129,16 @@ pub fn daily(app: &App, since: Option<Date>, until: Option<Date>, output: Output
             .checked_sub(jiff::Span::new().days(29))
             .unwrap_or(until)
     });
+    if output != Output::Table {
+        drop(history);
+        return crate::export::print(
+            app,
+            &crate::export::params(Dataset::Days, output, since, until),
+        );
+    }
     let days = match report::by_day(
         &history,
-        app.prices,
+        &app.prices,
         Range::days(since, until, &app.zone),
         &app.zone,
     ) {
@@ -137,16 +148,7 @@ pub fn daily(app: &App, since: Option<Date>, until: Option<Date>, output: Output
             return ExitCode::FAILURE;
         }
     };
-    match output {
-        Output::Table => print!("{}", days_table(app, Paint::for_stdout(), &days)),
-        Output::Json => print_json(
-            &days
-                .iter()
-                .map(|day| day_json(app, day))
-                .collect::<Vec<_>>(),
-        ),
-        Output::Csv => print!("{}", days_csv(app, &days)),
-    }
+    print!("{}", days_table(app, Paint::for_stdout(), &days));
     ExitCode::SUCCESS
 }
 
@@ -179,9 +181,18 @@ pub fn periods(
         |since| bucket.start(since, app.week_start),
     );
     let last = bucket.end(last_start);
+    if output != Output::Table {
+        drop(history);
+        let dataset = if bucket == Bucket::Month {
+            Dataset::Months
+        } else {
+            Dataset::Weeks
+        };
+        return crate::export::print(app, &crate::export::params(dataset, output, first, last));
+    }
     let days = match report::by_day(
         &history,
-        app.prices,
+        &app.prices,
         Range::days(first, last, &app.zone),
         &app.zone,
     ) {
@@ -192,19 +203,10 @@ pub fn periods(
         }
     };
     let periods = report::by_bucket(&days, bucket, app.week_start);
-    match output {
-        Output::Table => print!(
-            "{}",
-            periods_table(app, Paint::for_stdout(), bucket, &periods)
-        ),
-        Output::Json => print_json(
-            &periods
-                .iter()
-                .map(|period| period_json(app, bucket, period))
-                .collect::<Vec<_>>(),
-        ),
-        Output::Csv => print!("{}", periods_csv(app, bucket, &periods)),
-    }
+    print!(
+        "{}",
+        periods_table(app, Paint::for_stdout(), bucket, &periods)
+    );
     ExitCode::SUCCESS
 }
 
@@ -252,37 +254,6 @@ fn periods_table(app: &App, paint: Paint, bucket: Bucket, periods: &[DayTotals])
         Bucket::Week | Bucket::Day => "Week of",
     };
     out.push_str(&table(paint, heading, &rows, &total_row(&total)));
-    out
-}
-
-fn periods_csv(app: &App, bucket: Bucket, periods: &[DayTotals]) -> String {
-    let mut out = String::from(
-        "first_day,last_day,requests,input_tokens,output_tokens,cache_write_5m_tokens,cache_write_1h_tokens,cache_read_tokens,cost_usd,unpriced_requests,price_table,models\n",
-    );
-    for period in periods {
-        let tokens = period.totals.tokens;
-        let models: Vec<&str> = period
-            .models
-            .iter()
-            .map(|model| model.model.as_str())
-            .collect();
-        let _ = writeln!(
-            out,
-            "{},{},{},{},{},{},{},{},{:.2},{},{},{}",
-            period.day,
-            bucket.end(period.day),
-            period.totals.requests,
-            tokens.input,
-            tokens.output,
-            tokens.cache_write_5m,
-            tokens.cache_write_1h,
-            tokens.cache_read,
-            period.totals.cost.total(),
-            period.totals.unpriced_requests,
-            app.prices.checked(),
-            models.join(";")
-        );
-    }
     out
 }
 
@@ -537,60 +508,8 @@ pub fn limits_line(app: &App, paint: Paint, limits: &[LimitSnapshot]) -> String 
 #[derive(Serialize)]
 struct TodayJson {
     #[serde(flatten)]
-    day: DayJson,
+    day: DayRow,
     limits: Vec<LimitJson>,
-}
-
-#[derive(Serialize)]
-struct DayJson {
-    date: String,
-    requests: u64,
-    tokens: TokensJson,
-    cost: CostJson,
-    models: Vec<String>,
-}
-
-/// A week or a month, for JSON.
-#[derive(Serialize)]
-struct PeriodJson {
-    first_day: String,
-    last_day: String,
-    requests: u64,
-    tokens: TokensJson,
-    cost: CostJson,
-    models: Vec<String>,
-}
-
-fn period_json(app: &App, bucket: Bucket, period: &DayTotals) -> PeriodJson {
-    PeriodJson {
-        first_day: period.day.to_string(),
-        last_day: bucket.end(period.day).to_string(),
-        requests: period.totals.requests,
-        tokens: tokens_json(&period.totals),
-        cost: cost_json(app, &period.totals),
-        models: period
-            .models
-            .iter()
-            .map(|model| model.model.clone())
-            .collect(),
-    }
-}
-
-#[derive(Serialize)]
-pub struct TokensJson {
-    input: u64,
-    output: u64,
-    cache_write_5m: u64,
-    cache_write_1h: u64,
-    cache_read: u64,
-}
-
-#[derive(Serialize)]
-pub struct CostJson {
-    usd: f64,
-    provenance: &'static str,
-    price_table: String,
-    unpriced_requests: u64,
 }
 
 #[derive(Serialize)]
@@ -600,50 +519,6 @@ struct LimitJson {
     resets_at: Option<String>,
     observed_at: String,
     provenance: &'static str,
-}
-
-/// The tokens of a total, for JSON.
-pub fn tokens_json(totals: &Totals) -> TokensJson {
-    let tokens = totals.tokens;
-    TokensJson {
-        input: tokens.input,
-        output: tokens.output,
-        cache_write_5m: tokens.cache_write_5m,
-        cache_write_1h: tokens.cache_write_1h,
-        cache_read: tokens.cache_read,
-    }
-}
-
-/// The API-equivalent cost of a total, for JSON.
-pub fn cost_json(app: &App, totals: &Totals) -> CostJson {
-    CostJson::of(app, totals.cost.total(), totals.unpriced_requests)
-}
-
-impl CostJson {
-    /// An API-equivalent cost in US dollars, leaving out `unpriced_requests` whose cost is
-    /// unknown.
-    pub fn of(app: &App, usd: f64, unpriced_requests: u64) -> Self {
-        Self {
-            usd: cents(usd),
-            provenance: "estimate",
-            price_table: app.prices.checked().to_string(),
-            unpriced_requests,
-        }
-    }
-}
-
-fn cents(usd: f64) -> f64 {
-    (usd * 100.0).round() / 100.0
-}
-
-fn day_json(app: &App, day: &DayTotals) -> DayJson {
-    DayJson {
-        date: day.day.to_string(),
-        requests: day.totals.requests,
-        tokens: tokens_json(&day.totals),
-        cost: cost_json(app, &day.totals),
-        models: day.models.iter().map(|model| model.model.clone()).collect(),
-    }
 }
 
 fn limit_json(limit: &LimitSnapshot) -> LimitJson {
@@ -664,36 +539,6 @@ fn limit_json(limit: &LimitSnapshot) -> LimitJson {
     }
 }
 
-fn days_csv(app: &App, days: &[DayTotals]) -> String {
-    let mut out = String::from(
-        "date,requests,input_tokens,output_tokens,cache_write_5m_tokens,cache_write_1h_tokens,cache_read_tokens,cost_usd,unpriced_requests,price_table,models\n",
-    );
-    for day in days {
-        let tokens = day.totals.tokens;
-        let models: Vec<&str> = day
-            .models
-            .iter()
-            .map(|model| model.model.as_str())
-            .collect();
-        let _ = writeln!(
-            out,
-            "{},{},{},{},{},{},{},{:.2},{},{},{}",
-            day.day,
-            day.totals.requests,
-            tokens.input,
-            tokens.output,
-            tokens.cache_write_5m,
-            tokens.cache_write_1h,
-            tokens.cache_read,
-            day.totals.cost.total(),
-            day.totals.unpriced_requests,
-            app.prices.checked(),
-            models.join(";")
-        );
-    }
-    out
-}
-
 /// Prints JSON, coloured as the design shows it when standard output is a terminal.
 pub fn print_json(value: &impl Serialize) {
     let text = serde_json::to_string_pretty(value).unwrap_or_default();
@@ -702,7 +547,7 @@ pub fn print_json(value: &impl Serialize) {
 
 /// Colours pretty-printed JSON: keys in the accent colour and string values in the string
 /// colour.
-fn colour_json(text: &str, paint: Paint) -> String {
+pub fn colour_json(text: &str, paint: Paint) -> String {
     if paint == Paint::PLAIN {
         return text.to_owned();
     }

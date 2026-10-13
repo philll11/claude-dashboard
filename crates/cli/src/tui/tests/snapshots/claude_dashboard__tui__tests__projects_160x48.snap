@@ -49,7 +49,7 @@ expression: shown(&state)
 44 ││      11                       16                       21                       26                       1                        6                   10     ││
 45 ││ ■ Fable 5.1  ■ Opus 5.5  ■ Sonnet 5.5  ■ Haiku 5.5                                                                                                           ││
 46 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-47 │ q quit   ←→ sections   ↑↓ move   Enter filter   t table view   ? help                                       Read just now · costs are API-equivalent estimates │
+47 │ q quit   ←→ sections   Enter filter   t table view   e export   ? help                                      Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb cccccccccc bbbbbbbb bbbbbbbb                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -99,7 +99,7 @@ styles
 44 │d      bb                       bb                       bb                       bb                       b                        b                   bb     d│
 45 │d p kkkkkkkkk  o kkkkkkkk  m kkkkkkkkkk  n kkkkkkkkk                                                                                                           d│
 46 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-47 │ q bbbb   qq bbbbbbbb   qq bbbb   qqqqq bbbbbb   q bbbbbbbbbb   q bbbb                                       bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+47 │ q bbbb   qq bbbbbbbb   qqqqq bbbbbb   q bbbbbbbbbb   q bbbbbb   q bbbb                                      bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

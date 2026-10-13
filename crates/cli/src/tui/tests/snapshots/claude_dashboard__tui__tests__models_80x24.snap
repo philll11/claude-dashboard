@@ -25,7 +25,7 @@ expression: shown(&state)
 20 │└──────────────────────────────────────────────────────────────────────────────┘│
 21 │  ↓ prices used                                                                 │
 22 │                                                                                │
-23 │ q quit   ←→ sections   ↑↓ scroll   t table view   ? help         Read just now │
+23 │ q quit  ←→ sections  ↑↓ scroll  t table view  e export  ? help   Read just now │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb │
@@ -51,7 +51,7 @@ styles
 20 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 21 │  bbbbbbbbbbbbb                                                                 │
 22 │                                                                                │
-23 │ j bbbb   jj bbbbbbbb   jj bbbbbb   j bbbbbbbbbb   j bbbb         bbbbbbbbbbbbb │
+23 │ j bbbb  jj bbbbbbbb  jj bbbbbb  j bbbbbbbbbb  j bbbbbb  j bbbb   bbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

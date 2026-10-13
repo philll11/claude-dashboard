@@ -9,13 +9,11 @@
 mod answer;
 mod login;
 
-use std::sync::Arc;
-use std::time::Duration;
-
 pub use answer::plan_limits;
 pub use login::{Login, LoginError, LoginSource};
 
 use crate::history::{History, HistoryError};
+use crate::http;
 use crate::limits::{FIVE_HOUR, LimitSnapshot};
 
 /// Where the endpoint is. The login goes nowhere else.
@@ -29,9 +27,6 @@ pub const INTERVAL_MS: i64 = 5 * 60 * 1000;
 
 /// The longest wait after the endpoint says it is asked too often, unless it asks for longer.
 const LONGEST_WAIT_MS: i64 = 60 * 60 * 1000;
-
-/// How long one request may take.
-const TIMEOUT: Duration = Duration::from_secs(10);
 
 /// What came of asking the endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -249,54 +244,22 @@ fn wait_after_rate_limit(count: u32, retry_after_s: Option<u64>) -> i64 {
     wait.max(asked_for)
 }
 
-/// Asks the endpoint over HTTPS, through the proxy the environment names, or on Windows the
-/// system's, without following redirects, so that the login goes only to [`URL`].
+/// Asks the endpoint without following redirects, so that the login goes only to [`URL`].
 fn ask(login: &Login) -> Result<Answer, String> {
-    use ureq::tls::{RootCerts, TlsConfig};
-
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .https_only(true)
-        .max_redirects(0)
-        .http_status_as_error(false)
-        .timeout_global(Some(TIMEOUT))
-        .user_agent(concat!(
-            "claude-dashboard/",
-            env!("CARGO_PKG_VERSION"),
-            " (+https://github.com/philll11/claude-dashboard)"
-        ))
-        .tls_config(
-            TlsConfig::builder()
-                .root_certs(RootCerts::PlatformVerifier)
-                .unversioned_rustls_crypto_provider(Arc::new(
-                    rustls::crypto::ring::default_provider(),
-                ))
-                .build(),
-        )
-        .build()
-        .into();
-    let mut response = agent
-        .get(URL)
-        .header("Authorization", format!("Bearer {}", login.token()))
-        .header("anthropic-beta", BETA)
-        .header("Accept", "application/json")
-        .call()
-        .map_err(|error| error.to_string())?;
-    let retry_after_s = response
-        .headers()
-        .get("retry-after")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.trim().parse().ok());
-    let status = response.status().as_u16();
-    let body = response
-        .body_mut()
-        .with_config()
-        .limit(1 << 20)
-        .read_to_string()
-        .map_err(|error| error.to_string())?;
+    let authorization = format!("Bearer {}", login.token());
+    let answer = http::get(&http::Get {
+        url: URL,
+        headers: &[
+            ("Authorization", &authorization),
+            ("anthropic-beta", BETA),
+            ("Accept", "application/json"),
+        ],
+        redirect_hosts: &[],
+    })?;
     Ok(Answer {
-        status,
-        body,
-        retry_after_s,
+        status: answer.status,
+        body: answer.body,
+        retry_after_s: answer.retry_after_s,
     })
 }
 

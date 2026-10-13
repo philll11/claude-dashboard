@@ -7,17 +7,17 @@ use std::process::ExitCode;
 use claude_dashboard_core::history::History;
 use claude_dashboard_core::usage_endpoint::{self, Outcome, Refresh, State};
 use claude_dashboard_server::app::App;
+use claude_dashboard_server::export::{WindowRow, csv_field};
 use claude_dashboard_server::fmt::{ago, clock, day_label, money, percent, resets};
+use claude_dashboard_server::glance::{in_order, window_name};
 use claude_dashboard_server::limits::{CONSENT, login_note, sentence, trouble, view};
-use claude_dashboard_server::protocol::{
-    FiveHourWindow, Level, Limits, Provenance, WindowReading, WindowView,
-};
+use claude_dashboard_server::protocol::{FiveHourWindow, Level, Limits, Provenance, WindowView};
 use jiff::tz::TimeZone;
 use jiff::{Timestamp, Zoned};
 use serde::Serialize;
 
 use crate::prompt;
-use crate::report::{CostJson, Output, limits_line, print_json, ready_history};
+use crate::report::{Output, limits_line, print_json, ready_history};
 use crate::style::Paint;
 
 /// Each plan window with its use, reset, source and age, and the recent five-hour windows, after
@@ -35,7 +35,7 @@ pub fn report(app: &App, output: Output) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let windows = in_order(&limits.windows);
+    let windows = in_order(&limits.windows, |window| &window.reading);
     match output {
         Output::Table => {
             let paint = Paint::for_stdout();
@@ -55,7 +55,7 @@ pub fn report(app: &App, output: Output) -> ExitCode {
             recent_five_hour_windows: limits
                 .recent
                 .iter()
-                .map(|window| recent_json(app, window))
+                .map(|window| WindowRow::of(app, window))
                 .collect(),
         }),
         Output::Csv => {
@@ -67,8 +67,8 @@ pub fn report(app: &App, output: Output) -> ExitCode {
                 let _ = writeln!(
                     out,
                     "{},{},{},{},{},{},{},{}",
-                    reading.window,
-                    reading.model.as_deref().unwrap_or_default(),
+                    csv_field(&reading.window),
+                    csv_field(reading.model.as_deref().unwrap_or_default()),
                     reading.used_percentage,
                     reading.resets_at_ms.and_then(at).unwrap_or_default(),
                     at(reading.observed_ms).unwrap_or_default(),
@@ -81,41 +81,6 @@ pub fn report(app: &App, output: Output) -> ExitCode {
         }
     }
     ExitCode::SUCCESS
-}
-
-/// The windows in the order every surface lists them: five-hour first, then weekly, then each
-/// model's weekly window, then any other.
-fn in_order(windows: &[WindowView]) -> Vec<&WindowView> {
-    let rank = |reading: &WindowReading| match reading.window.as_str() {
-        "five_hour" => 0,
-        "seven_day" => 1,
-        _ if reading.model.is_some() => 2,
-        _ => 3,
-    };
-    let mut ordered: Vec<&WindowView> = windows.iter().collect();
-    ordered.sort_by(|a, b| {
-        rank(&a.reading).cmp(&rank(&b.reading)).then_with(|| {
-            let key = |reading: &WindowReading| {
-                reading
-                    .model
-                    .clone()
-                    .unwrap_or_else(|| reading.window.clone())
-            };
-            key(&a.reading).cmp(&key(&b.reading))
-        })
-    });
-    ordered
-}
-
-/// What a window is called: `Five-hour window`, `Weekly, all models`, `Weekly, Fable`.
-pub fn window_name(reading: &WindowReading) -> String {
-    match (reading.window.as_str(), &reading.model) {
-        ("five_hour", _) => "Five-hour window".to_owned(),
-        ("seven_day", _) => "Weekly, all models".to_owned(),
-        (_, Some(model)) => format!("Weekly, {model}"),
-        ("spend_limit", None) => "Spend limit".to_owned(),
-        (window, None) => window.to_owned(),
-    }
 }
 
 fn provenance(provenance: Provenance) -> &'static str {
@@ -324,7 +289,7 @@ fn recent_table(app: &App, paint: Paint, recent: &[FiveHourWindow]) -> String {
 #[derive(Serialize)]
 struct LimitsJson {
     windows: Vec<WindowJson>,
-    recent_five_hour_windows: Vec<RecentJson>,
+    recent_five_hour_windows: Vec<WindowRow>,
 }
 
 #[derive(Serialize)]
@@ -348,15 +313,6 @@ struct PaceJson {
     since: Option<String>,
 }
 
-#[derive(Serialize)]
-struct RecentJson {
-    start: Option<String>,
-    resets_at: Option<String>,
-    highest_percentage: f64,
-    requests: u64,
-    cost: CostJson,
-}
-
 fn window_json(window: &WindowView) -> WindowJson {
     let reading = &window.reading;
     WindowJson {
@@ -373,17 +329,6 @@ fn window_json(window: &WindowView) -> WindowJson {
             limit_reached_at: pace.limit_reached_ms.and_then(at),
             since: at(pace.since_ms),
         }),
-    }
-}
-
-fn recent_json(app: &App, window: &FiveHourWindow) -> RecentJson {
-    let totals = &window.totals;
-    RecentJson {
-        start: at(window.start_ms),
-        resets_at: at(window.resets_at_ms),
-        highest_percentage: window.highest,
-        requests: totals.requests,
-        cost: CostJson::of(app, totals.cost.total, totals.unpriced_requests),
     }
 }
 

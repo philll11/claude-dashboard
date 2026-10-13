@@ -88,13 +88,15 @@ function expired(window: WindowReading, nowMs: number): boolean {
   return window.expired || (window.resetsAtMs != null && window.resetsAtMs <= nowMs);
 }
 
-/** How much of a window is used and when it resets: `42% · resets 14:20`. */
-function reading(window: WindowReading, nowMs: number, timeZone: string): string {
+/** How much of a window is used and when it resets: `42% · resets 14:20`. With `marked`, a window
+ * over 70% has `▲` after its percentage, as the tooltip shows it: `71% ▲ · resets Thu 09:00`. */
+function reading(window: WindowReading, nowMs: number, timeZone: string, marked = false): string {
   const resetsAt = window.resetsAtMs;
   if (expired(window, nowMs)) {
     return resetsAt == null ? "reset" : `reset at ${when(resetsAt, nowMs, timeZone)}`;
   }
-  const used = percent(window.usedPercentage);
+  const share = percent(window.usedPercentage);
+  const used = marked && window.level !== "normal" ? `${share} ▲` : share;
   return resetsAt == null ? used : `${used} · resets ${when(resetsAt, nowMs, timeZone)}`;
 }
 
@@ -112,7 +114,7 @@ export function statusItem(summary: Summary, nowMs: number): StatusItem {
   const windows = inOrder(status.limits);
   const lines = windows.map((window) => ({
     label: windowName(window),
-    value: reading(window, nowMs, status.timeZone),
+    value: reading(window, nowMs, status.timeZone, true),
   }));
   lines.push({ label: "Today", value: cost(status.todayTotals) });
   const latest = newest(windows);

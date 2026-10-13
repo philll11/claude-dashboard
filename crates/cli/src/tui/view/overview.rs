@@ -213,7 +213,7 @@ fn price_drift(state: &State) -> Option<Notice> {
     let off = format!("{:.1}%", drift * 100.0);
     Some(Notice {
         wide: format!(
-            "Prices may be out of date: estimates are {off} off Claude Code's own session costs. A newer claude-dashboard may fix them."
+            "Prices may be out of date: estimates are {off} off Claude Code's own session costs. claude-dashboard prices update looks for newer ones."
         ),
         narrow: format!("Prices may be out of date: {off} off Claude Code's own session costs"),
         warning: true,

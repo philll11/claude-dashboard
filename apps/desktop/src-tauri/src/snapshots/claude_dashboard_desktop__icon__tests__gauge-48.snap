@@ -1,0 +1,52 @@
+---
+source: apps/desktop/src-tauri/src/icon.rs
+expression: "picture(&draw(face, size))"
+---
+       ....llllllllllllllllllllllllll....       
+     ..llllllllllllllllllllllllllllllllll..     
+    ..llllllllllllllllllllllllllllllllllll..    
+   .llll+++pppppppppppppppppppppppppp+++llll.   
+  .lll++pppppppppppppppppppppppppppppppp++lll.  
+ ..ll++pppppppppppppppppppppppppppppppppp++ll.. 
+ .ll++pppppppppppppppppppppppppppppppppppp++ll. 
+.lll+pppppppppppppppppppppppppppppppppppppp+lll.
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+lllpppppppppppppppp++++mm++++pppppppppppppppplll
+lllppppppppppppp+++mmmmmmmmmm+++ppppppppppppplll
+lllpppppppppppp++mmmmmmmmmmmmmm++pppppppppppplll
+lllpppppppppp++mmmmmmmmmmmmmmmmmm++pppppppppplll
+lllppppppppp++mmmmmmmmmmmmmmmm+++m++ppppppppplll
+lllpppppppp++mmmmmm+++pppp++++ii++m++pppppppplll
+lllpppppppp+mmmmm++ppppppppp+iiii+mm+pppppppplll
+lllppppppp+mmmmm++ppppppppp+iiiii+mmm+ppppppplll
+lllpppppp++mmmm++ppppppppp++iiii++mmm++pppppplll
+lllpppppp+mmmm++ppppppppp++iiiii++mmmm+pppppplll
+lllpppppp+mmmm+pppppppppp+iiiii+p+mmmm+pppppplll
+lllppppp+mmmm+pppppppppp+iiiii+ppp+mmmm+ppppplll
+lllppppp+mmmm+ppppppppp+iiiii++ppp+mmmm+ppppplll
+lllppppp+mmmm+pppppppp++iiii++pppp+mmmm+ppppplll
+lllppppp+mmmmppppppppp+iiiii+ppppppmmmm+ppppplll
+lllpppppmmmmmpppppppp+iiiii+pppppppmmmmmppppplll
+lllppppp+mmm+pppppppp+iiii+pppppppp+mmm+ppppplll
+lllppppp+mmm+ppppppppp+ii++pppppppp+mmm+ppppplll
+lllpppppp+++ppppppppppp++ppppppppppp+++pppppplll
+lllpppppppppppppppppppppppppppppppppppppppppplll
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+.ll+pppppppppppppppppppppppppppppppppppppppp+ll.
+.lll+pppppppppppppppppppppppppppppppppppppp+lll.
+ .ll++pppppppppppppppppppppppppppppppppppp++ll. 
+ ..ll++pppppppppppppppppppppppppppppppppp++ll.. 
+  .lll++pppppppppppppppppppppppppppppppp++lll.  
+   .llll+++pppppppppppppppppppppppppp+++llll.   
+    ..llllllllllllllllllllllllllllllllllll..    
+     ..llllllllllllllllllllllllllllllllll..     
+       ....llllllllllllllllllllllllll....

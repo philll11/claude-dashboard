@@ -49,7 +49,7 @@ expression: shown(&state)
 44 ││   Session detail layout                                              infra             7 Oct 16:02   1 h 28 min                   74      $8.20        $8.22 ││
 45 ││ 1–39 of 214 · PgDn for more                                                                                                                                  ││
 46 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
-47 │ q quit   ←→ sections   ↑↓ move   Enter open   / search   ? help                                             Read just now · costs are API-equivalent estimates │
+47 │ q quit   ←→ sections   Enter open   / search   e export   ? help                                            Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb cccccccccc bbbbbbbbbb bbbbbbbb bbbbbbbb                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -99,7 +99,7 @@ styles
 44 │d   kkkkkkkkkkkkkkkkkkkkk                                              bbbbb             bbbbbbbbbbb   kkkkkkkkkk                   kk      aaaaa        kkkkk d│
 45 │d bbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                                                                  d│
 46 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
-47 │ e bbbb   ee bbbbbbbb   ee bbbb   eeeee bbbb   e bbbbbb   e bbbb                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+47 │ e bbbb   ee bbbbbbbb   eeeee bbbb   e bbbbbb   e bbbbbb   e bbbb                                            bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c

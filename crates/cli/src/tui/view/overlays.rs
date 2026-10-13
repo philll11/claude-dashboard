@@ -1,8 +1,11 @@
-//! What shows above a section, dimming it: the keys, and the range, project and model pickers.
+//! What shows above a section, dimming it: the keys, the range, project and model pickers, and
+//! the export box.
 
-use super::footer;
+use claude_dashboard_server::protocol::ExportFormat;
+
+use super::{footer, tail};
 use crate::tui::canvas::{Canvas, clean, fit};
-use crate::tui::state::{Overlay, Range, State};
+use crate::tui::state::{ExportBox, Overlay, Range, State};
 
 pub fn draw(c: &mut Canvas, state: &State, overlay: &Overlay) {
     c.dim();
@@ -31,6 +34,7 @@ pub fn draw(c: &mut Canvas, state: &State, overlay: &Overlay) {
                 *hover,
             );
         }
+        Overlay::Export(export) => export_box(c, state, export),
     }
 }
 
@@ -57,6 +61,7 @@ fn keys(c: &mut Canvas, state: &State) {
         ("/", "search the sessions"),
         ("r  p  m", "range, project, model"),
         ("t", "charts or tables"),
+        ("e", "export the section"),
         ("R", "read new transcripts now"),
         ("?", "this help"),
         ("q  Ctrl-C", "quit"),
@@ -146,4 +151,72 @@ fn picker(
         &[("↑↓", "choose"), ("Enter", "apply"), ("Esc", "close")],
         None,
     );
+}
+
+/// The export box: the format, the file to save to with a cursor at its end, what the export
+/// holds, and a question before a file that is there already is replaced.
+fn export_box(c: &mut Canvas, state: &State, export: &ExportBox) {
+    let theme = c.theme;
+    let w = (c.w - 6).min(68);
+    let h = 11;
+    let x0 = (c.w - w) / 2;
+    let y0 = (c.h - h) / 2 - 1;
+    c.clear(x0, y0, w, h);
+    c.boxed((x0, y0, w, h), Some(&export.title), None);
+    c.text(x0 + 2, y0 + 2, "Format", theme.muted());
+    let formats = [
+        (ExportFormat::Csv, "CSV", "for spreadsheets"),
+        (ExportFormat::Json, "JSON", "for scripts"),
+    ];
+    for (row, (format, name, use_for)) in (0..).zip(formats) {
+        let y = y0 + 2 + row;
+        let chosen = format == export.params.format;
+        if chosen {
+            c.select(y, x0 + 11, x0 + w - 2);
+        }
+        c.text(
+            x0 + 14,
+            y,
+            name,
+            if chosen { theme.strong() } else { theme.text() },
+        );
+        c.text(x0 + 20, y, use_for, theme.muted());
+    }
+    c.text(x0 + 2, y0 + 5, "Save to", theme.muted());
+    let end = c.text(
+        x0 + 14,
+        y0 + 5,
+        &tail(&clean(&export.path), w - 14 - 3),
+        theme.text(),
+    );
+    if !export.replacing {
+        c.put(end, y0 + 5, "█", theme.accent());
+    }
+    c.text(x0 + 2, y0 + 7, &fit(&export.scope, w - 4), theme.muted());
+    if export.replacing {
+        let x = c.text(x0 + 2, y0 + 8, "▲ ", theme.warn());
+        c.text(
+            x,
+            y0 + 8,
+            &fit("A file is there already. Replace it?", x0 + w - 2 - x),
+            theme.text(),
+        );
+    } else {
+        c.text(
+            x0 + 2,
+            y0 + 8,
+            &fit(
+                "A file there already is replaced only when you say so.",
+                w - 4,
+            ),
+            theme.muted(),
+        );
+    }
+    clear_footer(c);
+    let keys: &[(&str, &str)] = if export.replacing {
+        &[("y", "replace"), ("n", "keep it")]
+    } else {
+        &[("↑↓", "format"), ("Enter", "save"), ("Esc", "cancel")]
+    };
+    footer(c, state, keys, None);
 }

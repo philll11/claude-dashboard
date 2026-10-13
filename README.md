@@ -56,6 +56,10 @@ macOS asks once before the app opens: in **System Settings**, **Privacy & Securi
 
 - The sidebar holds the sections: Overview, Sessions, Projects, Models, Limits and Settings.
 - The window is light or dark as your system is, and remembers its size and place.
+- Its item in the notification area, or the menu bar on macOS, shows how much of the five-hour window you have used, and its menu lists every plan window and today's API-equivalent cost.
+  On Windows and macOS, closing the window keeps the app running there, and **Quit** in the item's menu ends it; on Linux, closing the window quits unless you switch keeping it running on in Settings.
+  Settings can also hide the item and open the app at login, in the item without the window.
+- Each section's **Export** button saves its table as CSV or JSON, and Settings saves the whole history.
 - `claude-dashboard app` opens it from a terminal, and `claude-dashboard app limits` at a section.
 
 It comes with the `claude-dashboard` program, which Claude Code's status line runs a copy of once you connect it, so updating or removing the app never breaks the status line.
@@ -99,6 +103,7 @@ It works from the keyboard alone, in a terminal of 80 by 24 or larger:
 | `/` | Search the sessions |
 | `r`, `p`, `m` | Choose the range, the project and the model |
 | `t` | Show the charts as tables |
+| `e` | Export the section shown, as CSV or JSON, to a file in your Downloads folder unless you change it |
 | `R` | Read new transcripts now |
 | `?` | Show the keys |
 | `q`, `Ctrl-C` | Quit |
@@ -122,6 +127,8 @@ For a screen reader, the reports below print plain lines.
 | `claude-dashboard sessions` | Requests and cost by session |
 | `claude-dashboard projects` | Requests and cost by project |
 | `claude-dashboard limits` | Each plan window's use, reset and source, and the recent five-hour windows |
+| `claude-dashboard export` | Every request, or those of the days given, as CSV or JSON |
+| `claude-dashboard prices` | Which price table is in use, and the daily check for a newer one |
 | `claude-dashboard doctor` | What claude-dashboard can find and read, and anything that needs your attention |
 | `claude-dashboard app` | Opens the desktop app, at a section when you name one |
 
@@ -129,6 +136,21 @@ For a screen reader, the reports below print plain lines.
 `weekly` and `monthly` cover the last 12 weeks and months, and with `--since` and `--until` every week or month those days fall in, whole; weeks start on the day the dashboard's settings name, Monday unless you choose another.
 Every report takes `--json` or `--csv` for scripts.
 Each command first reads what Claude Code has added to its transcripts; the first time, that takes a few seconds.
+
+### Export
+
+`claude-dashboard export` writes one row per request, with its session, project, model, tokens, tools and API-equivalent cost: as CSV unless you give `--json`, for every day unless you give `--since` and `--until`.
+It writes to standard output for scripts, or with `--output requests.csv` to a file made for spreadsheets: a CSV file starts with UTF-8's byte order mark, so that Excel reads it as UTF-8, and text that a spreadsheet would take for a formula, such as a session title starting with `=`, gets an apostrophe before it.
+Use `--output` in Windows PowerShell 5.1, whose `>` writes another encoding.
+The dashboard's exports are the same files.
+Days are written in your time zone, moments in UTC, and costs in US dollars without a symbol.
+
+### Prices
+
+API-equivalent cost comes from the price table in this repository's `pricing/prices.json`, which each release brings.
+`claude-dashboard prices refresh on`, or the switch in the dashboard's Settings, has a running dashboard check the repository for a newer table once a day, and every surface prices with it; `claude-dashboard prices refresh off` stops the checks.
+`claude-dashboard prices update` checks once, at once, and `claude-dashboard prices` says which table is in use and how the last check went.
+A newer table is used only when it keeps every price this version has, adding only new models and prices.
 
 ### Plan limits
 
@@ -157,7 +179,7 @@ Set `CLAUDE_DASHBOARD_HISTORY` to keep it in another file, `NO_COLOR` to turn co
 
 - claude-dashboard reads the files Claude Code keeps on your machine and records numbers, names and titles in a local database; it never stores prompt or code content.
 - There is no telemetry.
-- It only uses the network for features you switch on: plan limits from Anthropic's undocumented usage endpoint (labelled experimental), update checks for the desktop app, and price-table refreshes.
+- It only uses the network for features you switch on: plan limits from Anthropic's undocumented usage endpoint (labelled experimental), update checks for the desktop app, and the daily check for a newer price table in this repository.
 
 ## How it works
 

@@ -49,7 +49,7 @@ expression: shown(&state)
 44 ││                                                                                                                                                              ││
 45 │└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘│
 46 │  Within 0.4% of Claude Code's own session costs, over 412 sessions                                                                                             │
-47 │ q quit   ←→ sections   t table view   ? help                                                                Read just now · costs are API-equivalent estimates │
+47 │ q quit   ←→ sections   t table view   e export   ? help                                                     Read just now · costs are API-equivalent estimates │
 
 styles
  0 │ aaaaaaaaaaaaaaaaaaaaaaaaa   bbbbbbbbbb bbbbbbbbbb bbbbbbbbbb cccccccc bbbbbbbb                                             bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
@@ -99,7 +99,7 @@ styles
 44 │d                                                                                                                                                              d│
 45 │dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd│
 46 │  bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb                                                                                             │
-47 │ j bbbb   jj bbbbbbbb   j bbbbbbbbbb   j bbbb                                                                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
+47 │ j bbbb   jj bbbbbbbb   j bbbbbbbbbb   j bbbbbb   j bbbb                                                     bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb │
 
 a = #f0f2f5 bold
 b = #8a919c
