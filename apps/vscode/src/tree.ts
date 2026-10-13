@@ -4,7 +4,7 @@
 import * as vscode from "vscode";
 
 import { now } from "./clock";
-import { type Icon, type Node, tree } from "./shape";
+import { type Icon, type Node, spoken, tree } from "./shape";
 import type { SummaryModel } from "./summary";
 
 function iconOf(icon: Icon | undefined, extensionUri: vscode.Uri): vscode.TreeItem["iconPath"] {
@@ -67,9 +67,7 @@ export class SummaryTree implements vscode.TreeDataProvider<Node>, vscode.Dispos
     item.description = node.description;
     const icon = iconOf(node.icon, this.extensionUri);
     if (icon) item.iconPath = icon;
-    item.accessibilityInformation = {
-      label: node.description ? `${node.label}, ${node.description}` : node.label,
-    };
+    item.accessibilityInformation = { label: spoken(node) };
     item.command = {
       command: "claudeDashboard.show",
       title: "Show in the dashboard",
