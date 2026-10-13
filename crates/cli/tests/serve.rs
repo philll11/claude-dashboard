@@ -826,3 +826,35 @@ fn the_server_keeps_answering_while_an_export_writes() {
     let saved = &responses[&export];
     assert_eq!(saved["result"]["rows"], 2, "{saved}");
 }
+
+#[test]
+fn a_history_too_new_to_read_answers_with_a_code_of_its_own() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join(".claude");
+    let history = dir.path().join("history.sqlite");
+    fs::create_dir_all(&root).unwrap();
+    let made = Command::new(env!("CARGO_BIN_EXE_claude-dashboard"))
+        .arg("today")
+        .env("CLAUDE_CONFIG_DIR", &root)
+        .env("CLAUDE_DASHBOARD_HISTORY", &history)
+        .env("CLAUDE_DASHBOARD_NOW", NOW)
+        .output()
+        .unwrap();
+    assert!(made.status.success());
+    // The history as a newer claude-dashboard leaves it when its change breaks older readers.
+    let conn = rusqlite::Connection::open(&history).unwrap();
+    conn.execute("UPDATE compatibility SET readable_from = 999", [])
+        .unwrap();
+    conn.pragma_update(None, "user_version", 999).unwrap();
+    drop(conn);
+
+    let mut server = Server::start_with(dir, root, history);
+    let answer = server.request("status", &Value::Null);
+    assert_eq!(answer["error"]["code"], -32001, "{answer}");
+    assert!(
+        answer["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("update claude-dashboard to read it")),
+        "{answer}"
+    );
+}

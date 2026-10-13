@@ -53,6 +53,9 @@ impl Fault {
     /// The Language Server Protocol's code for a request that was cancelled, which JSON-RPC
     /// leaves to the application.
     pub const REQUEST_CANCELLED: i32 = -32800;
+    /// The code for a history that a newer claude-dashboard upgraded beyond what this one reads,
+    /// which a dashboard shows as a state of its own; JSON-RPC leaves -32000 to -32099 to servers.
+    pub const HISTORY_TOO_NEW: i32 = -32001;
 
     fn invalid(message: impl Into<String>) -> Self {
         Self {
@@ -71,7 +74,15 @@ impl Fault {
 
 impl From<HistoryError> for Fault {
     fn from(error: HistoryError) -> Self {
-        Self::internal(error.to_string())
+        let code = if matches!(error, HistoryError::TooNew { .. }) {
+            Self::HISTORY_TOO_NEW
+        } else {
+            Self::INTERNAL_ERROR
+        };
+        Self {
+            code,
+            message: error.to_string(),
+        }
     }
 }
 
@@ -149,7 +160,17 @@ impl Answers {
 
     fn history(&mut self) -> Result<&History, Fault> {
         if self.history.is_none() {
-            self.history = Some(self.app.open_history().map_err(Fault::internal)?);
+            match self.app.open_history() {
+                Ok(history) => self.history = Some(history),
+                Err(message) => {
+                    let code = if self.too_new().is_some() {
+                        Fault::HISTORY_TOO_NEW
+                    } else {
+                        Fault::INTERNAL_ERROR
+                    };
+                    return Err(Fault { code, message });
+                }
+            }
         }
         Ok(self.history.as_ref().expect("opened above"))
     }
