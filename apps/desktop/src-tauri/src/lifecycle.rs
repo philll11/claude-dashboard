@@ -53,6 +53,11 @@ impl Life {
         self.tray.is_some() && app::shows_tray(settings)
     }
 
+    /// Whether the dashboard has drawn in the window.
+    pub fn drawn(&self) -> bool {
+        self.drawn.load(Ordering::Relaxed)
+    }
+
     /// Whether closing the window leaves the app running.
     fn keeps_running(&self) -> bool {
         let settings = self.settings();
@@ -129,7 +134,7 @@ pub fn close_requested(app: &AppHandle, api: &CloseRequestApi) {
     api.prevent_close();
     if cfg!(windows)
         && !settings.contains_key(KEEP_RUNNING_SETTING)
-        && life.drawn.load(Ordering::Relaxed)
+        && life.drawn()
         && app.emit_to(MAIN, "closeAsked", ()).is_ok()
     {
         return;
