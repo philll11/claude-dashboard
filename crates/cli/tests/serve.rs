@@ -794,6 +794,20 @@ fn an_export_is_saved_where_the_extension_says_and_named_as_the_dashboard_sugges
 }
 
 #[test]
+fn an_export_can_start_on_the_answer_of_the_one_before() {
+    let mut server = Server::start();
+    server.changed();
+    let export = json!({
+        "dataset": "requests",
+        "format": "csv",
+        "days": {"first": TODAY, "last": TODAY},
+    });
+    for _ in 0..200 {
+        server.result("export/content", &export);
+    }
+}
+
+#[test]
 fn an_export_names_its_file_by_its_whole_path() {
     let mut server = Server::start();
     let response = server.request(

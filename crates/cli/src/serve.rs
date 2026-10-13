@@ -82,7 +82,16 @@ pub fn run(app: App) -> ExitCode {
 struct Exports {
     app: App,
     client: Sender<Message>,
-    running: Option<(Arc<AtomicBool>, JoinHandle<()>)>,
+    running: Option<Running>,
+}
+
+/// An export's thread, and what it shares with the server.
+struct Running {
+    cancelled: Arc<AtomicBool>,
+    /// Set just before the export answers, so that a request the client sends on that answer can
+    /// start another.
+    answered: Arc<AtomicBool>,
+    handle: JoinHandle<()>,
 }
 
 impl Exports {
@@ -90,7 +99,7 @@ impl Exports {
         if self
             .running
             .as_ref()
-            .is_some_and(|(_, handle)| !handle.is_finished())
+            .is_some_and(|running| !running.answered.load(Ordering::Acquire))
         {
             let _ = self.client.send(Message::Response(Response::new_err(
                 request.id,
@@ -99,31 +108,42 @@ impl Exports {
             )));
             return;
         }
+        // An export that has answered has nothing left to do but end.
+        if let Some(finished) = self.running.take() {
+            let _ = finished.handle.join();
+        }
         let cancelled = Arc::new(AtomicBool::new(false));
-        let (app, client, stop) = (
+        let answered = Arc::new(AtomicBool::new(false));
+        let (app, client, stop, done) = (
             self.app.clone(),
             self.client.clone(),
             Arc::clone(&cancelled),
+            Arc::clone(&answered),
         );
         let handle = thread::spawn(move || {
             let id = request.id.clone();
             let result = export(&app, &client, &stop, request);
+            done.store(true, Ordering::Release);
             let _ = client.send(Message::Response(response(id, result)));
         });
-        self.running = Some((cancelled, handle));
+        self.running = Some(Running {
+            cancelled,
+            answered,
+            handle,
+        });
     }
 
     fn cancel(&self) {
-        if let Some((cancelled, _)) = &self.running {
-            cancelled.store(true, Ordering::Relaxed);
+        if let Some(running) = &self.running {
+            running.cancelled.store(true, Ordering::Relaxed);
         }
     }
 
     /// Cancels the export under way and waits for it, so that it never leaves a file behind.
     fn stop(mut self) {
         self.cancel();
-        if let Some((_, handle)) = self.running.take() {
-            let _ = handle.join();
+        if let Some(running) = self.running.take() {
+            let _ = running.handle.join();
         }
     }
 }
