@@ -7,7 +7,16 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { strict as assert } from "node:assert";
 
-import { Builder, By, error, until, type WebDriver, type WebElement } from "selenium-webdriver";
+import {
+  Builder,
+  By,
+  error,
+  Key,
+  until,
+  WebElementCondition,
+  type WebDriver,
+  type WebElement,
+} from "selenium-webdriver";
 
 const app = process.env.E2E_APP ?? "";
 const program = process.env.E2E_PROGRAM ?? "";
@@ -57,12 +66,35 @@ async function open(section: string) {
   await session().wait(async () => (await heading()) === section, 15_000);
 }
 
-/** Clicks the button whose text is `name`, inside `scope` or anywhere. */
+/** Clicks the button whose text is `name`, inside `scope` or anywhere, once it is there and can
+ * be pressed: a dialog shows its actions only once it knows what it asks. */
 async function press(name: string, scope?: WebElement) {
-  const button = await (scope ?? session()).findElement(
-    By.xpath(`.//button[normalize-space()="${name}"]`),
+  const locator = By.xpath(`.//button[normalize-space()="${name}"]`);
+  const button = await session().wait(
+    new WebElementCondition(`for the button "${name}"`, async () => {
+      const [found] = await (scope ?? session()).findElements(locator);
+      try {
+        return found && (await found.isEnabled()) ? found : null;
+      } catch (problem) {
+        if (problem instanceof error.StaleElementReferenceError) return null;
+        throw problem;
+      }
+    }),
+    10_000,
   );
   await button.click();
+}
+
+/** The switch that keeps the app running when its window closes, once Settings shows it. */
+function keepRunningSwitch(): Promise<WebElement> {
+  return session().wait(
+    until.elementLocated(
+      By.xpath(
+        '//*[@role="switch"][@aria-labelledby=//*[normalize-space()="Keep running when the window closes"]/@id]',
+      ),
+    ),
+    10_000,
+  );
 }
 
 function statusLine(): string | undefined {
@@ -82,6 +114,14 @@ describe("the desktop app", () => {
 
   after(async () => {
     await driver?.quit();
+  });
+
+  afterEach(async function () {
+    // A dialog that a failed test leaves open stands in the way of the tests after it, so Escape
+    // closes it, as it does for a person.
+    if (this.currentTest?.state === "failed") {
+      await session().actions().sendKeys(Key.ESCAPE).perform();
+    }
   });
 
   it("opens the dashboard beside its sections", async () => {
@@ -206,11 +246,7 @@ describe("the desktop app", () => {
     // Windows can send here.
     if (process.platform !== "win32") this.skip();
     await open("Settings");
-    const keepRunning = await session().findElement(
-      By.xpath(
-        '//*[@role="switch"][@aria-labelledby=//*[normalize-space()="Keep running when the window closes"]/@id]',
-      ),
-    );
+    const keepRunning = await keepRunningSwitch();
     if ((await keepRunning.getAttribute("aria-checked")) !== "true") await keepRunning.click();
     await session().wait(
       async () => (await keepRunning.getAttribute("aria-checked")) === "true",
@@ -225,11 +261,7 @@ describe("the desktop app", () => {
     await session().wait(async () => (await heading()) === "Overview", 20_000);
 
     await open("Settings");
-    const again = await session().findElement(
-      By.xpath(
-        '//*[@role="switch"][@aria-labelledby=//*[normalize-space()="Keep running when the window closes"]/@id]',
-      ),
-    );
+    const again = await keepRunningSwitch();
     await again.click();
     await session().wait(
       async () => (await again.getAttribute("aria-checked")) === "false",
