@@ -85,6 +85,16 @@ async function press(name: string, scope?: WebElement) {
   await button.click();
 }
 
+/** Waits until no dialog is open. A dialog closes once its action has finished, a moment after
+ * the action's effect, such as a changed file, can be seen; until then it keeps the rest of the
+ * window from being clicked. */
+async function dialogsClosed() {
+  await session().wait(
+    async () => (await session().findElements(By.css("dialog[open]"))).length === 0,
+    10_000,
+  );
+}
+
 /** The switch that keeps the app running when its window closes, once Settings shows it. */
 function keepRunningSwitch(): Promise<WebElement> {
   return session().wait(
@@ -197,6 +207,7 @@ describe("the desktop app", () => {
     let dialog = await session().wait(until.elementLocated(By.css("dialog[open]")), 10_000);
     await press("Make this change", dialog);
     await session().wait(() => statusLine() === undefined, 10_000);
+    await dialogsClosed();
 
     await session().wait(
       until.elementLocated(By.xpath('//button[normalize-space()="Connect…"]')),
@@ -206,6 +217,7 @@ describe("the desktop app", () => {
     dialog = await session().wait(until.elementLocated(By.css("dialog[open]")), 10_000);
     await press("Make this change", dialog);
     await session().wait(() => statusLine()?.endsWith(" statusline") === true, 10_000);
+    await dialogsClosed();
 
     const copy = join(
       folder,
