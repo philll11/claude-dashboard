@@ -1,0 +1,9 @@
+- region "Plan windows and the latest session":
+  - text: /Five-hour window \d+%/
+  - meter /Five-hour window, \d+% used/
+  - text: /Resets \d+:\d+, in 2 h \d+ min official, 2 min ago Weekly, all models \d+%/
+  - meter /Weekly window, \d+% used/
+  - text: /Over \d+% Resets Thu \d+:\d+ Latest session in this project Running · \d+ min/
+  - link "Review the runbook":
+    - /url: "#session-06469a20-0c28-4129-8023-40cc894f31b4"
+  - text: /\$\d+\.\d+ API-equivalent \d+ requests [\d,.]+[bkmBKM]+ tokens Opus 5\.5/

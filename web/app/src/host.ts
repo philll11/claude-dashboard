@@ -1,7 +1,13 @@
 // What the dashboard needs from the surface it runs in: VS Code, the desktop app, or a page that
 // provides `window.claudeDashboardHost`, as the browser tests do.
 
-import type { Backend, ExportParams, Exported, Show } from "@claude-dashboard/protocol";
+import type {
+  Backend,
+  ExportParams,
+  Exported,
+  OpenFolders,
+  Show,
+} from "@claude-dashboard/protocol";
 
 /** Where every version of claude-dashboard is published, with its installers and packages. */
 export const RELEASES = "https://github.com/philll11/claude-dashboard/releases";
@@ -72,9 +78,23 @@ export function errorCode(error: unknown): number | undefined {
     : undefined;
 }
 
+/** The folders VS Code has open. Its functions use no `this`, so React can take `current` and
+ * `subscribe` as they are. */
+export interface Folders {
+  /** `undefined` until VS Code has said. */
+  current: () => OpenFolders | undefined;
+  /** Calls `listener` whenever the folders change, until the returned function is called. */
+  subscribe: (listener: () => void) => () => void;
+}
+
 export interface Host {
   /** Where the dashboard runs, which decides its layout. */
   surface: "vscode" | "desktop";
+  /** In VS Code, whether the dashboard is in an editor tab or in the view in the panel or a
+   * sidebar, which shows the strip above the sections; an editor tab when absent. */
+  placement?: "tab" | "view";
+  /** The folders VS Code has open, for the view's latest session in this project. */
+  folders?: Folders;
   backend: Backend;
   memory: Memory;
   /** Shows a file or folder in the system's file manager, where the surface can. */

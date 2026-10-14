@@ -44,7 +44,9 @@ const settings = join(storage, "e2e-settings.json");
 mkdirSync(storage, { recursive: true });
 copyFileSync(join(root, "test/e2e/settings.json"), settings);
 
-const prepared = await prepare();
+// VS Code opens the project whose session is running, which the view's strip shows.
+const prepared = await prepare({ home: true });
+const project = join(prepared.home, "code", "claude-dashboard");
 for (const key of ["CLAUDE_CONFIG_DIR", "CLAUDE_DASHBOARD_HISTORY", "CLAUDE_DASHBOARD_NOW", "TZ"]) {
   process.env[key] = prepared.env[key];
 }
@@ -64,7 +66,7 @@ try {
   code = await tester.runTests(tests, {
     vscodeVersion: VSCODE,
     settings,
-    resources: [prepared.folder],
+    resources: [project],
   });
 } finally {
   // Only the asynchronous rm retries on Windows, where a process that has just ended can still hold files.

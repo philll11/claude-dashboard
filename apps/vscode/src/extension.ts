@@ -1,15 +1,18 @@
-// Dashboard for Claude Code: a status bar item, a sidebar tree and a dashboard tab, all fed by
-// `claude-dashboard serve`, which reads Claude Code's transcripts into the history every surface
-// shares. The extension starts once VS Code has, so that new activity is read as VS Code opens.
+// Dashboard for Claude Code: a status bar item, a sidebar tree, and the dashboard in a view in the
+// panel and in an editor tab, all fed by `claude-dashboard serve`, which reads Claude Code's
+// transcripts into the history every surface shares. The extension starts once VS Code has, so that
+// new activity is read as VS Code opens.
 
 import type { Show } from "@claude-dashboard/protocol";
 import * as vscode from "vscode";
 
+import { Channels } from "./channel";
 import { Dashboard, PANEL_TYPE } from "./panel";
 import { Server, type ServerState } from "./server";
 import { StatusBar } from "./statusBar";
 import { SummaryModel } from "./summary";
 import { SummaryTree } from "./tree";
+import { DashboardView, VIEW_ID } from "./view";
 
 /** What the tree's welcome content and the walkthrough go by. */
 function setContext(key: string, value: string | boolean): void {
@@ -22,7 +25,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const summary = new SummaryModel(server, log);
   const statusBar = new StatusBar();
   const tree = new SummaryTree(summary, context.extensionUri);
-  const dashboard = new Dashboard(context.extensionUri, server, summary);
+  const channels = new Channels(server, summary);
+  const dashboard = new Dashboard(context.extensionUri, channels);
+  const view = new DashboardView(context.extensionUri, channels);
 
   const shown = (state: ServerState) => {
     setContext("state", state.kind === "running" && !summary.summary ? "starting" : state.kind);
@@ -48,9 +53,12 @@ export function activate(context: vscode.ExtensionContext): void {
     summary,
     statusBar,
     tree,
+    channels,
     dashboard,
+    view,
     vscode.window.createTreeView("claudeDashboard.summary", { treeDataProvider: tree }),
     vscode.window.registerWebviewPanelSerializer(PANEL_TYPE, dashboard),
+    vscode.window.registerWebviewViewProvider(VIEW_ID, view),
     server.onDidChangeState(shown),
     summary.onDidChange(() => {
       const current = summary.summary;
@@ -62,6 +70,9 @@ export function activate(context: vscode.ExtensionContext): void {
       setContext("importOffered", summary.importOffered);
     }),
     vscode.commands.registerCommand("claudeDashboard.open", () => {
+      dashboard.open();
+    }),
+    vscode.commands.registerCommand("claudeDashboard.openInEditor", () => {
       dashboard.open();
     }),
     vscode.commands.registerCommand("claudeDashboard.show", (show: Show) => {

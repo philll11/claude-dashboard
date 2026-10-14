@@ -2,7 +2,7 @@
   "name": "claude-dashboard",
   "displayName": "Dashboard for Claude Code",
   "description": "See how you use Claude Code: plan limits, usage, API-equivalent cost and where it goes.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "philll11",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -60,6 +60,12 @@
         "icon": "$(link-external)"
       },
       {
+        "command": "claudeDashboard.openInEditor",
+        "title": "Open in Editor",
+        "category": "Dashboard for Claude Code",
+        "icon": "$(link-external)"
+      },
+      {
         "command": "claudeDashboard.refresh",
         "title": "Read New Activity",
         "category": "Dashboard for Claude Code",
@@ -101,6 +107,10 @@
         {
           "command": "claudeDashboard.show",
           "when": "false"
+        },
+        {
+          "command": "claudeDashboard.openInEditor",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -113,6 +123,16 @@
           "command": "claudeDashboard.open",
           "when": "view == claudeDashboard.summary",
           "group": "navigation@2"
+        },
+        {
+          "command": "claudeDashboard.refresh",
+          "when": "view == claudeDashboard.view",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claudeDashboard.openInEditor",
+          "when": "view == claudeDashboard.view",
+          "group": "navigation@2"
         }
       ]
     },
@@ -123,6 +143,13 @@
           "title": "Dashboard for Claude Code",
           "icon": "media/activity.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "claudeDashboardUsage",
+          "title": "Usage dashboard",
+          "icon": "media/activity.svg"
+        }
       ]
     },
     "views": {
@@ -130,6 +157,15 @@
         {
           "id": "claudeDashboard.summary",
           "name": "Dashboard for Claude Code",
+          "contextualTitle": "Dashboard for Claude Code",
+          "icon": "media/activity.svg"
+        }
+      ],
+      "claudeDashboardUsage": [
+        {
+          "type": "webview",
+          "id": "claudeDashboard.view",
+          "name": "Usage dashboard",
           "contextualTitle": "Dashboard for Claude Code",
           "icon": "media/activity.svg"
         }

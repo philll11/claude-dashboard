@@ -21,6 +21,8 @@ import { NOW_MS, type Options, type Synthetic, TIME_ZONE } from "./synthetic.ts"
 export interface Setup {
   options?: Options;
   empty?: boolean;
+  /** Puts the projects' working folders in a real home folder, so that an editor can open one. */
+  home?: boolean;
 }
 
 export interface Prepared {
@@ -28,6 +30,9 @@ export interface Prepared {
   folder: string;
   /** The Claude Code folder. */
   root: string;
+  /** With `home`, the folder that stands for `/home/you`, whose `code/claude-dashboard` holds the
+   * session that is running. */
+  home?: string;
   history: string;
   /** This process's copy of claude-dashboard, which a build can replace the original of
    * meanwhile. */
@@ -165,9 +170,10 @@ export async function prepare(setup: Setup = {}): Promise<Prepared> {
   const folder = mkdtempSync(join(tmpdir(), `${FOLDER_PREFIX}${String(process.pid)}-`));
   const root = join(folder, ".claude");
   const history = join(folder, "history.sqlite");
+  const home = setup.home ? join(folder, "home") : undefined;
   const synthetic: Synthetic = setup.empty
     ? { readings: [], endpoint: null, folders: [], schema: null, readableFrom: null }
-    : await writeFolder(root, setup.options);
+    : await writeFolder(root, home ? { ...setup.options, home } : setup.options);
   const env = {
     ...process.env,
     CLAUDE_CONFIG_DIR: root,
@@ -187,5 +193,5 @@ export async function prepare(setup: Setup = {}): Promise<Prepared> {
     );
   }
   seed(history, synthetic);
-  return { folder, root, history, program, synthetic, env };
+  return { folder, root, ...(home ? { home } : {}), history, program, synthetic, env };
 }

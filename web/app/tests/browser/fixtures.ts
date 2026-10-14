@@ -19,15 +19,35 @@ export interface Open {
   pickedFolder?: string;
   /** Where the desktop app's updates stand. */
   update?: UpdateState;
+  /** In VS Code, the editor tab or the view in the panel or a sidebar. */
+  placement?: "tab" | "view";
+  /** The folders VS Code has open, for the view. */
+  folders?: string[];
+  /** What the dashboard remembered from an earlier visit. */
+  state?: unknown;
+  /** Whether to wait for the section, which needs the server's answers. */
+  waitForAnswers?: boolean;
 }
+
+/** The project the design's running session is in, which the view's tests have open. */
+export const PROJECT_FOLDER = "/home/you/code/claude-dashboard";
 
 export class Dashboard {
   constructor(readonly page: Page) {}
 
-  async open({ theme = "vscode-dark", scenario = "default", pickedFolder, update }: Open = {}) {
+  async open({
+    theme = "vscode-dark",
+    scenario = "default",
+    pickedFolder,
+    update,
+    placement,
+    folders = [PROJECT_FOLDER],
+    state,
+    waitForAnswers = true,
+  }: Open = {}) {
     const themes: Record<string, VsCodeTheme | undefined> = VSCODE_THEMES;
     await this.page.clock.setFixedTime(NOW_MS);
-    await this.page.addInitScript(applyTheme, { theme, vscode: themes[theme] });
+    await this.page.addInitScript(applyTheme, { theme, vscode: themes[theme], placement });
     await this.page.addInitScript(
       (settings) => {
         window.claudeDashboardBridge = settings;
@@ -35,8 +55,11 @@ export class Dashboard {
       {
         scenario,
         surface: theme.startsWith("desktop") ? "desktop" : "vscode",
+        folders: { folders, ignoreCase: false },
         ...(pickedFolder === undefined ? {} : { pickedFolder }),
         ...(update === undefined ? {} : { update }),
+        ...(placement === undefined ? {} : { placement }),
+        ...(state === undefined ? {} : { state }),
       },
     );
     await this.page.addInitScript({
@@ -44,7 +67,7 @@ export class Dashboard {
     });
     await this.page.goto("/");
     await expect(this.page.getByRole("navigation", { name: "Dashboard sections" })).toBeVisible();
-    await expect(this.page.locator("main > *").first()).toBeVisible();
+    if (waitForAnswers) await expect(this.page.locator("main > *").first()).toBeVisible();
   }
 
   /** Opens a section the way a person does, from the navigation. */

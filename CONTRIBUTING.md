@@ -76,6 +76,7 @@ pnpm --filter @claude-dashboard/app dev
 
 The preview runs the real server over a generated Claude Code folder, at a fixed moment, and never reads or changes your own.
 Add `?theme=vscode-light` to the address for another theme (`vscode-dark`, `vscode-high-contrast`, `vscode-high-contrast-light`, `desktop-dark` or `desktop-light`), and `&scenario=stale-limits` for another state, named in `web/app/tests/bridge/scenarios.ts`.
+Add `&placement=view&folder=/home/you/code/claude-dashboard` for VS Code's view in the panel, with that project's folder open.
 
 `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` and `pnpm check-licences` run the checks CI runs.
 The browser tests (`pnpm --filter @claude-dashboard/app browser`) compare every section and state with a screenshot, in each of VS Code's default themes and the desktop app's two, and check each for accessibility.
@@ -100,7 +101,7 @@ The volumes keep the container's Linux packages and its package store apart from
 
 ## VS Code extension
 
-`apps/vscode` is the extension: it runs `claude-dashboard serve`, shows a summary in the status bar and the sidebar, and the dashboard from `web/app` in an editor tab.
+`apps/vscode` is the extension: it runs `claude-dashboard serve`, shows a summary in the status bar and the sidebar, and the dashboard from `web/app` in its view in the panel and in an editor tab.
 Its package carries the program for one platform, in `server/`, and runs it with `--status-line-copy`, so that a status line connected from it runs a copy of the program that the next update cannot move.
 
 To try your changes, build everything, point the extension at your build in your user settings (`"claudeDashboard.server.path": "<repository>/target/debug/claude-dashboard"`), and start VS Code with the extension:
@@ -119,7 +120,7 @@ The tests:
 - `pnpm --filter claude-dashboard test` checks what the status bar and the sidebar show, with Vitest.
 - `pnpm --filter claude-dashboard test:integration` runs the extension in VS Code over the browser tests' generated Claude Code folder.
   It downloads the latest VS Code; set `VSCODE_VERSION=1.126.0` for the oldest the extension supports, or `VSCODE_PATH` to the program of a VS Code you have installed.
-- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, look at the status bar, the sidebar and inside the dashboard, and export the sessions it lists, leaving a screenshot of each default theme in `screenshots` in the folder `E2E_STORAGE` names, or in `claude-dashboard-e2e` in your system's temporary folder:
+- The end-to-end tests install a package of the extension into VS Code 1.137, the newest that ExTester drives, open the project whose session is running, look at the status bar, the sidebar and inside the dashboard in its tab and in the panel, and export the sessions it lists, leaving screenshots of the tab and the panel in each default theme in `screenshots` in the folder `E2E_STORAGE` names, or in `claude-dashboard-e2e` in your system's temporary folder:
 
   ```sh
   node apps/vscode/scripts/package.mjs --target win32-x64 --program target/debug/claude-dashboard.exe --out apps/vscode/claude-dashboard.vsix

@@ -10,6 +10,7 @@ import { useRequest } from "../data";
 import { compact, grouped, money, percent } from "../format";
 import { ChevronDown } from "../ui/icons";
 import { TableScroll } from "../ui/panels";
+import { toTop } from "../ui/scroll";
 import { useView } from "../view";
 import {
   costText,
@@ -134,7 +135,7 @@ function Project({
   const open = (event: MouseEvent) => {
     event.preventDefault();
     change({ section: "sessions", project: row.project.id, session: null });
-    window.scrollTo(0, 0);
+    toTop();
   };
   const costs = costPerDay(
     row.dailyCost.map((day) => [day.date, day.usd] as const),

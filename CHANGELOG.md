@@ -3,6 +3,29 @@
 Every release of claude-dashboard, newest first.
 A release's notes on GitHub come from its section here.
 
+## Version 1.1.0 (2026-10-14)
+
+The dashboard in VS Code's panel beside the terminal, and `cld`, a short name for the program.
+Every surface has the same version number.
+The binaries are not signed.
+
+### What is new
+
+- **The dashboard in VS Code's panel**, in a **Usage dashboard** tab beside the terminal, to keep your usage in sight while you work:
+  - a strip at its top shows the five-hour and weekly windows, with their levels, when they reset, and where the readings come from and how old they are;
+  - beside them, the latest session in the project VS Code has open: whether it is running and for how long, its requests, tokens, API-equivalent cost and model, with a link to its detail; with no session there, the latest in any project, named by its project;
+  - below the strip is the whole dashboard, with every section, filter and export, and the Overview leaves the plan limits to the strip;
+  - the tab moves beside the terminal or into a sidebar and fits itself to the room, down to 320 pixels wide;
+  - hidden, it stops, and shown again it paints its last figures at once, on the section and filters you left, and brings them up to date.
+- **`cld`**: the shell and PowerShell installers put `cld` beside `claude-dashboard`, a short name for the same program that takes every command and option.
+  Connecting Claude Code's status line through `cld` writes `claude-dashboard` into its settings, so the connection is the same whichever name made it.
+
+### Changed
+
+- In VS Code, the dashboard's tab fills its width to the edges, as the design draws it.
+- Where a section has no room for the date range's row of buttons, such as in a sidebar, the Overview offers the date range as a menu, as the other sections do.
+- A session's detail opens sooner in a long history.
+
 ## Version 1.0.0 (2026-10-14)
 
 The first stable version: checked against WCAG 2.2 AA in every theme, measured against its performance targets on real transcripts, tested with every surface on one history and with histories of every earlier version, and published only once every file is attached.

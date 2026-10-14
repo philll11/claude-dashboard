@@ -212,6 +212,254 @@ a:hover {
   min-width: 0;
 }
 
+/* VS Code's view in the panel or a sidebar, from the panel boards: the strip stays at the top and
+   the rest scrolls beneath it, under a scrollbar of its own. */
+
+.shell.view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Positioned, so that what is placed out of sight within it, such as headings for screen readers
+   only, stays within it rather than lengthening the page. */
+.view-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell.view .sections {
+  padding: 0 16px;
+}
+
+.shell.view .section-links {
+  gap: 0 2px;
+}
+
+.shell.view .section-links a {
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+.shell.view .history-line {
+  padding: 6px 0;
+}
+
+.shell.view .toast {
+  right: 12px;
+  bottom: 12px;
+  width: min(440px, calc(100vw - 24px));
+}
+
+.strip {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  line-height: 1.4;
+}
+
+.strip-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.strip-cell.window {
+  flex: 1 1 210px;
+}
+
+.strip-cell.session {
+  flex: 2 1 340px;
+  gap: 4px;
+}
+
+.strip-cell.setup {
+  flex: 2 1 428px;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Where the head has no room for the session's state, the state goes under its name. */
+.strip-cell.session .strip-head {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.strip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strip-project {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.strip-figures {
+  display: inline-flex;
+  flex: none;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.strip-at {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.strip-figure {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.strip-figure.stale {
+  color: var(--muted);
+}
+
+.strip .meter,
+.strip .meter-fill {
+  height: 6px;
+  border-radius: var(--ctl-radius-in);
+}
+
+.strip-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.strip-fact {
+  display: inline-flex;
+  align-items: center;
+}
+
+.strip-dot {
+  margin-left: 6px;
+}
+
+.caution-mark {
+  color: var(--warning-icon);
+}
+
+.strip-state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.running-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-good);
+}
+
+/* At least 24 pixels high to point at, with no more room taken. */
+.strip-title {
+  align-self: flex-start;
+  max-width: 100%;
+  margin: -3px 0;
+  padding: 3px 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strip-title:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.strip-cost {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.strip-detail,
+.strip-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.strip-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.strip-setup-text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.strip-setup-title {
+  font-weight: 600;
+}
+
+.strip-setup-detail {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.strip .button.primary {
+  min-height: 28px;
+  padding: 0 12px;
+  font-weight: 400;
+}
+
+/* A low panel leaves less room around the strip, for what scrolls beneath it. */
+@media (max-height: 260px) {
+  .strip {
+    gap: 6px;
+    padding: 6px 12px;
+  }
+
+  .strip-cell {
+    gap: 4px;
+    padding: 6px 10px 7px;
+  }
+
+  .shell.view .sections {
+    padding: 0 12px;
+  }
+}
+
 .body {
   padding: var(--pad);
 }
@@ -250,6 +498,27 @@ a:hover {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+}
+
+/* A section's width decides its date range: a row of buttons, or a menu where the row would not
+   fit on one line, with room to spare for wider fonts. In em, so that it follows the size of the
+   text. */
+.section {
+  container-type: inline-size;
+}
+
+.range-menu {
+  display: none;
+}
+
+@container (width < 28em) {
+  .range-buttons {
+    display: none;
+  }
+
+  .range-menu {
+    display: block;
+  }
 }
 
 .subtitle {
@@ -355,6 +624,7 @@ a:hover {
   border-radius: var(--ctl-radius-in);
   background: transparent;
   color: var(--ink-2);
+  white-space: nowrap;
   cursor: pointer;
 }
 

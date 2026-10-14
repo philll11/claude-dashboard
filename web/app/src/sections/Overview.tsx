@@ -13,7 +13,7 @@ import type {
 
 import { StackedColumns } from "../charts/columns";
 import { Meter, ShareBar, Sparkline } from "../charts/small";
-import { useStatus } from "../context";
+import { useHost, useStatus } from "../context";
 import { useReadingProgress, useRequest } from "../data";
 import {
   addDays,
@@ -53,6 +53,7 @@ import { inOrder, LEVEL_TEXT, meterName, windowName } from "../windows";
 import { LevelIcon, Provenance } from "./provenance";
 
 export function Overview() {
+  const host = useHost();
   const days = useDays();
   const filters = useFilters();
   const overview = useRequest("overview", { days, filters });
@@ -76,7 +77,8 @@ export function Overview() {
       <Notices />
       {nothingYet ? null : (
         <>
-          <PlanLimits />
+          {/* In VS Code's view the strip above shows the plan limits. */}
+          {host.placement !== "view" && <PlanLimits />}
           <Tiles />
           <div className="row">
             <DailyCost overview={overview.data} />

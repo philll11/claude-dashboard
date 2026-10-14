@@ -503,3 +503,24 @@ fn one_process_at_a_time_holds_the_ingest_lock() {
     drop(lock);
     assert!(second.try_lock_ingest().unwrap().is_some());
 }
+
+#[test]
+fn a_session_is_found_by_claude_codes_id() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut history = History::open(&dir.path().join("history.sqlite")).unwrap();
+    let (first, second) = history
+        .write(|w| {
+            let project = w.project("C--code-app", None)?;
+            Ok((
+                w.session("session-1", project)?,
+                w.session("session-2", project)?,
+            ))
+        })
+        .unwrap();
+
+    for (session_id, key) in [("session-1", first), ("session-2", second)] {
+        let found = history.session(session_id).unwrap().unwrap();
+        assert_eq!((found.key, found.session_id.as_str()), (key, session_id));
+    }
+    assert!(history.session("session-3").unwrap().is_none());
+}

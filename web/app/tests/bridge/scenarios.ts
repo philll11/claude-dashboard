@@ -38,6 +38,25 @@ const otherRequests: NonNullable<Scenario["patch"]> = (method, result) => {
   return { ...page, rows: page.rows.map(gateway) };
 };
 
+/** The running session as though it used only a model the price table does not list. */
+const unpricedSession: NonNullable<Scenario["patch"]> = (method, result) => {
+  const unpriced = (row: Record<string, unknown>) => {
+    if (row.title !== "Review the runbook") return row;
+    const totals = row.totals as { requests: number; cost: Record<string, number> };
+    const cost = Object.fromEntries(Object.keys(totals.cost).map((key) => [key, 0]));
+    return {
+      ...row,
+      models: [{ id: "glm-4.6", name: "glm-4.6" }],
+      totals: { ...totals, cost, unpricedRequests: totals.requests },
+    };
+  };
+  if (result === null || typeof result !== "object") return result;
+  if (method === "session") return unpriced(result as Record<string, unknown>);
+  if (method !== "sessions") return result;
+  const page = result as { rows: Record<string, unknown>[] };
+  return { ...page, rows: page.rows.map(unpriced) };
+};
+
 export const SCENARIOS: Record<string, Scenario> = {
   /** Ten weeks of history, plan limits from the status line, the usage endpoint on. */
   default: {},
@@ -75,6 +94,8 @@ export const SCENARIOS: Record<string, Scenario> = {
   "other-requests": { patch: otherRequests },
   /** The daily check for a newer price table is on, and found one this morning. */
   "prices-refreshed": { patch: pricesRefreshed },
+  /** The running session used only a model the price table does not list. */
+  "unpriced-session": { patch: unpricedSession },
   /** A server of its own for the browser tests that save exports. */
   exports: {},
   /** New activity is being read. */

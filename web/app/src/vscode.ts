@@ -6,6 +6,7 @@ import type {
   Exported,
   FromExtension,
   Method,
+  OpenFolders,
   Params,
   Result,
   Show,
@@ -44,9 +45,14 @@ export function vscodeHost(): Host | undefined {
   const showing = new Set<(show: Show) => void>();
   // A section the extension asks for before the dashboard listens is shown once it does.
   let waitingShow: Show | undefined;
+  let folders: OpenFolders | undefined;
+  const folderListeners = new Set<() => void>();
   window.addEventListener("message", (event: MessageEvent<FromExtension>) => {
     const message = event.data;
-    if (message.type === "response") {
+    if (message.type === "folders") {
+      folders = { folders: message.folders, ignoreCase: message.ignoreCase };
+      for (const listener of folderListeners) listener();
+    } else if (message.type === "response") {
       const waiting = pending.get(message.id);
       pending.delete(message.id);
       if (message.error) {
@@ -97,6 +103,17 @@ export function vscodeHost(): Host | undefined {
   api.postMessage({ type: "ready" });
   return {
     surface: "vscode",
+    // The extension's page says where it is.
+    placement: document.body.dataset.placement === "view" ? "view" : "tab",
+    folders: {
+      current: () => folders,
+      subscribe: (listener) => {
+        folderListeners.add(listener);
+        return () => {
+          folderListeners.delete(listener);
+        };
+      },
+    },
     backend,
     memory: {
       read: () => api.getState(),

@@ -737,7 +737,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "claude-dashboard"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -767,7 +767,7 @@ dependencies = [
 
 [[package]]
 name = "claude-dashboard-core"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "criterion",
  "dirs 7.0.0",
@@ -787,7 +787,7 @@ dependencies = [
 
 [[package]]
 name = "claude-dashboard-desktop"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "auto-launch",
  "claude-dashboard-core",
@@ -811,7 +811,7 @@ dependencies = [
 
 [[package]]
 name = "claude-dashboard-server"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "claude-dashboard-core",
  "crossbeam-channel",

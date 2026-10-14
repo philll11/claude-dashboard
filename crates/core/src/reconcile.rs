@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::BuildHasher;
 
-use crate::history::{History, HistoryError, SessionKey};
+use crate::history::{History, HistoryError, SessionKey, StoredReportedCost};
 use crate::pricing::{self, PriceTable};
 use crate::report::ModelTotals;
 use crate::tokens::Tokens;
@@ -136,17 +136,37 @@ pub fn reported(
 ) -> Result<HashMap<SessionKey, HashMap<String, Reported>>, HistoryError> {
     let mut reported: HashMap<SessionKey, HashMap<String, Reported>> = HashMap::new();
     for cost in history.reported_costs()? {
-        let entry = reported
-            .entry(cost.session)
-            .or_default()
-            .entry(without_variant(&cost.model).to_owned())
-            .or_default();
-        entry.cost_usd += cost.cost_usd;
-        entry.output += cost.output;
-        entry.cache_read += cost.cache_read;
-        entry.cache_write += cost.cache_write;
+        add(reported.entry(cost.session).or_default(), &cost);
     }
     Ok(reported)
+}
+
+/// What Claude Code reports for one session, by model as the history's requests name it: empty
+/// when it reports nothing for the session.
+///
+/// # Errors
+///
+/// [`HistoryError`] when the history cannot be read.
+pub fn reported_for(
+    history: &History,
+    session: SessionKey,
+) -> Result<HashMap<String, Reported>, HistoryError> {
+    let mut reported = HashMap::new();
+    for cost in history.session_reported_costs(session)? {
+        add(&mut reported, &cost);
+    }
+    Ok(reported)
+}
+
+/// Adds one of Claude Code's figures to a session's, under the model's name without its variant.
+fn add(models: &mut HashMap<String, Reported>, cost: &StoredReportedCost) {
+    let entry = models
+        .entry(without_variant(&cost.model).to_owned())
+        .or_default();
+    entry.cost_usd += cost.cost_usd;
+    entry.output += cost.output;
+    entry.cache_read += cost.cache_read;
+    entry.cache_write += cost.cache_write;
 }
 
 /// How far a session's API-equivalent cost is from Claude Code's own figure for the same

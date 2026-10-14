@@ -4,7 +4,7 @@
 #![allow(dead_code, reason = "each test file uses a part of these")]
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
 use serde_json::{Value, json};
@@ -35,7 +35,12 @@ impl Fixture {
 
     /// The command, kept to this fixture's data root and history, in UTC and without colour.
     pub fn cli(&self, args: &[&str]) -> Command {
-        let mut command = Command::cargo_bin("claude-dashboard").unwrap();
+        self.cli_at(Path::new(env!("CARGO_BIN_EXE_claude-dashboard")), args)
+    }
+
+    /// The command as `cli` gives it, run from `program`.
+    pub fn cli_at(&self, program: &Path, args: &[&str]) -> Command {
+        let mut command = Command::new(program);
         command
             .args(args)
             .env("CLAUDE_CONFIG_DIR", self.root())

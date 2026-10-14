@@ -96,6 +96,17 @@ jobs:
             | "$bin" statusline | tee line.txt
           grep -q "5h 42%" line.txt
 
+          # From 1.1.0 the installers also put cld, the program's short name, beside it. Connecting
+          # Claude Code's status line through it writes claude-dashboard, as the full name does.
+          if printf '%s\n' 1.1.0 "${TAG#v}" | sort -V -C; then
+            "$home/bin/cld" --version | tee short.txt
+            grep -qx "claude-dashboard ${TAG#v}" short.txt
+            "$home/bin/cld" statusline connect --yes
+            grep -Eq '"command": ?"([^"]*/)?claude-dashboard(\.exe)? statusline"' "$CLAUDE_CONFIG_DIR/settings.json"
+            "$home/bin/cld" statusline connect --yes | tee again.txt
+            grep -q "already connected" again.txt
+          fi
+
           # The terminal UI of the build people install on Linux, the musl one, in a pseudo-terminal
           # that script gives it: it draws the Overview with the request's model, q ends it, and it
           # leaves the alternate screen. It writes only the cells that change, so the words of a

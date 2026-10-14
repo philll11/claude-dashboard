@@ -18,6 +18,7 @@ export const VSCODE_THEMES = {
     variables: {
       "--vscode-editor-background": "#1f1f1f",
       "--vscode-sideBar-background": "#181818",
+      "--vscode-panel-background": "#181818",
       "--vscode-panel-border": "#2b2b2b",
       "--vscode-widget-border": "#313131",
       "--vscode-widget-shadow": "rgba(0, 0, 0, 0.36)",
@@ -78,6 +79,7 @@ export const VSCODE_THEMES = {
     variables: {
       "--vscode-editor-background": "#ffffff",
       "--vscode-sideBar-background": "#f8f8f8",
+      "--vscode-panel-background": "#f8f8f8",
       "--vscode-panel-border": "#e5e5e5",
       "--vscode-widget-border": "#e5e5e5",
       "--vscode-widget-shadow": "rgba(0, 0, 0, 0.16)",
@@ -138,6 +140,7 @@ export const VSCODE_THEMES = {
     variables: {
       "--vscode-editor-background": "#000000",
       "--vscode-sideBar-background": "#000000",
+      "--vscode-panel-background": "#000000",
       "--vscode-panel-border": "#6fc3df",
       "--vscode-widget-border": "#6fc3df",
       "--vscode-foreground": "#ffffff",
@@ -194,6 +197,7 @@ export const VSCODE_THEMES = {
     variables: {
       "--vscode-editor-background": "#ffffff",
       "--vscode-sideBar-background": "#ffffff",
+      "--vscode-panel-background": "#ffffff",
       "--vscode-panel-border": "#0f4a85",
       "--vscode-widget-border": "#0f4a85",
       "--vscode-foreground": "#292929",
@@ -249,13 +253,16 @@ export const VSCODE_THEMES = {
 
 export type ThemeName = "desktop-dark" | "desktop-light" | keyof typeof VSCODE_THEMES;
 
-/** Shows the page in `theme`. Self-contained, so that a browser test can run it in the page. */
+/** Shows the page in `theme`, and as VS Code's editor tab or view when `placement` says, as the
+ * extension's page does. Self-contained, so that a browser test can run it in the page. */
 export function applyTheme({
   theme,
   vscode,
+  placement,
 }: {
   theme: string;
   vscode?: VsCodeTheme | undefined;
+  placement?: string | undefined;
 }): void {
   const apply = () => {
     const root = document.documentElement;
@@ -268,6 +275,11 @@ export function applyTheme({
       document.body.dataset.vscodeThemeName = vscode.name;
     } else if (theme === "desktop-light") {
       root.dataset.theme = "desktop-light";
+    }
+    if (placement) {
+      document.body.dataset.placement = placement;
+      // VS Code paints the panel behind the view, which shows through its page.
+      if (placement === "view") root.style.background = "var(--vscode-panel-background)";
     }
   };
   if (document.readyState === "loading") {

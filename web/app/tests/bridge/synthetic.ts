@@ -52,6 +52,9 @@ export interface Options {
   tooNewSchema?: boolean;
   /** Puts a claude-usage dashboard database, with July's requests, in the data folder. */
   claudeUsage?: boolean;
+  /** A real folder to stand for `/home/you`, which the projects' working folders are in, so that
+   * an editor can open one; the working folders are made in it. */
+  home?: string;
 }
 
 /** One plan limit reading, as the history keeps it. */
@@ -440,12 +443,18 @@ interface Reported {
   cacheWrite: number;
 }
 
+/** A project's working folder: as written, or in the real folder that stands for `/home/you`. */
+function workingFolder(cwd: string, options: Options): string {
+  return options.home ? join(options.home, ...cwd.split("/").slice(3)) : cwd;
+}
+
 /** Writes one session's transcripts, with the cost Claude Code reports for it once it ends. */
 function writeSession(root: string, session: Session, options: Options, next: () => number): void {
   const project = PROJECTS[session.project];
   if (!project) throw new Error(`no project ${session.project}`);
+  const cwd = workingFolder(project.cwd, options);
   const id = uuid(next);
-  const folder = join(root, "projects", transcriptFolder(project.cwd));
+  const folder = join(root, "projects", transcriptFolder(cwd));
   const startMs = at(session.day, session.start);
   const oneHourCache = next() < 0.5;
   const reported = new Map<string, Reported>();
@@ -493,7 +502,7 @@ function writeSession(root: string, session: Session, options: Options, next: ()
         sessionId: id,
         requestId: `req_${uuid(next).replaceAll("-", "")}`,
         timestamp: new Date(timestampMs).toISOString(),
-        cwd: project.cwd,
+        cwd,
         version: VERSION,
         entrypoint: session.entrypoint ?? "cli",
         ...credited,
@@ -762,6 +771,11 @@ function limitReadings(options: Options): Synthetic["readings"] {
 /** Writes the synthetic Claude Code data folder into `root`, which must be empty. */
 export function writeClaudeFolder(root: string, options: Options = {}): Synthetic {
   mkdirSync(join(root, "projects"), { recursive: true });
+  if (options.home) {
+    for (const project of Object.values(PROJECTS)) {
+      mkdirSync(workingFolder(project.cwd, options), { recursive: true });
+    }
+  }
   if (!options.noLimits) {
     writeFileSync(
       join(root, "settings.json"),

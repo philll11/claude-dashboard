@@ -46,6 +46,11 @@ github-custom-job-permissions = { "release-draft" = { contents = "write" }, "vsc
 # Release builds start from a clean target directory.
 cache-builds = false
 
+# The installers put the program's short name beside it: a symlink from the shell installer, a hardlink
+# from the PowerShell one. The archives hold the program under its full name only.
+[dist.bin-aliases]
+claude-dashboard = ["cld"]
+
 # The runners match the test matrix in .github/workflows/ci.yml.
 # Set every one explicitly: dist's defaults are older images.
 [dist.github-custom-runners]

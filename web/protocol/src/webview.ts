@@ -32,12 +32,22 @@ export type ToExtension =
   | { type: "export"; id: number; params: ExportParams }
   | { type: "cancelExport" };
 
+/** The folders VS Code has open on the machine the server runs on, each as VS Code names it and as
+ * the file system resolves it. */
+export interface OpenFolders {
+  folders: string[];
+  /** Whether that machine's file names ignore case, as on Windows and macOS. */
+  ignoreCase: boolean;
+}
+
 /** What the extension sends the webview. */
 export type FromExtension =
   | { type: "response"; id: number; result?: unknown; error?: { code: number; message: string } }
   | { type: "notification"; method: keyof Notifications; params: unknown }
   | { type: "picked"; id: number; path?: string }
   | { type: "show"; show: Show }
+  /** To the view in the panel or a sidebar: once it listens, and whenever the folders change. */
+  | ({ type: "folders" } & OpenFolders)
   /** How an export ended: `result` when it was saved, neither when the person chose no file. */
   | {
       type: "exported";
