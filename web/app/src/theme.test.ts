@@ -94,6 +94,17 @@ describe("the stylesheet holds the design tokens", () => {
       expect(highContrast.get(`--${name}`), name).toBe(value);
     }
   });
+
+  it("for VS Code's view in the panel or a sidebar", () => {
+    const view = properties('body[data-placement="view"]');
+    for (const [name, value] of Object.entries(tokens["vscode-view"])) {
+      expect(view.get(`--${name}`), name).toBe(value);
+    }
+    const highContrast = properties('body.vscode-high-contrast[data-placement="view"]');
+    for (const [name, value] of Object.entries(tokens["vscode-view-high-contrast"])) {
+      expect(highContrast.get(`--${name}`), name).toBe(value);
+    }
+  });
 });
 
 describe("the VS Code themes the browser tests use", () => {

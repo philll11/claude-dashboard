@@ -9,6 +9,7 @@ import { basename, dirname, join } from "node:path";
 
 import {
   ActivityBar,
+  BottomBarPanel,
   By,
   type CustomTreeSection,
   EditorView,
@@ -17,6 +18,7 @@ import {
   VSBrowser,
   WebDriver,
   WebView,
+  WebviewView,
   Workbench,
 } from "vscode-extension-tester";
 
@@ -55,16 +57,43 @@ async function summary(): Promise<CustomTreeSection> {
   return view.getContent().getSection(NAME);
 }
 
-/** The section the dashboard shows, by its link's name. */
+/** Shows the dashboard's view in the panel, as its command does, and runs `check` inside it. */
+async function inView<T>(check: () => Promise<T>): Promise<T> {
+  await new Workbench().executeCommand("Usage dashboard: Focus on Usage dashboard View");
+  const view = new WebviewView(new BottomBarPanel());
+  await view.switchToFrame(20_000);
+  try {
+    return await check();
+  } finally {
+    await view.switchBack();
+  }
+}
+
+/** The strip at the top of the view, once it shows the latest session. */
+async function stripText(): Promise<string> {
+  const strip = await driver.wait(
+    until.elementLocated(By.css('section[aria-label="Plan windows and the latest session"]')),
+    20_000,
+  );
+  await driver.wait(async () => (await strip.getText()).includes("Review the runbook"), 20_000);
+  return strip.getText();
+}
+
+/** The section the dashboard in the current frame shows, by its link's name. */
+async function currentSection(): Promise<string> {
+  const current = await driver.wait(
+    until.elementLocated(By.css('nav[aria-label="Dashboard sections"] [aria-current="page"]')),
+    20_000,
+  );
+  return current.getText();
+}
+
+/** The section the dashboard tab shows. */
 async function shownSection(): Promise<string> {
   const webview = new WebView();
   await webview.switchToFrame(20_000);
   try {
-    const current = await driver.wait(
-      until.elementLocated(By.css('nav[aria-label="Dashboard sections"] [aria-current="page"]')),
-      20_000,
-    );
-    return await current.getText();
+    return await currentSection();
   } finally {
     await webview.switchBack();
   }
@@ -144,6 +173,39 @@ describe(`${NAME}, installed from its package`, function () {
       await screenshot(theme.replace(/^Default /, "").replaceAll(" ", "-"));
     });
   }
+
+  for (const theme of THEMES) {
+    it(`shows the dashboard in the panel, under the strip, in ${theme}`, async () => {
+      await setSetting("workbench.colorTheme", theme);
+      const strip = await inView(stripText);
+      // The view tells the time by the computer's clock, which the server's fixed moment is not.
+      assert.match(strip, /Latest session in this project/);
+      assert.match(strip, /Five-hour window\s+42%/);
+      assert.match(strip, /Weekly, all models\s+71%/);
+      await driver.sleep(1_000);
+      await screenshot(`Panel-${theme.replace(/^Default /, "").replaceAll(" ", "-")}`);
+    });
+  }
+
+  it("keeps the view's section while hidden and after the window reloads", async () => {
+    await setSetting("workbench.colorTheme", THEMES[0]);
+    await inView(async () => {
+      const models = await driver.wait(
+        until.elementLocated(
+          By.xpath('//nav[@aria-label="Dashboard sections"]//a[normalize-space()="Models"]'),
+        ),
+        20_000,
+      );
+      await models.click();
+      await driver.wait(async () => (await currentSection()) === "Models", 20_000);
+    });
+    await new Workbench().executeCommand("View: Close Panel");
+    assert.equal(await inView(currentSection), "Models");
+    await new Workbench().executeCommand("Developer: Reload Window");
+    await VSBrowser.instance.waitForWorkbench();
+    assert.equal(await inView(currentSection), "Models");
+    await new Workbench().executeCommand("View: Close Panel");
+  });
 
   it("reopens the dashboard where it was after the window reloads", async () => {
     await setSetting("workbench.colorTheme", THEMES[0]);

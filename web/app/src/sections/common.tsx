@@ -84,18 +84,25 @@ const RANGE_MENU: Choice<Range>[] = RANGES.map((range) => ({
   label: RANGE_NAMES[range].long,
 }));
 
-/** The date range as a row of buttons. */
+/** The date range as a row of buttons, or as a menu where the section has no room for the row. */
 export function RangeButtons() {
   const { view, change } = useView();
   return (
-    <Segmented
-      label="Date range"
-      value={view.range}
-      choices={RANGE_CHOICES}
-      onChange={(range) => {
-        change({ range });
-      }}
-    />
+    <>
+      <div className="range-buttons">
+        <Segmented
+          label="Date range"
+          value={view.range}
+          choices={RANGE_CHOICES}
+          onChange={(range) => {
+            change({ range });
+          }}
+        />
+      </div>
+      <div className="range-menu">
+        <RangeMenu />
+      </div>
+    </>
   );
 }
 

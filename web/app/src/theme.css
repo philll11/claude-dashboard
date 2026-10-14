@@ -209,15 +209,37 @@ body.vscode-high-contrast-light {
   --fill-sonnet: repeating-linear-gradient(135deg, var(--series-sonnet) 0 3px, var(--page) 3px 5px);
 }
 
+/* The view in VS Code's panel or a sidebar. No theme variable says which of the two holds it, so
+   the page lets their own colour show, and the cards stand out from it by a touch of the text
+   colour. In high contrast the cards are the page, set apart by their lines. */
+body[data-placement="view"] {
+  --page: transparent;
+  --panel: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+  --pad: 12px 16px 16px;
+}
+
+body.vscode-high-contrast[data-placement="view"] {
+  --panel: transparent;
+}
+
+/* A frame's page shows what is behind it only while its root has the colour scheme of the frame,
+   which VS Code leaves as it comes. */
+html:has(> body[data-placement="view"]) {
+  color-scheme: normal;
+  background: transparent;
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* Without the padding VS Code gives a webview's body. */
 html,
 body {
   margin: 0;
+  padding: 0;
   background: var(--page);
   color: var(--ink);
   font-family: var(--font);

@@ -21,6 +21,7 @@ import { Projects } from "./sections/Projects";
 import { Sessions } from "./sections/Sessions";
 import { KeepRunningNotice } from "./sections/dialogs";
 import { Settings } from "./sections/Settings";
+import { Strip } from "./Strip";
 import {
   LimitsIcon,
   ModelsIcon,
@@ -30,6 +31,7 @@ import {
   SettingsIcon,
 } from "./ui/icons";
 import { Problem } from "./ui/panels";
+import { toTop, VIEW_SCROLL_ID } from "./ui/scroll";
 import { useNow } from "./ui/time";
 import {
   rememberedView,
@@ -63,13 +65,15 @@ export function App({ host }: { host: Host }) {
     [view],
   );
   useEffect(() => {
-    host.memory.write(view);
+    // Beside whatever else the dashboard keeps there, such as the strip's figures.
+    const state = host.memory.read();
+    host.memory.write({ ...(typeof state === "object" ? state : {}), ...view });
   }, [host, view]);
   useEffect(
     () =>
       host.onShow?.((show) => {
         setView((current) => shown(current, show));
-        window.scrollTo(0, 0);
+        toTop();
       }),
     [host],
   );
@@ -110,13 +114,15 @@ function Shell() {
   const { view, change } = useView();
   const status = useRequest("status", null);
   const Body = BODIES[view.section];
-  // On the desktop the sections are a sidebar; in VS Code's editor tab, a row above the section.
+  // On the desktop the sections are a sidebar; in VS Code, a row above the section, under the
+  // strip in the view.
   const desktop = host.surface === "desktop";
+  const inView = !desktop && host.placement === "view";
 
   const go = (section: Section) => (event: MouseEvent) => {
     event.preventDefault();
     change({ section, session: section === view.section ? null : view.session });
-    window.scrollTo(0, 0);
+    toTop();
   };
 
   const links = (
@@ -138,45 +144,66 @@ function Shell() {
     </div>
   );
 
+  const nav = (
+    <nav aria-label="Dashboard sections" className="sections">
+      {desktop ? (
+        <div className="sidebar">
+          <div className="brand">
+            <span className="brand-name">Dashboard</span>
+            <span className="brand-for">for Claude Code</span>
+          </div>
+          {links}
+          <div className="sidebar-foot">
+            {status.data && <HistoryLine status={status.data} stacked />}
+            {host.updates && <UpdateLine updates={host.updates} />}
+          </div>
+        </div>
+      ) : (
+        <>
+          {links}
+          {status.data && <HistoryLine status={status.data} />}
+        </>
+      )}
+    </nav>
+  );
+  const main = (
+    <main className="body">
+      {status.data ? (
+        <StatusContext.Provider value={status.data}>
+          <Body />
+        </StatusContext.Provider>
+      ) : status.error && errorCode(status.error) === HISTORY_TOO_NEW ? (
+        <Problem
+          title="Your history needs a newer claude-dashboard"
+          detail="A newer version has changed it in a way this one cannot read. Install the newest release to see it again."
+        />
+      ) : status.error ? (
+        <Problem
+          title="The dashboard cannot reach claude-dashboard"
+          detail={status.error.message}
+        />
+      ) : null}
+    </main>
+  );
+
+  // In the view the strip stays put and the rest scrolls beneath it, under a scrollbar of its own,
+  // so that nothing focused below can hide under the strip.
+  if (inView) {
+    return (
+      <div className="shell view">
+        <Strip />
+        <div className="view-scroll" id={VIEW_SCROLL_ID}>
+          {nav}
+          {main}
+        </div>
+        <ExportNotice />
+      </div>
+    );
+  }
   return (
     <div className={desktop ? "shell desktop" : "shell"}>
-      <nav aria-label="Dashboard sections" className="sections">
-        {desktop ? (
-          <div className="sidebar">
-            <div className="brand">
-              <span className="brand-name">Dashboard</span>
-              <span className="brand-for">for Claude Code</span>
-            </div>
-            {links}
-            <div className="sidebar-foot">
-              {status.data && <HistoryLine status={status.data} stacked />}
-              {host.updates && <UpdateLine updates={host.updates} />}
-            </div>
-          </div>
-        ) : (
-          <>
-            {links}
-            {status.data && <HistoryLine status={status.data} />}
-          </>
-        )}
-      </nav>
-      <main className="body">
-        {status.data ? (
-          <StatusContext.Provider value={status.data}>
-            <Body />
-          </StatusContext.Provider>
-        ) : status.error && errorCode(status.error) === HISTORY_TOO_NEW ? (
-          <Problem
-            title="Your history needs a newer claude-dashboard"
-            detail="A newer version has changed it in a way this one cannot read. Install the newest release to see it again."
-          />
-        ) : status.error ? (
-          <Problem
-            title="The dashboard cannot reach claude-dashboard"
-            detail={status.error.message}
-          />
-        ) : null}
-      </main>
+      {nav}
+      {main}
       <ExportNotice />
       {host.desktop && <KeepRunningNotice desktop={host.desktop} />}
     </div>

@@ -45,7 +45,7 @@ claude-dashboard adds months of history, comparisons across projects, sessions a
 
 ### Sections
 
-The desktop app and the VS Code dashboard tab share these sections; the terminal UI mirrors them.
+The desktop app and VS Code's dashboard, in its view and its tab, share these sections; the terminal UI mirrors them.
 
 | Section | Answers | Content |
 |---|---|---|
@@ -62,6 +62,7 @@ Every section filters by date range (today, 7 days, 30 days, this month, all tim
 
 - **Status bar item**: the five-hour window's use when a limit snapshot exists, otherwise today's API-equivalent cost; its tooltip gives the details and the age, and clicking it opens the dashboard tab.
 - **Sidebar tree**: Plan limits, Today, This week and Top projects; each item opens the matching section of the dashboard tab.
+- **Dashboard view**: the full dashboard in the panel beside the terminal, or in a sidebar where the person drags it, under a strip that keeps the five-hour and weekly windows and the latest session in the open project in sight whichever section is shown.
 - **Dashboard tab**: the full dashboard in an editor tab, restored after VS Code restarts.
 - **Walkthrough** for the first run: connect the status line, choose whether to enable the experimental usage endpoint, import history from the claude-usage dashboard, and check data roots.
 
@@ -72,7 +73,7 @@ Every section filters by date range (today, 7 days, 30 days, this month, all tim
 
 ### Terminal
 
-- `claude-dashboard` opens the terminal UI with the same sections, driven entirely by the keyboard and usable at 80 by 24.
+- `claude-dashboard`, or `cld` where the installers put that short name beside it, opens the terminal UI with the same sections, driven entirely by the keyboard and usable at 80 by 24.
 - Reports: `today`, `daily`, `weekly`, `monthly`, `sessions`, `projects`, `models` and `limits`, each with `--json` and `--csv`.
 - `claude-dashboard statusline` prints a compact line for Claude Code's status bar, such as `5h 42% · week 18% · $3.20 today`.
 - `claude-dashboard doctor` explains what was found and what is wrong.

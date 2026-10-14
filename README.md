@@ -18,7 +18,7 @@ It runs inside VS Code, as a desktop app and in the terminal, on Windows, macOS 
 
 | Surface | What you get |
 |---|---|
-| VS Code | A status bar item, a sidebar summary and the full dashboard in an editor tab. Works over WSL and SSH. |
+| VS Code | A status bar item, a sidebar summary, and the full dashboard in the panel beside the terminal and in an editor tab. Works over WSL and SSH. |
 | Desktop | The full dashboard in its own window on Windows, macOS and Linux. |
 | Terminal | An interactive terminal UI, plus reports with `--json` and `--csv` output. |
 
@@ -31,7 +31,9 @@ To update, install the package from a newer release.
 
 - The status bar shows the five-hour window and when it resets, or today's API-equivalent cost before plan limits are recorded.
 - Its sidebar lists plan limits, today by model, this week and the week's top projects.
-- The dashboard opens in an editor tab, in your colour theme: Overview, Sessions, Projects, Models, Limits and Settings.
+- The **Usage dashboard** tab in the panel, beside the terminal, holds the whole dashboard under a strip that keeps the five-hour and weekly windows and the latest session in the project you have open in sight, whichever section you look at.
+  Drag it beside the terminal or into a sidebar, and it fits itself to the room.
+- The dashboard also opens in an editor tab, in your colour theme: Overview, Sessions, Projects, Models, Limits and Settings.
 - Its walkthrough records your plan limits, brings in claude-usage history and chooses data folders.
 
 In a window connected to WSL, over SSH or in a container, it runs on that machine and reads its Claude Code folder.
@@ -79,10 +81,11 @@ On Windows:
 powershell -ExecutionPolicy Bypass -c "irm https://github.com/philll11/claude-dashboard/releases/latest/download/claude-dashboard-installer.ps1 | iex"
 ```
 
+Both installers also put `cld` beside it: a short name for the same program, which takes every command and option, so `cld` opens the dashboard and `cld today` prints today's report.
 The binaries are not signed.
 Installed this way they carry no browser download mark, so Windows SmartScreen and macOS Gatekeeper do not warn about them; Windows Smart App Control, where it is on, blocks unsigned programs however they arrive.
 [Releases](https://github.com/philll11/claude-dashboard/releases) lists every version with its notes and checksums.
-To build from source instead, with Rust 1.99 or later:
+To build from source instead, with Rust 1.99 or later, which installs it as `claude-dashboard` alone:
 
 ```sh
 cargo install --locked --git https://github.com/philll11/claude-dashboard claude-dashboard
@@ -90,7 +93,7 @@ cargo install --locked --git https://github.com/philll11/claude-dashboard claude
 
 ### The dashboard in the terminal
 
-`claude-dashboard` on its own opens the dashboard in the terminal: Overview, Sessions with each session's detail, Projects, Models and Limits.
+`claude-dashboard` on its own, or `cld`, opens the dashboard in the terminal: Overview, Sessions with each session's detail, Projects, Models and Limits.
 It works from the keyboard alone, in a terminal of 80 by 24 or larger:
 
 | Keys | What they do |

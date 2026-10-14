@@ -1,5 +1,6 @@
-// The extension inside VS Code, through VS Code's API: it activates, registers what it contributes
-// and opens the dashboard in one editor tab. The end-to-end tests look at what it shows.
+// The extension inside VS Code, through VS Code's API: it activates, registers what it contributes,
+// opens the dashboard in one editor tab and shows it in its view in the panel. The end-to-end tests
+// look at what it shows.
 
 import * as assert from "node:assert/strict";
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -71,6 +72,7 @@ describe("Dashboard for Claude Code", () => {
     const commands = await vscode.commands.getCommands(true);
     for (const command of [
       "claudeDashboard.open",
+      "claudeDashboard.openInEditor",
       "claudeDashboard.show",
       "claudeDashboard.refresh",
       "claudeDashboard.connectLimits",
@@ -107,6 +109,33 @@ describe("Dashboard for Claude Code", () => {
     assert.equal(tabs[0]?.label, "Usage dashboard");
   });
 
+  it("contributes the dashboard as a view, in a panel container of its own", () => {
+    const manifest = vscode.extensions.getExtension(ID)?.packageJSON as {
+      contributes: {
+        viewsContainers: { panel: { id: string; title: string }[] };
+        views: Record<string, { id: string; type?: string; name: string }[]>;
+      };
+    };
+    const container = manifest.contributes.viewsContainers.panel[0];
+    assert.ok(container, "a container in the panel");
+    assert.equal(container.title, "Usage dashboard");
+    const views = manifest.contributes.views[container.id];
+    assert.deepEqual(
+      views?.map((view) => [view.id, view.type, view.name]),
+      [["claudeDashboard.view", "webview", "Usage dashboard"]],
+    );
+  });
+
+  it("shows the view in the panel without opening an editor tab", async () => {
+    await vscode.commands.executeCommand("claudeDashboard.view.focus");
+    await vscode.commands.executeCommand("claudeDashboard.openInEditor");
+    await until(() => dashboardTabs().length === 1, "The dashboard opening in the editor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    await vscode.commands.executeCommand("claudeDashboard.view.focus");
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    assert.equal(dashboardTabs().length, 0);
+  });
+
   it("opens the dashboard from a tree item", async () => {
     await vscode.commands.executeCommand("claudeDashboard.show", {
       section: "sessions",
@@ -121,6 +150,10 @@ describe("Dashboard for Claude Code", () => {
   });
 
   it("leaves reading to claude-dashboard, so the extension host stays idle", async () => {
+    // With the dashboard both in an editor tab and in the view, each told of every change.
+    await vscode.commands.executeCommand("claudeDashboard.open");
+    await until(() => dashboardTabs().length === 1, "The dashboard opening");
+    await vscode.commands.executeCommand("claudeDashboard.view.focus");
     const root = process.env.CLAUDE_CONFIG_DIR ?? "";
     const history = process.env.CLAUDE_DASHBOARD_HISTORY ?? "";
     assert.ok(root && history, "the tests name a Claude Code folder and a history");
@@ -141,9 +174,11 @@ describe("Dashboard for Claude Code", () => {
       const started = performance.now();
       await vscode.commands.executeCommand("claudeDashboard.refresh");
       await until(() => historyState(history) !== before, "claude-dashboard reading the copies");
-      // The read has finished once the history has stayed the same for two seconds.
+      // The read has finished once the history has stayed the same for two seconds. What the
+      // extension host used until the history last changed is what it used while the read went on.
       let state = historyState(history);
       let changed = performance.now();
+      let used = process.cpuUsage(cpu);
       while (performance.now() - changed < 2000) {
         assert.ok(performance.now() - started < 120_000, "claude-dashboard finished reading");
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -151,9 +186,9 @@ describe("Dashboard for Claude Code", () => {
         if (now !== state) {
           state = now;
           changed = performance.now();
+          used = process.cpuUsage(cpu);
         }
       }
-      const used = process.cpuUsage(cpu);
       const share = (used.user + used.system) / 1000 / (changed - started);
       console.log(
         `      The extension host used ${(share * 100).toFixed(1)}% of a processor while claude-dashboard read ${String(Math.round(bytes / 1024 / 1024))} MiB in ${String(Math.round(changed - started))} ms.`,

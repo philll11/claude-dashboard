@@ -19,6 +19,10 @@ _Avoid_: log, JSONL file, conversation file
 One Claude Code conversation, identified by its session id.
 _Avoid_: conversation, chat, thread
 
+**Running session**:
+A session still under way: it has made requests lately, and Claude Code has not yet recorded the cost it records as the session's process ends.
+_Avoid_: active session, live session, open session
+
 **Subagent**:
 A helper agent that a session starts; its requests belong to the session that started it.
 _Avoid_: sidechain, task, agent (on its own)

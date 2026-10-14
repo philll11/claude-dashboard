@@ -165,17 +165,26 @@ export function useStore(): Store {
   return store;
 }
 
-/** The server's answer to `method` with `params`, asked for while the component shows. */
-export function useRequest<M extends Method>(method: M, params: Params<M>): Answer<Result<M>> {
+/** The server's answer to `method` with `params`, asked for while the component shows and
+ * `wanted` holds; nothing while it does not. */
+export function useRequest<M extends Method>(
+  method: M,
+  params: Params<M>,
+  wanted = true,
+): Answer<Result<M>> {
   const store = useStore();
   const k = key(method, params);
   /* eslint-disable react-hooks/exhaustive-deps -- the key stands for the method and parameters,
      so that a new object with the same content is the same request */
   const subscribe = useCallback(
-    (listener: () => void) => store.subscribe(method, params, listener),
-    [store, k],
+    (listener: () => void) =>
+      wanted ? store.subscribe(method, params, listener) : () => undefined,
+    [store, k, wanted],
   );
-  const snapshot = useCallback(() => store.answer(method, params), [store, k]);
+  const snapshot = useCallback(
+    () => (wanted ? store.answer(method, params) : NOTHING),
+    [store, k, wanted],
+  );
   /* eslint-enable react-hooks/exhaustive-deps */
   return useSyncExternalStore(subscribe, snapshot) as Answer<Result<M>>;
 }

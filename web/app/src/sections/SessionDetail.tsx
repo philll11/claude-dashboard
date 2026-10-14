@@ -17,7 +17,8 @@ import { useNow } from "../ui/time";
 import { useView } from "../view";
 import { ExportMenu } from "../exports";
 import { cacheShare, costText, tokensOf, useSeries } from "./common";
-import { OwnFigure, RUNNING_MS, unpriced } from "./Sessions";
+import { isRunning } from "../sessions";
+import { OwnFigure, unpriced } from "./Sessions";
 
 /** How Claude Code was started, as the session's heading says it. */
 const ENTRYPOINTS: Record<string, string> = {
@@ -64,8 +65,7 @@ function Body({ detail }: { detail: Detail }) {
   const now = useNow(60_000);
   const subagents = new Set(detail.who.flatMap((row) => (row.subagent ? [row.subagent] : [])));
   const subagentRequests = detail.totals.requests - detail.own.requests;
-  const running =
-    (detail.drift === null || detail.drift === undefined) && now - detail.lastMs < RUNNING_MS;
+  const running = isRunning(detail, now);
   const unpricedModels = new Set(
     detail.who.filter((row) => unpriced(row.model)).map((row) => row.model.id),
   ).size;

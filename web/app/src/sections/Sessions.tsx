@@ -9,9 +9,11 @@ import { useStatus } from "../context";
 import { useRequest } from "../data";
 import { compact, dayAndTime, duration, grouped, money } from "../format";
 import { seriesFill } from "../models";
+import { isRunning } from "../sessions";
 import { SearchField } from "../ui/controls";
 import { Check, ChevronDown, Warning } from "../ui/icons";
 import { Pill, TableScroll } from "../ui/panels";
+import { toTop } from "../ui/scroll";
 import { useNow } from "../ui/time";
 import { useView } from "../view";
 import {
@@ -32,10 +34,6 @@ import { SessionDetail } from "./SessionDetail";
 
 /** Sessions on one page. */
 const PAGE = 12;
-
-/** How recently a session that Claude Code's own figure does not cover made a request, to count
- * as running. */
-export const RUNNING_MS = 15 * 60_000;
 
 /** How far the estimate may be from Claude Code's figure before prices may be out of date. */
 const DRIFT_LIMIT = 0.02;
@@ -182,11 +180,11 @@ function Row({ row }: { row: SessionRow }) {
   const { change } = useView();
   const now = useNow(60_000);
   const series = useSeries();
-  const running = (row.drift === null || row.drift === undefined) && now - row.lastMs < RUNNING_MS;
+  const running = isRunning(row, now);
   const open = (event: MouseEvent) => {
     event.preventDefault();
     change({ session: row.id });
-    window.scrollTo(0, 0);
+    toTop();
   };
   const priced = row.models.filter((model) => !unpriced(model));
   const unpricedCount = row.models.length - priced.length;

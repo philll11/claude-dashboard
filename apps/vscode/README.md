@@ -10,8 +10,11 @@ See how you use Claude Code: how close you are to your plan limits, what your us
   Its tooltip lists every window; selecting it opens the dashboard.
 - **A summary in the sidebar**: plan limits, today by model, this week, and this week's top projects.
   Each item opens the matching section of the dashboard.
+- **The dashboard in the panel**, in a **Usage dashboard** tab beside the terminal, for keeping your usage in sight while you work.
+  A strip at its top shows the five-hour and weekly windows and the latest session in the project you have open, whether it is running, and what it has used, whichever section is below.
+  Drag the tab beside the terminal or into a sidebar, and it fits itself to the room.
 - **The dashboard in an editor tab**: Overview, Sessions with each session's detail, Projects, Models, Limits and Settings.
-  It follows your colour theme, high contrast included, and reopens where you left it.
+  It follows your colour theme, high contrast included, and reopens where you left it, as the panel's does.
 - **A walkthrough** to record your plan limits, bring in older history and choose data folders.
 
 ## How it works

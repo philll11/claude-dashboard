@@ -10,10 +10,25 @@
     for (const listener of listeners.get(method) ?? []) listener(params);
   };
   let state = settings.state;
+  settings.memory = () => state;
   // How many requests are on their way, for a test to wait until the dashboard has settled.
   settings.pending = 0;
+  // The folders VS Code has open, for its view; a test changes them with `setFolders`.
+  const folderListeners = new Set();
+  settings.setFolders = (folders) => {
+    settings.folders = folders;
+    for (const listener of folderListeners) listener();
+  };
   window.claudeDashboardHost = {
     surface: settings.surface ?? "vscode",
+    placement: settings.placement ?? "tab",
+    folders: {
+      current: () => settings.folders,
+      subscribe(listener) {
+        folderListeners.add(listener);
+        return () => folderListeners.delete(listener);
+      },
+    },
     backend: {
       async request(method, params) {
         settings.pending += 1;
