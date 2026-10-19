@@ -42,9 +42,8 @@ jobs:
           - { name: Windows x64, os: windows-latest }
           - { name: Windows arm64, os: windows-11-arm }
           - { name: macOS arm64, os: macos-latest }
-          - { name: macOS x64, os: macos-15-intel }
     runs-on: ${{ matrix.os }}
-    steps:
+    steps: &test-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -64,6 +63,19 @@ jobs:
       # Runs each benchmark once, so that they keep working; timings come from a quiet machine.
       - run: cargo test --workspace --benches --locked
       - run: cargo run --locked -p claude-dashboard -- --version
+
+  # The Intel Macs' jobs are the slowest, and wait longest for one of the five macOS runners GitHub
+  # gives a personal account at once, so they run on main and not on pull requests. Their names are
+  # fixed, so that a pull request lists each as skipped by its name.
+  test-intel:
+    name: Test (macOS x64)
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - { name: macOS x64, os: macos-15-intel }
+    runs-on: ${{ matrix.os }}
+    steps: *test-steps
 
   dependencies:
     name: Dependencies
@@ -214,11 +226,6 @@ jobs:
             target: aarch64-apple-darwin
             bundles: app,dmg
             check: start
-          - name: macOS x64
-            os: macos-15-intel
-            target: x86_64-apple-darwin
-            bundles: app,dmg
-            check: start
           # The release builds Linux packages on Ubuntu 22.04 too, the oldest with WebKitGTK 4.1.
           - name: Linux x64
             os: ubuntu-22.04
@@ -234,13 +241,13 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
+    env: &desktop-env
       # On Linux the app needs a display, which xvfb-run gives it, and a D-Bus session bus, which
       # every desktop has and the app's single instance relies on.
       WITH_DISPLAY: ${{ startsWith(matrix.os, 'ubuntu') && 'xvfb-run -a dbus-run-session --' || '' }}
       # The program the tests read their synthetic Claude Code folder with.
       CLAUDE_DASHBOARD_BIN: ${{ github.workspace }}/target/${{ matrix.target }}/release/claude-dashboard${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
-    steps:
+    steps: &desktop-steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -289,3 +296,32 @@ jobs:
           path: apps/desktop/out/screenshots
           if-no-files-found: ignore
           retention-days: 7
+
+  desktop-intel:
+    name: Desktop (macOS x64)
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - name: macOS x64
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+            check: start
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env: *desktop-env
+    steps: *desktop-steps
+
+  # main's ruleset requires this job, not each job by name. It fails when any job failed or was
+  # cancelled, and passes over the ones a pull request skips.
+  passed:
+    name: CI passed
+    if: always()
+    needs: [format, test, test-intel, dependencies, server, web, extension, desktop, desktop-intel]
+    runs-on: ubuntu-24.04
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
