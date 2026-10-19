@@ -175,7 +175,9 @@ fn read_once(
         };
         total = shown.total;
         lock(shared).reading = Some(shown);
-        if reported.elapsed() >= PROGRESS_EVERY {
+        // Only the notification that ends the read has its progress complete, so that a client
+        // can take it as the end, by which time the status tells when the read finished.
+        if shown.done < shown.total && reported.elapsed() >= PROGRESS_EVERY {
             reported = Instant::now();
             notify(client, "ingest/progress", shown);
         }

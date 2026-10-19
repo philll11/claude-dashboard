@@ -18,6 +18,12 @@ version = 2
 yanked = "deny"
 ignore = [
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error, unmaintained, runs only at build time, for the GTK 3 bindings that Tauri 2 uses on Linux; nothing maintained replaces them in Tauri 2" },
+  { id = "RUSTSEC-2026-0367", reason = "zip before 9 keeps SUID and SGID bits when it extracts; zip comes through tauri-plugin-updater, whose newest release still needs zip 4, and the updater unzips only on Windows, only an update whose signature it has checked against the app's public key" },
+  { id = "RUSTSEC-2026-0368", reason = "zip before 9 creates symbolic links that point outside the folder it extracts to; zip comes through tauri-plugin-updater, whose newest release still needs zip 4, and the updater unzips only on Windows, only an update whose signature it has checked against the app's public key" },
+  { id = "RUSTSEC-2026-0369", reason = "zip before 9 applies Unix permissions through symbolic links when it extracts; zip comes through tauri-plugin-updater, whose newest release still needs zip 4, and the updater unzips only on Windows, only an update whose signature it has checked against the app's public key" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant, unmaintained as a crate of its own since zbus took it in; tauri-plugin-opener and tauri-plugin-single-instance use zbus 5 on Linux, and none of their releases moves past it" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names, unmaintained as a crate of its own since zbus took it in; tauri-plugin-opener and tauri-plugin-single-instance use zbus 5 on Linux, and none of their releases moves past it" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive, unmaintained as a crate of its own since zbus took it in; tauri-plugin-opener and tauri-plugin-single-instance use zbus 5 on Linux, and none of their releases moves past it" },
 ]
 
 [licenses]
