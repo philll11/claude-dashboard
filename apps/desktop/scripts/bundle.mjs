@@ -65,25 +65,47 @@ const built = join(repository, "target", target, "release", "bundle");
 rmSync(built, { recursive: true, force: true });
 
 const tauri = createRequire(import.meta.url).resolve("@tauri-apps/cli/tauri.js");
-execFileSync(
-  process.execPath,
-  [
-    tauri,
-    "build",
-    "--target",
-    target,
-    "--config",
-    "src-tauri/tauri.bundle.json",
-    "--config",
-    JSON.stringify(
-      values.updater
-        ? { bundle: { createUpdaterArtifacts: true } }
-        : { plugins: { updater: { endpoints: [] } } },
-    ),
-    ...(values.bundles ? ["--bundles", values.bundles] : []),
-  ],
-  { cwd: root, stdio: "inherit" },
-);
+const settings = [
+  "--target",
+  target,
+  "--config",
+  "src-tauri/tauri.bundle.json",
+  "--config",
+  JSON.stringify(
+    values.updater
+      ? { bundle: { createUpdaterArtifacts: true } }
+      : { plugins: { updater: { endpoints: [] } } },
+  ),
+];
+/** Runs Tauri's command line on the app. */
+function run(...args) {
+  execFileSync(process.execPath, [tauri, ...args, ...settings], { cwd: root, stdio: "inherit" });
+}
+
+// hdiutil sometimes cannot detach the disk image it has just made, as the system still has it open
+// ("Resource busy", actions/runner-images#7522), and Tauri's script stops trying after a few
+// seconds. So the dmg is made on its own once the rest is built, and made again when that fails,
+// with the script's output shown to say why.
+const DMG_ATTEMPTS = 3;
+const bundles = values.bundles?.split(",");
+if (bundles?.includes("dmg")) {
+  const others = bundles.filter((bundle) => bundle !== "dmg");
+  run("build", ...(others.length > 0 ? ["--bundles", others.join(",")] : ["--no-bundle"]));
+  for (let attempt = 1; ; attempt++) {
+    rmSync(join(built, "dmg"), { recursive: true, force: true });
+    try {
+      run("bundle", "--bundles", "dmg", "--verbose");
+      break;
+    } catch (error) {
+      if (attempt === DMG_ATTEMPTS) throw error;
+      console.log(
+        `Making the dmg failed, so it is made again: attempt ${attempt + 1} of ${DMG_ATTEMPTS}.`,
+      );
+    }
+  }
+} else {
+  run("build", ...(values.bundles ? ["--bundles", values.bundles] : []));
+}
 
 const version = /\[workspace\.package\][^[]*?version = "([^"]+)"/.exec(
   readFileSync(join(repository, "Cargo.toml"), "utf8"),

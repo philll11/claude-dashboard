@@ -2,6 +2,7 @@
 // folder and a history of their own, so that they never read or change the person's.
 // VSCODE_VERSION picks the VS Code to download, such as the oldest the extension supports, and
 // VSCODE_PATH runs one already installed instead; the latest stable release otherwise.
+// VSCODE_LOGS keeps VS Code's logs and crash reports in that folder.
 
 import { copyFileSync, mkdirSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -28,6 +29,12 @@ export default defineConfig({
     "--disable-workspace-trust",
     "--skip-welcome",
     "--skip-release-notes",
+    ...(process.env.VSCODE_LOGS
+      ? [
+          `--logsPath=${join(process.env.VSCODE_LOGS, "logs")}`,
+          `--crash-reporter-directory=${join(process.env.VSCODE_LOGS, "crashes")}`,
+        ]
+      : []),
   ],
   env: {
     CLAUDE_CONFIG_DIR: prepared.env.CLAUDE_CONFIG_DIR,

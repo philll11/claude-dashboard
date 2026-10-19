@@ -170,10 +170,19 @@ jobs:
         run: $WITH_DISPLAY pnpm --filter claude-dashboard test:integration
         env:
           VSCODE_VERSION: 1.126.0
+          VSCODE_LOGS: ${{ runner.temp }}/vscode-logs/oldest
       - name: Integration tests on the latest VS Code
         run: $WITH_DISPLAY pnpm --filter claude-dashboard test:integration
         env:
           VSCODE_VERSION: stable
+          VSCODE_LOGS: ${{ runner.temp }}/vscode-logs/latest
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vscode-logs-${{ matrix.target }}
+          path: ${{ runner.temp }}/vscode-logs
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Package for this platform
         run: >-
           node apps/vscode/scripts/package.mjs --target ${{ matrix.target }}
