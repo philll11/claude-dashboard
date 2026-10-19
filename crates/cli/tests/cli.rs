@@ -200,6 +200,46 @@ fn the_status_line_runs_your_own_after_recording() {
         .stdout(contains("five-hour 42%"));
 }
 
+#[test]
+fn the_status_line_starts_with_the_sessions_title() {
+    let fixture = Fixture::new();
+    fixture.transcript(
+        "s1",
+        &[request("1", "claude-opus-5-5", &today_at("00:00:01"))],
+    );
+    let mut input: Value = serde_json::from_str(&status_line_input(&fixture)).unwrap();
+
+    input["session_name"] = json!("Fix the\nimporter");
+    fixture
+        .cli(&["statusline"])
+        .write_stdin(input.to_string())
+        .assert()
+        .success()
+        .stdout("Fix the importer · Opus 5.5 · 5h 42% · week 71% ▲ · $0.03 today");
+
+    input["session_name"] = json!("Find out why the nightly import drops readings on Sundays");
+    fixture
+        .cli(&["statusline"])
+        .write_stdin(input.to_string())
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(
+            "Find out why the nightly import drops r… · Opus 5.5",
+        ));
+
+    // Bold in the terminal's own colour, which reads on a light background as on a dark one.
+    input["session_name"] = json!("Fix the importer");
+    fixture
+        .cli(&["statusline"])
+        .env_remove("NO_COLOR")
+        .write_stdin(input.to_string())
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(
+            "\u{1b}[1mFix the importer\u{1b}[0m ",
+        ));
+}
+
 fn program() -> String {
     let exe = PathBuf::from(env!("CARGO_BIN_EXE_claude-dashboard"));
     let path = fs::canonicalize(exe).unwrap().display().to_string();

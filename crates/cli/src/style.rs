@@ -217,6 +217,18 @@ impl Paint {
         self.paint(text, self.palette.strong, true)
     }
 
+    /// `text` in bold, in the colour the terminal would give it, so that it reads on any
+    /// background whatever the palette.
+    pub fn bold(self, text: &str) -> String {
+        if !self.colour {
+            return text.to_owned();
+        }
+        let style = Style::new().effects(Effects::BOLD);
+        let mut out = String::new();
+        let _ = write!(out, "{style}{text}{style:#}");
+        out
+    }
+
     fn colour_of(self, Rgb(r, g, b): Rgb) -> Color {
         if self.truecolor {
             Color::Rgb(RgbColor(r, g, b))
