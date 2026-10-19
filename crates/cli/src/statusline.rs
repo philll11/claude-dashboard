@@ -22,9 +22,14 @@ use serde_json::{Map, Value};
 
 use crate::prompt;
 use crate::style::Paint;
+use crate::tui::{clean, fit};
 
 /// The most status line JSON that is read.
 const MAX_INPUT: u64 = 1 << 20;
+
+/// The most cells a session's title takes, so that the plan windows and the cost after it stay in
+/// sight in a narrow terminal.
+const TITLE_CELLS: i32 = 40;
 
 pub fn run(app: &App, then: &[OsString]) -> ExitCode {
     let mut json = String::new();
@@ -63,10 +68,15 @@ fn record(app: &App, input: &StatusLineInput) -> Option<f64> {
     Some(models.iter().map(|model| model.totals.cost.total()).sum())
 }
 
-/// claude-dashboard's own status line: `Opus 5.5 · 5h 42% · week 71% ▲ · $5.05 today`.
+/// claude-dashboard's own status line:
+/// `Fix the importer · Opus 5.5 · 5h 42% · week 71% ▲ · $5.05 today`.
 fn our_line(app: &App, input: &StatusLineInput, today_usd: Option<f64>) -> String {
     let paint = Paint::for_claude_code();
     let mut parts = Vec::new();
+    // The title tells apart the sessions that run side by side, each with its own status line.
+    if let Some(title) = &input.title {
+        parts.push(paint.bold(&fit(&clean(title), TITLE_CELLS)));
+    }
     if let Some(id) = &input.model_id {
         parts.push(model_name(app, id));
     } else if let Some(name) = &input.model_name {
