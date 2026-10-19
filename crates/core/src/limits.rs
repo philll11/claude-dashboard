@@ -118,10 +118,12 @@ impl LimitSnapshot {
     }
 }
 
-/// What the history takes from the JSON that Claude Code passes to a status line command.
+/// What claude-dashboard takes from the JSON that Claude Code passes to a status line command.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StatusLineInput {
     pub session_id: Option<String>,
+    /// The session's title: the one the person gave it, or else the one Claude Code generated.
+    pub title: Option<String>,
     /// The session's transcript.
     pub transcript_path: Option<String>,
     pub model_id: Option<String>,
@@ -136,6 +138,8 @@ pub struct StatusLineInput {
 struct RawInput {
     #[serde(default)]
     session_id: Value,
+    #[serde(default)]
+    session_name: Value,
     #[serde(default)]
     transcript_path: Value,
     #[serde(default)]
@@ -167,6 +171,7 @@ impl StatusLineInput {
             .unwrap_or_default();
         Some(Self {
             session_id: text(&raw.session_id),
+            title: text(&raw.session_name).filter(|title| !title.trim().is_empty()),
             transcript_path: text(&raw.transcript_path),
             model_id: raw.model.get("id").and_then(text),
             model_name: raw.model.get("display_name").and_then(text),
@@ -371,7 +376,8 @@ mod tests {
     #[test]
     fn reads_the_plan_windows_claude_code_passes_to_a_status_line() {
         let input = StatusLineInput::parse(
-            r#"{"session_id": "s1", "transcript_path": "/t/s1.jsonl",
+            r#"{"session_id": "s1", "session_name": "Fix the importer",
+                "transcript_path": "/t/s1.jsonl",
                 "model": {"id": "claude-opus-5-5", "display_name": "Opus"},
                 "cost": {"total_cost_usd": 0.01},
                 "rate_limits": {
@@ -384,6 +390,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(input.session_id.as_deref(), Some("s1"));
+        assert_eq!(input.title.as_deref(), Some("Fix the importer"));
         assert_eq!(input.model_id.as_deref(), Some("claude-opus-5-5"));
         assert_eq!(input.model_name.as_deref(), Some("Opus"));
         let snapshots = input.snapshots(1_738_420_000_000);
@@ -399,6 +406,14 @@ mod tests {
                 ("spend_limit", 62.8, Some(1_740_787_200_000)),
             ]
         );
+    }
+
+    #[test]
+    fn a_blank_session_name_is_no_title() {
+        for name in [r#""""#, r#""  ""#, "7"] {
+            let input = StatusLineInput::parse(&format!(r#"{{"session_name": {name}}}"#)).unwrap();
+            assert_eq!(input.title, None, "{name}");
+        }
     }
 
     #[test]

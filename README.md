@@ -158,6 +158,7 @@ A newer table is used only when it keeps every price this version has, adding on
 
 Claude Code passes your plan limits to its status line command while it runs in a terminal.
 `claude-dashboard statusline connect` makes claude-dashboard that command, after showing you the change to Claude Code's `settings.json` and keeping a backup.
+Its line starts with the session's title, which tells apart sessions running side by side, then shows the model, how much of each plan window is used and today's API-equivalent cost: `Fix the importer · Opus 5.5 · 5h 42% · week 71% · $5.05 today`.
 If you already have a status line, claude-dashboard records the plan limits and then shows yours.
 `claude-dashboard statusline disconnect` puts back the status line you had before.
 

@@ -16,6 +16,8 @@ mod view;
 #[cfg(test)]
 mod tests;
 
+pub use canvas::{clean, fit};
+
 use std::io::IsTerminal;
 use std::ops::ControlFlow;
 use std::path::PathBuf;
