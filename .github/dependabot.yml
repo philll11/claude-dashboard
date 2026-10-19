@@ -1,23 +1,25 @@
 version: 2
+
+# One weekly pull request for every ecosystem: main takes a pull request only once it is up to date,
+# so each one more would wait for another rebase and another run of CI.
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: weekly
+
 updates:
   - package-ecosystem: cargo
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      cargo:
-        patterns: ["*"]
+    multi-ecosystem-group: dependencies
+    patterns: ["*"]
 
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: weekly
+    multi-ecosystem-group: dependencies
+    patterns: ["*"]
     # pnpm-workspace.yaml holds back versions newer than two weeks; Dependabot waits as long.
     cooldown:
       default-days: 14
-    groups:
-      npm:
-        patterns: ["*"]
     ignore:
       # typescript-eslint supports TypeScript below 6.1; raise this once it supports more.
       - dependency-name: typescript
@@ -31,11 +33,8 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-    groups:
-      github-actions:
-        patterns: ["*"]
+    multi-ecosystem-group: dependencies
+    patterns: ["*"]
     # dist generates release.yml and pins these actions in dist-workspace.toml; update them there with `dist generate`.
     ignore:
       - dependency-name: actions/checkout
