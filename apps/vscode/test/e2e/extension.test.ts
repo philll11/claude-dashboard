@@ -27,6 +27,8 @@ const SCREENSHOTS = process.env.E2E_SCREENSHOTS ?? "";
 const PROGRAM = process.env.E2E_PROGRAM ?? "";
 const EXPORTS = process.env.CLAUDE_DASHBOARD_EXPORT_TO ?? "";
 const NAME = "Dashboard for Claude Code";
+/** The dashboard tab's title. */
+const DASHBOARD = "Usage dashboard";
 const THEMES = ["Default Dark Modern", "Default Light Modern", "Default High Contrast"];
 
 let driver: WebDriver;
@@ -88,8 +90,14 @@ async function currentSection(): Promise<string> {
   return current.getText();
 }
 
-/** The section the dashboard tab shows. */
+/** The section the dashboard tab shows, once that tab is in front. */
 async function shownSection(): Promise<string> {
+  // A WebView holds the editor in front as it is made. Made before the dashboard's tab comes to
+  // the front, it holds the editor that goes away and never finds the dashboard's frame.
+  await driver.wait(async () => {
+    const tab = await new EditorView().getActiveTab().catch(() => undefined);
+    return (await tab?.getTitle()) === DASHBOARD;
+  }, 20_000);
   const webview = new WebView();
   await webview.switchToFrame(20_000);
   try {

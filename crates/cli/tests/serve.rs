@@ -150,6 +150,14 @@ impl Server {
     fn changed(&self) -> Value {
         self.wait_for(|message| message["method"] == "history/changed")
     }
+
+    /// Waits until a read has ended, by which time the status says when it finished.
+    fn read_ended(&self) -> Value {
+        self.wait_for(|message| {
+            message["method"] == "ingest/progress"
+                && message["params"]["done"] == message["params"]["total"]
+        })
+    }
 }
 
 impl Drop for Server {
@@ -218,7 +226,8 @@ fn today_at(time: &str) -> String {
 #[test]
 fn answers_with_the_history_it_reads() {
     let mut server = Server::start();
-    server.changed();
+    // The history changes as the read goes, before it ends and records when it read.
+    server.read_ended();
 
     let status = server.result("status", &Value::Null);
     assert_eq!(status["today"], today());
@@ -296,10 +305,7 @@ fn says_when_a_read_ends_even_with_nothing_new() {
     // The read may end before the answer to the request arrives, so the test waits for the end of
     // the read alone.
     server.ask("refresh", &Value::Null);
-    let ended = server.wait_for(|message| {
-        message["method"] == "ingest/progress"
-            && message["params"]["done"] == message["params"]["total"]
-    });
+    let ended = server.read_ended();
 
     assert_eq!(ended["params"]["total"], 1);
     assert_eq!(
@@ -702,10 +708,7 @@ fn a_client_that_goes_away_during_a_read_stops_it_and_the_next_read_carries_on()
 
     let dir = std::mem::replace(&mut server.dir, tempfile::tempdir().unwrap());
     let mut next = Server::start_with(dir, server.root.clone(), server.history.clone());
-    next.wait_for(|message| {
-        message["method"] == "ingest/progress"
-            && message["params"]["done"] == message["params"]["total"]
-    });
+    next.read_ended();
     assert_eq!(
         next.result("status", &Value::Null)["todayTotals"]["requests"],
         MANY * EACH
